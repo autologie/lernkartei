@@ -203,8 +203,11 @@ view model =
                , h1
                     [ classNames
                         [ "text-center"
-                        , "py-8"
+                        , "py-2"
+                        , "lg:py-8"
                         , "text-grey-dark"
+                        , "text-sm"
+                        , "lg:text-lg"
                         ]
                     ]
                     [ text "Wortkarten" ]
