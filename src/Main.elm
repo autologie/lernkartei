@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Browser
 import Html exposing (Html, button, div, text, input, label, span, h1, ul, li)
@@ -7,6 +7,9 @@ import Html.Attributes exposing (..)
 import Http
 import Random
 import Array exposing (Array)
+
+
+port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
 
 
 main : Program ( String, Int ) Model Msg
@@ -20,7 +23,7 @@ main =
                     , expect = Http.expectString ReceiveDict
                     }
                 )
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = \_ -> Sub.batch [ textDisposition TextDispositionChange ]
         , update = update
         , view = \model -> { title = "Wortkarten", body = [ view model ] }
         }
@@ -40,6 +43,7 @@ type alias Model =
     , showing : Maybe ( Bool, Entry )
     , seed : Random.Seed
     , direction : Direction
+    , textDisposition : Maybe ( Int, Int, Float )
     }
 
 
@@ -48,6 +52,7 @@ initialModel randomSeed =
     , showing = Nothing
     , seed = Random.initialSeed randomSeed
     , direction = DeToJa
+    , textDisposition = Nothing
     }
 
 
@@ -56,6 +61,7 @@ type Msg
     | Translate
     | ReceiveDict (Result Http.Error String)
     | DirectionChange
+    | TextDispositionChange ( Int, Int, Float )
 
 
 update msg model =
@@ -73,6 +79,7 @@ update msg model =
                             |> Array.get index
                             |> Maybe.map (\entry -> ( False, entry ))
                     , seed = nextSeed
+                    , textDisposition = Nothing
                   }
                 , Cmd.none
                 )
@@ -91,6 +98,7 @@ update msg model =
                             (\( showTranslation, entry ) ->
                                 ( not showTranslation, entry )
                             )
+                , textDisposition = Nothing
               }
             , Cmd.none
             )
@@ -104,9 +112,13 @@ update msg model =
 
                         JaToDe ->
                             DeToJa
+                , textDisposition = Nothing
               }
             , Cmd.none
             )
+
+        TextDispositionChange value ->
+            ( { model | textDisposition = Just value }, Cmd.none )
 
 
 parseDict : String -> Array Entry
@@ -131,97 +143,116 @@ parseLine line =
 
 
 view model =
-    div
-        [ classNames
-            [ "bg-grey-lighter"
-            , "w-screen"
-            , "h-screen"
-            , "p-5"
-            , "flex-row"
-            , "flex"
-            , "justify-center"
-            , "items-center"
-            ]
-        ]
-        [ div
+    let
+        textToShow =
+            model.showing
+                |> Maybe.map
+                    (\( showTranslation, Entry de ja ) ->
+                        case ( showTranslation, model.direction ) of
+                            ( False, DeToJa ) ->
+                                de
+
+                            ( True, JaToDe ) ->
+                                de
+
+                            _ ->
+                                ja
+                    )
+                |> Maybe.withDefault ""
+    in
+        div
             [ classNames
-                [ "container"
-                , "max-w-md"
+                [ "bg-grey-lighter"
+                , "w-screen"
+                , "h-screen"
+                , "p-5"
+                , "flex-row"
+                , "flex"
+                , "text-center"
+                , "justify-center"
+                , "items-center"
                 ]
             ]
-            [ h1
+            [ div
                 [ classNames
-                    [ "text-center"
-                    , "pb-8"
-                    , "text-grey-dark"
+                    [ "container"
+                    , "max-w-md"
                     ]
                 ]
-                [ text "Wortkarten" ]
-            , ul
-                [ classNames
-                    [ "py-4"
-                    , "list-reset"
-                    , "flex"
-                    ]
-                ]
-                [ li [ classNames [ "flex-1", "mr-2" ] ]
-                    [ button
-                        [ onClick DirectionChange
-                        , classNames (btnClasses (model.direction == DeToJa) ++ [ "p-3" ])
+                [ h1
+                    [ classNames
+                        [ "text-center"
+                        , "pb-8"
+                        , "text-grey-dark"
                         ]
-                        [ text "De → Ja" ]
                     ]
-                , li [ classNames [ "flex-1" ] ]
-                    [ button
-                        [ onClick DirectionChange
-                        , classNames (btnClasses (model.direction == JaToDe) ++ [ "p-3" ])
+                    [ text "Wortkarten" ]
+                , ul
+                    [ classNames
+                        [ "py-4"
+                        , "list-reset"
+                        , "flex"
                         ]
-                        [ text "Ja → De" ]
                     ]
-                ]
-            , div
-                [ classNames
-                    [ "select-none"
-                    , "rounded"
-                    , "bg-white"
-                    , "px5"
-                    , "py-20"
-                    , "shadow-lg"
-                    , "text-center"
-                    , fontSizeClass model.showing
+                    [ li [ classNames [ "flex-1", "mr-2" ] ]
+                        [ button
+                            [ onClick DirectionChange
+                            , classNames (btnClasses (model.direction == DeToJa) ++ [ "p-3" ])
+                            ]
+                            [ text "De → Ja" ]
+                        ]
+                    , li [ classNames [ "flex-1" ] ]
+                        [ button
+                            [ onClick DirectionChange
+                            , classNames (btnClasses (model.direction == JaToDe) ++ [ "p-3" ])
+                            ]
+                            [ text "Ja → De" ]
+                        ]
                     ]
-                , onClick Translate
-                ]
-                [ text
-                    (model.showing
-                        |> Maybe.map
-                            (\( showTranslation, Entry de ja ) ->
-                                case ( showTranslation, model.direction ) of
-                                    ( False, DeToJa ) ->
-                                        de
+                , div
+                    [ classNames
+                        [ "select-none"
+                        , "rounded"
+                        , "bg-white"
+                        , "h-64"
+                        , "shadow-lg"
+                        , "text-grey-darkest"
+                        , "relative"
+                        ]
+                    , onClick Translate
+                    ]
+                    [ div
+                        ([ id "text", attribute "data-text" textToShow ]
+                            ++ (case model.textDisposition of
+                                    Just ( x, y, scale ) ->
+                                        [ classNames
+                                            [ "absolute"
+                                            , "inline-block"
+                                            ]
+                                        , style "transform" ("scale(" ++ (String.fromFloat scale) ++ ")")
+                                        , style "left" (String.fromInt x)
+                                        , style "top" (String.fromInt y)
+                                        ]
 
-                                    ( True, JaToDe ) ->
-                                        de
-
-                                    _ ->
-                                        ja
-                            )
-                        |> Maybe.withDefault ""
-                    )
+                                    Nothing ->
+                                        [ classNames [ "inline-block text-transparent" ] ]
+                               )
+                        )
+                        [ text textToShow ]
+                    ]
+                , button
+                    [ classNames
+                        ((btnClasses True)
+                            ++ [ "my-5"
+                               , "p-4"
+                               , "text-lg"
+                               ]
+                        )
+                    , onClick NextWord
+                    ]
+                    [ text "Nächst" ]
                 ]
-            , button
-                [ classNames
-                    ((btnClasses True)
-                        ++ [ "my-5"
-                           , "p-4"
-                           , "text-lg"
-                           ]
-                    )
-                , onClick NextWord
-                ]
-                [ text "Nächst" ]
             ]
-        ]
 
 
 btnClasses selected =
@@ -242,32 +273,3 @@ classNames names =
     names
         |> List.map (\className -> ( className, True ))
         |> classList
-
-
-fontSizeClass showing =
-    showing
-        |> Maybe.map
-            (\( showTranslation, Entry de ja ) ->
-                if showTranslation then
-                    "text-2xl"
-                else
-                    "text-2xl"
-             {-
-                let
-                    length =
-                        (if showTranslation then
-                            ja
-                         else
-                            de
-                        )
-                            |> String.length
-                in
-                    if length > 7 then
-                        "text-lg"
-                    else if length > 5 then
-                        "text-2xl"
-                    else
-                        "text-3xl"
-             -}
-            )
-        |> Maybe.withDefault ""
