@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, text, input, label, span)
+import Html exposing (Html, button, div, text, input, label, span, h1, ul, li)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (..)
 import Http
@@ -149,30 +149,40 @@ view model =
                 , "max-w-md"
                 ]
             ]
-            [ div [ classNames [ "py-3" ] ]
-                [ span [] [ text "Question Type: " ]
-                , label []
-                    [ input
-                        [ type_ "radio"
-                        , onClick DirectionChange
-                        , checked (model.direction == DeToJa)
-                        ]
-                        []
-                    , span [] [ text "De → Ja" ]
+            [ h1
+                [ classNames
+                    [ "text-center"
+                    , "pb-8"
+                    , "text-grey-dark"
                     ]
-                , label []
-                    [ input
-                        [ type_ "radio"
-                        , onClick DirectionChange
-                        , checked (model.direction == JaToDe)
+                ]
+                [ text "Wortkarten" ]
+            , ul
+                [ classNames
+                    [ "py-4"
+                    , "list-reset"
+                    , "flex"
+                    ]
+                ]
+                [ li [ classNames [ "flex-1", "mr-2" ] ]
+                    [ button
+                        [ onClick DirectionChange
+                        , classNames (btnClasses (model.direction == DeToJa) ++ [ "p-3" ])
                         ]
-                        []
-                    , span [] [ text "Ja → De" ]
+                        [ text "De → Ja" ]
+                    ]
+                , li [ classNames [ "flex-1" ] ]
+                    [ button
+                        [ onClick DirectionChange
+                        , classNames (btnClasses (model.direction == JaToDe) ++ [ "p-3" ])
+                        ]
+                        [ text "Ja → De" ]
                     ]
                 ]
             , div
                 [ classNames
                     [ "select-none"
+                    , "rounded"
                     , "bg-white"
                     , "px5"
                     , "py-20"
@@ -201,20 +211,31 @@ view model =
                 ]
             , button
                 [ classNames
-                    [ "my-5"
-                    , "p-4"
-                    , "bg-blue"
-                    , "text-white"
-                    , "shadow-lg"
-                    , "w-full"
-                    , "btn"
-                    , "text-lg"
-                    ]
+                    ((btnClasses True)
+                        ++ [ "my-5"
+                           , "p-4"
+                           , "text-lg"
+                           ]
+                    )
                 , onClick NextWord
                 ]
                 [ text "Nächst" ]
             ]
         ]
+
+
+btnClasses selected =
+    let
+        common =
+            [ "rounded", "w-full" ]
+
+        conditional =
+            if selected then
+                [ "bg-blue", "text-white", "shadow" ]
+            else
+                [ "text-blue" ]
+    in
+        common ++ conditional
 
 
 classNames names =

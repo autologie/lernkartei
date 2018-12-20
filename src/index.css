@@ -60,11 +60,3 @@
  * @import "utilities/background-patterns";
  * @import "utilities/skew-transforms";
  */
-
-.btn:hover {
-  @apply bg-blue-dark;
-}
-
-.btn:focus {
-  @apply outline-none;
-}
