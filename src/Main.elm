@@ -237,8 +237,12 @@ searchResultView model searchText =
 
 
 isMatchedTo searchText (Entry de ja) =
-    String.contains searchText de
-        || String.contains searchText ja
+    let
+        lowerSearchText =
+            String.toLower searchText
+    in
+        String.contains lowerSearchText de
+            || String.contains lowerSearchText ja
 
 
 searchResultRow searchText entry =
