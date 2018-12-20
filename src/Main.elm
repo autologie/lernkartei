@@ -46,6 +46,7 @@ type alias Model =
     , direction : Direction
     , textDisposition : Maybe ( Int, Int, Float )
     , searchText : Maybe String
+    , expandSearchResults : Bool
     }
 
 
@@ -56,6 +57,7 @@ initialModel randomSeed =
     , direction = DeToJa
     , textDisposition = Nothing
     , searchText = Nothing
+    , expandSearchResults = False
     }
 
 
@@ -67,6 +69,7 @@ type Msg
     | TextDispositionChange ( Int, Int, Float )
     | SearchInput String
     | ClickSearchResult Entry
+    | ToggleSearchResults
 
 
 update msg model =
@@ -145,6 +148,14 @@ update msg model =
             , Cmd.none
             )
 
+        ToggleSearchResults ->
+            ( { model
+                | expandSearchResults =
+                    not model.expandSearchResults
+              }
+            , Cmd.none
+            )
+
 
 parseDict : String -> Array Entry
 parseDict dict =
@@ -196,7 +207,7 @@ view model =
                     [ text "Wortkarten" ]
                )
              , ( "search"
-               , div []
+               , div [ classNames [ "relative" ] ]
                     [ input
                         [ type_ "text"
                         , onInput SearchInput
@@ -208,18 +219,19 @@ view model =
                             , "text-lg"
                             , "py-2"
                             ]
-                        , placeholder "Suchen"
+                        , placeholder "Filter"
                         , value (model.searchText |> Maybe.withDefault "")
                         ]
                         []
+                    , resultCountView model
                     ]
                )
              ]
-                ++ (case model.searchText of
-                        Just text ->
+                ++ (case ( model.expandSearchResults, model.searchText ) of
+                        ( True, Just text ) ->
                             [ ( "searchResult", searchResultView model text ) ]
 
-                        Nothing ->
+                        _ ->
                             []
                    )
                 ++ [ ( "card", cardView model ) ]
@@ -227,11 +239,54 @@ view model =
         ]
 
 
+resultCountView model =
+    let
+        resultCount =
+            model
+                |> searchResults
+                |> List.length
+
+        isClickable =
+            model.searchText
+                |> Maybe.map (\_ -> resultCount > 0)
+                |> Maybe.withDefault False
+
+        prefix =
+            if isClickable then
+                ""
+            else
+                "Alle "
+    in
+        button
+            [ classNames
+                ((btnClasses isClickable (not isClickable))
+                    ++ [ "text-sm"
+                       , "px-4 py-2"
+                       , "my-2"
+                       , "absolute"
+                       , "pin-r"
+                       ]
+                )
+            , onClick ToggleSearchResults
+            ]
+            [ text (prefix ++ (resultCount |> String.fromInt) ++ " Worten") ]
+
+
+searchResults model =
+    model.searchText
+        |> Maybe.map
+            (\searchText ->
+                model.dict
+                    |> Array.toList
+                    |> List.filter (isMatchedTo searchText)
+            )
+        |> Maybe.withDefault (model.dict |> Array.toList)
+
+
 searchResultView model searchText =
     ul [ classNames [ "list-reset", "py-3" ] ]
-        (model.dict
-            |> Array.toList
-            |> List.filter (isMatchedTo searchText)
+        (model
+            |> searchResults
             |> List.map (searchResultRow searchText)
         )
 
@@ -299,14 +354,14 @@ cardView model =
                 [ li [ classNames [ "flex-1", "mr-2" ] ]
                     [ button
                         [ onClick DirectionChange
-                        , classNames (btnClasses (model.direction == DeToJa) ++ [ "p-3" ])
+                        , classNames (btnClasses (model.direction == DeToJa) False ++ [ "p-3", "w-full" ])
                         ]
                         [ text "De → Ja" ]
                     ]
                 , li [ classNames [ "flex-1" ] ]
                     [ button
                         [ onClick DirectionChange
-                        , classNames (btnClasses (model.direction == JaToDe) ++ [ "p-3" ])
+                        , classNames (btnClasses (model.direction == JaToDe) False ++ [ "p-3", "w-full" ])
                         ]
                         [ text "Ja → De" ]
                     ]
@@ -344,10 +399,11 @@ cardView model =
                 ]
             , button
                 [ classNames
-                    ((btnClasses True)
+                    ((btnClasses True False)
                         ++ [ "my-5"
                            , "p-4"
                            , "text-lg"
+                           , "w-full"
                            ]
                     )
                 , onClick NextRandomWord
@@ -356,14 +412,16 @@ cardView model =
             ]
 
 
-btnClasses selected =
+btnClasses selected disabled =
     let
         common =
-            [ "rounded", "w-full" ]
+            [ "rounded" ]
 
         conditional =
             if selected then
                 [ "bg-blue", "text-white", "shadow" ]
+            else if disabled then
+                [ "text-grey", "cursor-default" ]
             else
                 [ "text-blue" ]
     in
