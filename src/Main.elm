@@ -9,12 +9,12 @@ import Random
 import Array exposing (Array)
 
 
-main : Program String Model Msg
+main : Program ( String, Int ) Model Msg
 main =
     Browser.element
         { init =
-            \dictUrl ->
-                ( initialModel
+            \( dictUrl, randomSeed ) ->
+                ( initialModel randomSeed
                 , Http.get
                     { url = dictUrl
                     , expect = Http.expectString ReceiveDict
@@ -43,10 +43,10 @@ type alias Model =
     }
 
 
-initialModel =
+initialModel randomSeed =
     { dict = Array.empty
     , showing = Nothing
-    , seed = Random.initialSeed 0
+    , seed = Random.initialSeed randomSeed
     , direction = DeToJa
     }
 
@@ -78,19 +78,7 @@ update msg model =
                 )
 
         ReceiveDict (Ok str) ->
-            let
-                dict =
-                    parseDict str
-            in
-                ( { model
-                    | dict = dict
-                    , showing =
-                        dict
-                            |> Array.get 0
-                            |> Maybe.map (\entry -> ( False, entry ))
-                  }
-                , Cmd.none
-                )
+            update NextWord { model | dict = parseDict str }
 
         ReceiveDict (Err message) ->
             ( model, Cmd.none )
