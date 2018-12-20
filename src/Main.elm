@@ -296,11 +296,18 @@ searchResultView model searchText =
 
 isMatchedTo searchText (Entry de ja) =
     let
+        ( test, search ) =
+            if String.startsWith "^" searchText then
+                ( String.startsWith, String.dropLeft 1 searchText )
+            else if String.endsWith "$" searchText then
+                ( String.endsWith, String.dropRight 1 searchText )
+            else
+                ( String.contains, searchText )
+
         lowerSearchText =
-            String.toLower searchText
+            String.toLower search
     in
-        String.contains lowerSearchText de
-            || String.contains lowerSearchText ja
+        test lowerSearchText de || test lowerSearchText ja
 
 
 searchResultRow searchText entry =
