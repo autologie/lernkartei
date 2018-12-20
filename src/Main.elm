@@ -76,14 +76,17 @@ update msg model =
     case msg of
         NextRandomWord ->
             let
+                entries =
+                    searchResults model
+
                 ( index, nextSeed ) =
                     Random.step
-                        (Random.int 0 ((Array.length model.dict) - 1))
+                        (Random.int 0 ((Array.length entries) - 1))
                         model.seed
             in
                 ( { model
                     | showing =
-                        model.dict
+                        entries
                             |> Array.get index
                             |> Maybe.map (\entry -> ( False, entry ))
                     , seed = nextSeed
@@ -244,7 +247,7 @@ resultCountView model =
         resultCount =
             model
                 |> searchResults
-                |> List.length
+                |> Array.length
 
         isClickable =
             model.searchText
@@ -277,17 +280,17 @@ searchResults model =
         |> Maybe.map
             (\searchText ->
                 model.dict
-                    |> Array.toList
-                    |> List.filter (isMatchedTo searchText)
+                    |> Array.filter (isMatchedTo searchText)
             )
-        |> Maybe.withDefault (model.dict |> Array.toList)
+        |> Maybe.withDefault model.dict
 
 
 searchResultView model searchText =
     ul [ classNames [ "list-reset", "py-3" ] ]
         (model
             |> searchResults
-            |> List.map (searchResultRow searchText)
+            |> Array.map (searchResultRow searchText)
+            |> Array.toList
         )
 
 
