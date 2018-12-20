@@ -11,7 +11,7 @@ import Array exposing (Array)
 
 main : Program ( String, Int ) Model Msg
 main =
-    Browser.element
+    Browser.document
         { init =
             \( dictUrl, randomSeed ) ->
                 ( initialModel randomSeed
@@ -22,7 +22,7 @@ main =
                 )
         , subscriptions = \_ -> Sub.none
         , update = update
-        , view = view
+        , view = \model -> { title = "Wortkarten", body = [ view model ] }
         }
 
 
