@@ -2,7 +2,8 @@ port module Main exposing (..)
 
 import Browser
 import Html exposing (Html, button, div, text, input, label, span, h1, ul, li)
-import Html.Events exposing (onClick)
+import Html.Keyed
+import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import Http
 import Random
@@ -44,6 +45,7 @@ type alias Model =
     , seed : Random.Seed
     , direction : Direction
     , textDisposition : Maybe ( Int, Int, Float )
+    , searchText : Maybe String
     }
 
 
@@ -53,20 +55,23 @@ initialModel randomSeed =
     , seed = Random.initialSeed randomSeed
     , direction = DeToJa
     , textDisposition = Nothing
+    , searchText = Nothing
     }
 
 
 type Msg
-    = NextWord
+    = NextRandomWord
     | Translate
     | ReceiveDict (Result Http.Error String)
     | DirectionChange
     | TextDispositionChange ( Int, Int, Float )
+    | SearchInput String
+    | ClickSearchResult Entry
 
 
 update msg model =
     case msg of
-        NextWord ->
+        NextRandomWord ->
             let
                 ( index, nextSeed ) =
                     Random.step
@@ -85,7 +90,7 @@ update msg model =
                 )
 
         ReceiveDict (Ok str) ->
-            update NextWord { model | dict = parseDict str }
+            update NextRandomWord { model | dict = parseDict str }
 
         ReceiveDict (Err message) ->
             ( model, Cmd.none )
@@ -120,6 +125,26 @@ update msg model =
         TextDispositionChange value ->
             ( { model | textDisposition = Just value }, Cmd.none )
 
+        SearchInput text ->
+            ( { model
+                | searchText =
+                    if text == "" then
+                        Nothing
+                    else
+                        Just text
+              }
+            , Cmd.none
+            )
+
+        ClickSearchResult entry ->
+            ( { model
+                | searchText = Nothing
+                , showing = Just ( False, entry )
+                , textDisposition = Nothing
+              }
+            , Cmd.none
+            )
+
 
 parseDict : String -> Array Entry
 parseDict dict =
@@ -143,6 +168,105 @@ parseLine line =
 
 
 view model =
+    div
+        [ classNames
+            [ "w-screen"
+            , "p-5"
+            , "flex-row"
+            , "flex"
+            , "text-center"
+            , "justify-center"
+            , "items-center"
+            ]
+        ]
+        [ Html.Keyed.node "div"
+            [ classNames
+                [ "container"
+                , "max-w-md"
+                ]
+            ]
+            ([ ( "header"
+               , h1
+                    [ classNames
+                        [ "text-center"
+                        , "py-8"
+                        , "text-grey-dark"
+                        ]
+                    ]
+                    [ text "Wortkarten" ]
+               )
+             , ( "search"
+               , div []
+                    [ input
+                        [ type_ "text"
+                        , onInput SearchInput
+                        , classNames
+                            [ "border-b"
+                            , "text-grey-darkest"
+                            , "bg-transparent"
+                            , "w-full"
+                            , "text-lg"
+                            , "py-2"
+                            ]
+                        , placeholder "Suchen"
+                        , value (model.searchText |> Maybe.withDefault "")
+                        ]
+                        []
+                    ]
+               )
+             ]
+                ++ (case model.searchText of
+                        Just text ->
+                            [ ( "searchResult", searchResultView model text ) ]
+
+                        Nothing ->
+                            []
+                   )
+                ++ [ ( "card", cardView model ) ]
+            )
+        ]
+
+
+searchResultView model searchText =
+    ul [ classNames [ "list-reset", "py-3" ] ]
+        (model.dict
+            |> Array.toList
+            |> List.filter (isMatchedTo searchText)
+            |> List.map (searchResultRow searchText)
+        )
+
+
+isMatchedTo searchText (Entry de ja) =
+    String.contains searchText de
+        || String.contains searchText ja
+
+
+searchResultRow searchText entry =
+    let
+        (Entry de ja) =
+            entry
+    in
+        li
+            [ classNames
+                [ "p-3"
+                , "text-left"
+                , "rounded"
+                , "cursor-pointer"
+                , "hover:bg-grey-lighter"
+                ]
+            , onClick (ClickSearchResult entry)
+            ]
+            [ div [ classNames [ "inline-block", "mr-2" ] ] (hilighted searchText de)
+            , div [ classNames [ "inline-block", "text-grey-dark" ] ] (hilighted searchText ja)
+            ]
+
+
+hilighted searchText str =
+    -- TODO
+    [ span [] [ text str ] ]
+
+
+cardView model =
     let
         textToShow =
             model.showing
@@ -160,98 +284,71 @@ view model =
                     )
                 |> Maybe.withDefault ""
     in
-        div
-            [ classNames
-                [ "bg-grey-lighter"
-                , "w-screen"
-                , "h-screen"
-                , "p-5"
-                , "flex-row"
-                , "flex"
-                , "text-center"
-                , "justify-center"
-                , "items-center"
-                ]
-            ]
-            [ div
+        div []
+            [ ul
                 [ classNames
-                    [ "container"
-                    , "max-w-md"
+                    [ "py-4"
+                    , "list-reset"
+                    , "flex"
                     ]
                 ]
-                [ h1
-                    [ classNames
-                        [ "text-center"
-                        , "pb-8"
-                        , "text-grey-dark"
+                [ li [ classNames [ "flex-1", "mr-2" ] ]
+                    [ button
+                        [ onClick DirectionChange
+                        , classNames (btnClasses (model.direction == DeToJa) ++ [ "p-3" ])
                         ]
+                        [ text "De → Ja" ]
                     ]
-                    [ text "Wortkarten" ]
-                , ul
-                    [ classNames
-                        [ "py-4"
-                        , "list-reset"
-                        , "flex"
+                , li [ classNames [ "flex-1" ] ]
+                    [ button
+                        [ onClick DirectionChange
+                        , classNames (btnClasses (model.direction == JaToDe) ++ [ "p-3" ])
                         ]
+                        [ text "Ja → De" ]
                     ]
-                    [ li [ classNames [ "flex-1", "mr-2" ] ]
-                        [ button
-                            [ onClick DirectionChange
-                            , classNames (btnClasses (model.direction == DeToJa) ++ [ "p-3" ])
-                            ]
-                            [ text "De → Ja" ]
-                        ]
-                    , li [ classNames [ "flex-1" ] ]
-                        [ button
-                            [ onClick DirectionChange
-                            , classNames (btnClasses (model.direction == JaToDe) ++ [ "p-3" ])
-                            ]
-                            [ text "Ja → De" ]
-                        ]
+                ]
+            , div
+                [ classNames
+                    [ "select-none"
+                    , "rounded"
+                    , "bg-white"
+                    , "h-64"
+                    , "shadow-lg"
+                    , "text-grey-darkest"
+                    , "relative"
                     ]
-                , div
-                    [ classNames
-                        [ "select-none"
-                        , "rounded"
-                        , "bg-white"
-                        , "h-64"
-                        , "shadow-lg"
-                        , "text-grey-darkest"
-                        , "relative"
-                        ]
-                    , onClick Translate
-                    ]
-                    [ div
-                        ([ id "text", attribute "data-text" textToShow ]
-                            ++ (case model.textDisposition of
-                                    Just ( x, y, scale ) ->
-                                        [ classNames
-                                            [ "absolute"
-                                            , "inline-block"
-                                            ]
-                                        , style "transform" ("scale(" ++ (String.fromFloat scale) ++ ")")
-                                        , style "left" (String.fromInt x)
-                                        , style "top" (String.fromInt y)
+                , onClick Translate
+                ]
+                [ div
+                    ([ id "text", attribute "data-text" textToShow ]
+                        ++ (case model.textDisposition of
+                                Just ( x, y, scale ) ->
+                                    [ classNames
+                                        [ "absolute"
+                                        , "inline-block"
                                         ]
+                                    , style "transform" ("scale(" ++ (String.fromFloat scale) ++ ")")
+                                    , style "left" (String.fromInt x)
+                                    , style "top" (String.fromInt y)
+                                    ]
 
-                                    Nothing ->
-                                        [ classNames [ "inline-block text-transparent" ] ]
-                               )
-                        )
-                        [ text textToShow ]
-                    ]
-                , button
-                    [ classNames
-                        ((btnClasses True)
-                            ++ [ "my-5"
-                               , "p-4"
-                               , "text-lg"
-                               ]
-                        )
-                    , onClick NextWord
-                    ]
-                    [ text "Nächst" ]
+                                Nothing ->
+                                    [ classNames [ "inline-block text-transparent" ] ]
+                           )
+                    )
+                    [ text textToShow ]
                 ]
+            , button
+                [ classNames
+                    ((btnClasses True)
+                        ++ [ "my-5"
+                           , "p-4"
+                           , "text-lg"
+                           ]
+                    )
+                , onClick NextRandomWord
+                ]
+                [ text "Nächst" ]
             ]
 
 
