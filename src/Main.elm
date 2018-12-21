@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, text, input, label, span, h1, ul, li)
+import Html exposing (Html, button, div, text, input, label, span, h1, ul, li, a)
 import Html.Keyed
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
@@ -409,6 +409,19 @@ cardView model =
                            )
                     )
                     [ text textToShow ]
+                , a
+                    [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ textToShow)
+                    , target "_blank"
+                    , classNames
+                        [ "absolute"
+                        , "pin-b"
+                        , "pin-r"
+                        , "m-2"
+                        , "text-blue"
+                        , "no-underline"
+                        ]
+                    ]
+                    [ text "Hören" ]
                 ]
             , button
                 [ classNames
