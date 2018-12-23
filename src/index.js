@@ -1,5 +1,5 @@
 import {Elm} from './Main.elm';
-import dictUrl from './dict.csv';
+import dictUrl from './dict.tsv';
 
 const app = Elm.Main.init({flags: [dictUrl, Date.now()]});
 

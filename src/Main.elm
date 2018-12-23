@@ -181,7 +181,7 @@ parseLine line =
     if line == "" || (line |> String.slice 0 1) == "#" then
         Nothing
     else
-        case line |> String.split "," of
+        case line |> String.split "\t" of
             [ de, ja ] ->
                 Just (Entry de ja)
 
