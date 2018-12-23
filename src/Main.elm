@@ -1,13 +1,14 @@
 port module Main exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, text, input, label, span, h1, ul, li, a)
+import Html exposing (Html, button, div, text, input, label, span, h1, ul, li, a, p)
 import Html.Keyed
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import Http
 import Random
 import Array exposing (Array)
+import Regex
 
 
 port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
@@ -31,7 +32,7 @@ main =
 
 
 type Entry
-    = Entry String String
+    = Entry String String (Maybe String)
 
 
 type Direction
@@ -183,7 +184,10 @@ parseLine line =
     else
         case line |> String.split "\t" of
             [ de, ja ] ->
-                Just (Entry de ja)
+                Just (Entry de ja Nothing)
+
+            [ de, ja, example ] ->
+                Just (Entry de ja (Just example))
 
             _ ->
                 Nothing
@@ -340,7 +344,7 @@ searchResultView model searchText =
         )
 
 
-isMatchedTo searchText (Entry de ja) =
+isMatchedTo searchText (Entry de ja _) =
     let
         ( test, search ) =
             if String.startsWith "^" searchText then
@@ -358,7 +362,7 @@ isMatchedTo searchText (Entry de ja) =
 
 searchResultRow searchText entry =
     let
-        (Entry de ja) =
+        (Entry de ja _) =
             entry
     in
         li
@@ -383,21 +387,24 @@ hilighted searchText str =
 
 cardView model =
     let
-        textToShow =
+        ( textToShow, maybeExample ) =
             model.showing
                 |> Maybe.map
-                    (\( showTranslation, Entry de ja ) ->
+                    (\( showTranslation, Entry de ja ex ) ->
                         case ( showTranslation, model.direction ) of
                             ( False, DeToJa ) ->
-                                de
+                                ( de, Nothing )
+
+                            ( False, JaToDe ) ->
+                                ( ja, Nothing )
+
+                            ( True, DeToJa ) ->
+                                ( ja, ex )
 
                             ( True, JaToDe ) ->
-                                de
-
-                            _ ->
-                                ja
+                                ( de, ex )
                     )
-                |> Maybe.withDefault ""
+                |> Maybe.withDefault ( "", Nothing )
     in
         div []
             [ ul
@@ -424,48 +431,70 @@ cardView model =
                 ]
             , div
                 [ classNames
-                    [ "select-none"
-                    , "rounded"
+                    [ "rounded"
                     , "bg-white"
-                    , "h-64"
                     , "shadow-lg"
-                    , "text-grey-darkest"
-                    , "relative"
                     ]
-                , onClick Translate
                 ]
-                [ div
-                    ([ id "text", attribute "data-text" textToShow ]
-                        ++ (case model.textDisposition of
-                                Just ( x, y, scale ) ->
-                                    [ classNames
-                                        [ "absolute"
-                                        , "inline-block"
-                                        ]
-                                    , style "transform" ("scale(" ++ (String.fromFloat scale) ++ ")")
-                                    , style "left" (String.fromInt x)
-                                    , style "top" (String.fromInt y)
-                                    ]
-
-                                Nothing ->
-                                    [ classNames [ "inline-block text-transparent" ] ]
-                           )
-                    )
-                    [ text textToShow ]
-                , a
-                    [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ textToShow)
-                    , target "_blank"
-                    , classNames
-                        [ "absolute"
-                        , "pin-b"
-                        , "pin-r"
-                        , "m-2"
-                        , "text-blue"
-                        , "no-underline"
+                ([ div
+                    [ classNames
+                        [ "select-none"
+                        , "h-64"
+                        , "text-grey-darkest"
+                        , "relative"
                         ]
+                    , onClick Translate
                     ]
-                    [ text "Hören" ]
-                ]
+                    [ div
+                        ([ id "text", attribute "data-text" textToShow ]
+                            ++ (case model.textDisposition of
+                                    Just ( x, y, scale ) ->
+                                        [ classNames
+                                            [ "absolute"
+                                            , "inline-block"
+                                            ]
+                                        , style "transform" ("scale(" ++ (String.fromFloat scale) ++ ")")
+                                        , style "left" (String.fromInt x)
+                                        , style "top" (String.fromInt y)
+                                        ]
+
+                                    Nothing ->
+                                        [ classNames [ "inline-block text-transparent" ] ]
+                               )
+                        )
+                        [ text textToShow ]
+                    , a
+                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ textToShow)
+                        , target "_blank"
+                        , classNames
+                            [ "absolute"
+                            , "pin-t"
+                            , "pin-r"
+                            , "m-2"
+                            , "text-blue"
+                            , "no-underline"
+                            ]
+                        ]
+                        [ text "Hören" ]
+                    ]
+                 ]
+                    ++ (maybeExample
+                            |> Maybe.map
+                                (\example ->
+                                    [ p
+                                        [ classNames
+                                            [ "text-grey-dark"
+                                            , "p-8"
+                                            , "leading-normal"
+                                            , "bg-grey-lighter"
+                                            ]
+                                        ]
+                                        [ text (censorExample example) ]
+                                    ]
+                                )
+                            |> Maybe.withDefault []
+                       )
+                )
             , button
                 [ classNames
                     ((btnClasses True False)
@@ -479,6 +508,18 @@ cardView model =
                 ]
                 [ text "Nächst" ]
             ]
+
+
+censorExample text =
+    let
+        regex =
+            Regex.fromString "\\[[^\\]]+\\]"
+                |> Maybe.withDefault Regex.never
+
+        replacer =
+            \_ -> "(...)"
+    in
+        Regex.replace regex replacer text
 
 
 btnClasses selected disabled =

@@ -6,8 +6,8 @@ abgeben	提出する
 abholen	迎えに行く
 abonnieren	定期購読する
 abreisen	旅に出る
-absagen	取りやめる
-absprechen	取り決める
+absagen	取りやめる	Wir können den Termin doch [absagen].
+absprechen	取り決める	Das haben wir doch so [abgesprochen].
 abstürzen	落ちる
 amüsieren sich	楽しむ
 anfangen	始める
@@ -48,7 +48,7 @@ beginnen	始める
 behalten	持っておく
 bekannt machen	紹介する
 bekommen	手に入れる
-beneiden	〜を羨む
+beneiden	〜を羨む	Ihr seid echt zu [beneiden].
 benutzen	〜を使う
 besorgen	〜を調達する
 besprechen	〜を話し合う
@@ -89,7 +89,7 @@ erinnern	覚えている
 erklären	説明する
 erlauben	〜に...を許す
 erwarten	〜を予期する
-erwerben	手に入れる;勝ち取る
+erwerben	手に入れる;勝ち取る	Mit 18 kann man in Deutschland den Führerscein [erwerben].
 erzählen	〜を話す
 essen	(〜を)食べる
 
@@ -274,10 +274,10 @@ tun	〜をする
 
 # U
 
-übergeben sich	吐く
-überlassen	〜に...を任せる
-überlegen	よく考える
-übernachten	宿泊する
+übergeben sich	吐く	Musst du dich [übergeben]?
+überlassen	〜に...を任せる	Das [überlasse] ich lieber dir.
+überlegen	よく考える	Kann ich mir das noch einmal [überlegen]?
+übernachten	宿泊する	Wegen des Streiks mussten wir auf dem Flughafen [übernachten].
 umbuchen	予約変更する
 umsteigen	乗り換える
 umziehen	引っ越す
