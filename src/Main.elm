@@ -70,6 +70,7 @@ type Msg
     | SearchInput String
     | ClickSearchResult Entry
     | ToggleSearchResults
+    | ClearSearchText
 
 
 update msg model =
@@ -155,6 +156,13 @@ update msg model =
             ( { model
                 | expandSearchResults =
                     not model.expandSearchResults
+              }
+            , Cmd.none
+            )
+
+        ClearSearchText ->
+            ( { model
+                | searchText = Nothing
               }
             , Cmd.none
             )
@@ -252,30 +260,65 @@ resultCountView model =
                 |> searchResults
                 |> Array.length
 
-        isClickable =
+        ( isFiltered, isClickable ) =
             model.searchText
-                |> Maybe.map (\_ -> resultCount > 0)
-                |> Maybe.withDefault False
+                |> Maybe.map (\_ -> ( True, resultCount > 0 ))
+                |> Maybe.withDefault ( False, False )
 
         prefix =
             if isClickable then
                 ""
             else
                 "Alle "
+
+        extraBtnClasses =
+            [ "px-4", "py-2", "ml-px" ]
     in
-        button
+        ul
             [ classNames
-                ((btnClasses isClickable (not isClickable))
-                    ++ [ "text-sm"
-                       , "px-4 py-2"
-                       , "my-2"
-                       , "absolute"
-                       , "pin-r"
-                       ]
-                )
-            , onClick ToggleSearchResults
+                [ "list-reset"
+                , "text-sm"
+                , "my-2"
+                , "absolute"
+                , "pin-r"
+                , "pin-t"
+                , "flex"
+                ]
             ]
-            [ text (prefix ++ (resultCount |> String.fromInt) ++ " Worten") ]
+            ([ li []
+                [ button
+                    [ classNames
+                        (groupedBtnClasses isClickable
+                            (not isClickable)
+                            True
+                            (not isFiltered)
+                            ++ extraBtnClasses
+                        )
+                    , onClick ToggleSearchResults
+                    ]
+                    [ text (prefix ++ (resultCount |> String.fromInt) ++ " Worten") ]
+                ]
+             ]
+                ++ (if isFiltered then
+                        [ li []
+                            [ button
+                                [ classNames
+                                    ((groupedBtnClasses True
+                                        False
+                                        (not isClickable)
+                                        True
+                                     )
+                                        ++ extraBtnClasses
+                                    )
+                                , onClick ClearSearchText
+                                ]
+                                [ text "X" ]
+                            ]
+                        ]
+                    else
+                        []
+                   )
+            )
 
 
 searchResults model =
@@ -439,19 +482,21 @@ cardView model =
 
 
 btnClasses selected disabled =
-    let
-        common =
-            [ "rounded" ]
+    groupedBtnClasses selected disabled True True
 
-        conditional =
-            if selected then
-                [ "bg-blue", "text-white", "shadow" ]
-            else if disabled then
-                [ "text-grey", "cursor-default" ]
-            else
-                [ "text-blue" ]
-    in
-        common ++ conditional
+
+groupedBtnClasses selected disabled isFirst isLast =
+    [ ( "rounded-l", isFirst )
+    , ( "rounded-r", isLast )
+    , ( "bg-blue", selected )
+    , ( "text-white", selected )
+    , ( "text-grey", disabled )
+    , ( "text-blue", (not selected) && (not disabled) )
+    , ( "shadow", selected )
+    , ( "cursor-default", disabled )
+    ]
+        |> List.filter (\( _, isIncluded ) -> isIncluded)
+        |> List.map Tuple.first
 
 
 classNames names =
