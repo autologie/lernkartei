@@ -16,5 +16,8 @@
   },
   "dependencies": {
     "register-service-worker": "^1.5.2"
+  },
+  "sw-precache": {
+    "staticFileGlobs": ["/**/*.{js,html,css,tsv,png,jpg,gif,svg,eot,ttf,woff}"]
   }
 }

@@ -3,6 +3,7 @@
   "short_name": "Wortkarten",
   "start_url": "https://wortkarten.netlify.com/",
   "display": "standalone",
+  "theme_color": "#3490dc",
   "background_color": "#fff",
   "description": "",
   "icons": [],
