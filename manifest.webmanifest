@@ -1,0 +1,10 @@
+{
+  "name": "Wortkarten",
+  "short_name": "Wortkarten",
+  "start_url": "https://wortkarten.netlify.com/",
+  "display": "standalone",
+  "background_color": "#fff",
+  "description": "",
+  "icons": [],
+  "related_applications": []
+}
