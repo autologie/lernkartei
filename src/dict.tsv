@@ -30,12 +30,12 @@ aufhören	やめる
 aufpassen	気をつける
 aufregen	苛立たせる
 ausfallen	急に止まる
-ausfüllen	記入する
+ausfüllen	記入する	Muss ich das auch [ausfüllen]? - Nein, Das ist gut so.
 auskennen sich	詳しく知っている
-ausrichten	伝える
+ausrichten	伝える	Viele Grüße an Herr Winter. - Ja, [richte] ich [aus].
 ausruhen sich	休む
-aussehen	〜のように見える
-aussprechen	〜を述べる
+aussehen	〜のように見える	Es [sieht] so [aus].
+aussprechen	〜を述べる	Ich möchte Ihnen von ganzem Herzen mein Mitgefühl [aufsprechen].
 
 # B
 
@@ -130,9 +130,9 @@ grüßen	〜にあいさつする
 
 haben	持つ
 halten	保つ;思う
-heiraten	結婚する
+heiraten	結婚する	Wollt ihr eigentlich [heiraten]?
 heißen	〜という名前である; 〜を意味する
-helfen	助ける
+helfen	助ける	Kann ich Ihnen [helfen]?
 herauskommen	売り出される
 herausziehen	〜を引き抜く
 hereinkommen	中に入れる
@@ -148,7 +148,7 @@ irren sich	思い違いをする
 
 # K
 
-kapieren	理解する
+kapieren	理解する	Jetzt habe ich das [kapiert].
 kaputtgehen	だめになる
 kaufen	〜を買う
 kennen	〜を知っている
@@ -243,7 +243,7 @@ schicken	〜に...を送る
 schiefgehen	だめになる
 schlafen	眠る
 schlagen	殴る
-schließen	〜を閉める
+schließen	〜を閉める	Das Museum soll nächstes Jahr geschlossen werden.
 schmecken	味がする
 schneien	雪が降る
 schreiben	書く
@@ -257,6 +257,7 @@ starten	離陸する
 stattfinden	開催される
 stecken	突っ込む;差し込む
 stehen	立っている; (書いて)ある; 似合う
+steigen	上がる; 下がる	Das Flugzeug [stieg] bis auf 5000m.
 stellen	〜を立てる; する
 stimmen	正しい; 本当である
 stören	〜の邪魔をする
@@ -320,7 +321,7 @@ wechseln	〜を取り替える
 wegnehmen	片付ける;どける
 wehtun	痛む
 weiterfahren	先に進む
-weitergehen	先に進む
+weitergehen	先に進む	Das kann nicht so weitergehen.
 werden	〜になる
 wiedersprechen	〜に反論する
 wissen	知っている
@@ -331,11 +332,12 @@ wünschen sich	〜がほしい
 
 # Z
 
-zahlen	支払う
-zeigen	見せる
+zahlen	支払う	Heute [zahle] ich.
+zeigen	見せる	[Zeig] doch Mal.
+zeugen	証言する	Seine Arbeit [zeugt] von großem Fleiß.
 ziehen	引っ張る
-zubereiten	調理する
-zufallen	閉まる
+zubereiten	調理する	Natto ist doch lecker, du muss es nur richtig [zubereiten].
+zufallen	閉まる	Mir fallen schon die Augen zu.
 zuhören	よく聞く
 zurückgehen	帰る
 zurückkommen	戻って来る
