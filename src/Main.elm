@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
 import Browser
-import Html exposing (Html, button, div, text, input, label, span, h1, ul, li, a, p)
+import Html exposing (button, div, text, input, span, h1, ul, li, a, p)
 import Html.Keyed
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
@@ -83,7 +83,7 @@ update msg model =
 
                 ( index, nextSeed ) =
                     Random.step
-                        (Random.int 0 ((Array.length entries) - 1))
+                        (Random.int 0 (Array.length entries - 1))
                         model.seed
             in
                 ( { model
@@ -100,7 +100,7 @@ update msg model =
         ReceiveDict (Ok str) ->
             update NextRandomWord { model | dict = parseDict str }
 
-        ReceiveDict (Err message) ->
+        ReceiveDict (Err _) ->
             ( model, Cmd.none )
 
         Translate ->
@@ -307,11 +307,10 @@ resultCountView model =
                         [ li []
                             [ button
                                 [ classNames
-                                    ((groupedBtnClasses True
+                                    (groupedBtnClasses True
                                         False
                                         (not isClickable)
                                         True
-                                     )
                                         ++ extraBtnClasses
                                     )
                                 , onClick ClearSearchText
@@ -453,7 +452,7 @@ cardView model =
                                             [ "absolute"
                                             , "inline-block"
                                             ]
-                                        , style "transform" ("scale(" ++ (String.fromFloat scale) ++ ")")
+                                        , style "transform" ("scale(" ++ String.fromFloat scale ++ ")")
                                         , style "left" (String.fromInt x)
                                         , style "top" (String.fromInt y)
                                         ]
@@ -497,7 +496,7 @@ cardView model =
                 )
             , button
                 [ classNames
-                    ((btnClasses True False)
+                    (btnClasses True False
                         ++ [ "my-5"
                            , "p-4"
                            , "text-lg"
@@ -532,7 +531,7 @@ groupedBtnClasses selected disabled isFirst isLast =
     , ( "bg-blue", selected )
     , ( "text-white", selected )
     , ( "text-grey", disabled )
-    , ( "text-blue", (not selected) && (not disabled) )
+    , ( "text-blue", not selected && not disabled )
     , ( "shadow", selected )
     , ( "cursor-default", disabled )
     ]
