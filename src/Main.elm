@@ -588,6 +588,10 @@ addButton =
 
 
 editorView model ((Entry de ja maybeExample) as entry) =
+    let
+        hasError =
+            not (isValid model.dict entry)
+    in
     div
         [ classNames
             [ "fixed"
@@ -649,20 +653,23 @@ editorView model ((Entry de ja maybeExample) as entry) =
             , button
                 [ onClick SaveAndCloseEditor
                 , classNames
-                    (btnClasses True (not (isValid entry))
+                    (btnClasses True hasError
                         ++ [ "w-full"
                            , "p-4"
                            , "text-lg"
                            ]
                     )
+                , disabled hasError
                 ]
                 [ text "Save" ]
             ]
         ]
 
 
-isValid (Entry de ja maybeExample) =
-    de /= "" && ja /= "" |> Debug.log "validity"
+isValid dict (Entry de ja maybeExample) =
+    (de /= "")
+        && (ja /= "")
+        && (dict |> Array.filter (\(Entry dictDe _ _) -> dictDe == de) |> Array.isEmpty)
 
 
 textInputView fieldName maybeInputId inputValue multiline handleInput =
