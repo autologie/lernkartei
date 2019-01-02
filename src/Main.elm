@@ -558,13 +558,13 @@ addButton =
     button
         [ classNames
             [ "fixed"
-            , "pin-r"
+            , "pin-l"
             , "pin-b"
             , "rounded-full"
             , "bg-blue"
             , "text-white"
             , "text-xl"
-            , "m-8"
+            , "m-4"
             , "p-2"
             , "w-16"
             , "h-16"
@@ -572,13 +572,14 @@ addButton =
             , "justify-center"
             , "items-center"
             , "z-50"
+            , "shadow-lg"
             ]
         , onClick AddButtonClicked
         ]
-        [ div [ style "line-height" "0" ] [ text "+" ] ]
+        [ div [ style "margin-top" "-8px" ] [ text "+" ] ]
 
 
-editorView model (Entry de ja maybeExample) =
+editorView model ((Entry de ja maybeExample) as entry) =
     div
         [ classNames
             [ "fixed"
@@ -588,54 +589,69 @@ editorView model (Entry de ja maybeExample) =
             , "h-full"
             , "bg-white"
             , "p-4"
+            , "flex"
+            , "justify-center"
+            , "items-start"
             ]
         ]
-        [ textInputView "De"
-            de
-            False
-            (\value -> WordChange (Entry value ja maybeExample))
-        , textInputView "Ja"
-            ja
-            False
-            (\value -> WordChange (Entry de value maybeExample))
-        , textInputView "Example"
-            (maybeExample |> Maybe.withDefault "")
-            True
-            (\value ->
-                WordChange
-                    (Entry de
-                        ja
-                        (if value == "" then
-                            Nothing
-
-                         else
-                            Just value
-                        )
-                    )
-            )
-        , button
-            [ onClick CloseEditor
-            , classNames
-                [ "absolute"
-                , "pin-t"
-                , "pin-r"
-                , "text-lg"
-                , "p-2"
+        [ div
+            [ classNames
+                [ "container"
+                , "max-w-md"
                 ]
             ]
-            [ text "x" ]
-        , button
-            [ onClick SaveAndCloseEditor
-            , classNames
-                (btnClasses True False
-                    ++ [ "w-full"
-                       , "p-4"
-                       , "text-lg"
-                       ]
+            [ textInputView "De"
+                de
+                False
+                (\value -> WordChange (Entry value ja maybeExample))
+            , textInputView "Ja"
+                ja
+                False
+                (\value -> WordChange (Entry de value maybeExample))
+            , textInputView "Example"
+                (maybeExample |> Maybe.withDefault "")
+                True
+                (\value ->
+                    WordChange
+                        (Entry de
+                            ja
+                            (if value == "" then
+                                Nothing
+
+                             else
+                                Just value
+                            )
+                        )
                 )
+            , button
+                [ onClick CloseEditor
+                , classNames
+                    [ "absolute"
+                    , "pin-t"
+                    , "pin-r"
+                    , "text-lg"
+                    , "p-2"
+                    , "text-grey-darkest"
+                    ]
+                ]
+                [ text "X" ]
+            , button
+                [ onClick SaveAndCloseEditor
+                , classNames
+                    (btnClasses True (not (isValid entry))
+                        ++ [ "w-full"
+                           , "p-4"
+                           , "text-lg"
+                           ]
+                    )
+                ]
+                [ text "Save" ]
             ]
-            [ text "Save" ]
         ]
+
+
+isValid (Entry de ja maybeExample) =
+    de /= "" && ja /= "" |> Debug.log "validity"
 
 
 textInputView fieldName inputValue multiline handleInput =
@@ -710,8 +726,8 @@ btnClasses selected disabled =
 groupedBtnClasses selected disabled isFirst isLast =
     [ ( "rounded-l", isFirst )
     , ( "rounded-r", isLast )
-    , ( "bg-blue", selected )
-    , ( "text-white", selected )
+    , ( "bg-blue", selected && not disabled )
+    , ( "text-white", selected && not disabled )
     , ( "text-grey", disabled )
     , ( "text-blue", not selected && not disabled )
     , ( "shadow", selected )
