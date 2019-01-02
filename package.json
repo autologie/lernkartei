@@ -15,10 +15,16 @@
     "tailwindcss": "^0.7.3"
   },
   "dependencies": {
+    "@firebase/app": "^0.3.5",
+    "@firebase/auth": "^0.9.1",
+    "@firebase/storage": "^0.2.4",
+    "babel-polyfill": "^6.26.0",
     "register-service-worker": "^1.5.2"
   },
   "sw-precache": {
-    "staticFileGlobs": ["dist/**/*.{js,html,css,tsv,png,jpg,gif,svg,eot,ttf,woff}"],
+    "staticFileGlobs": [
+      "dist/**/*.{js,html,css,tsv,png,jpg,gif,svg,eot,ttf,woff}"
+    ],
     "stripPrefix": "dist/"
   }
 }

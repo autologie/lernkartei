@@ -1,8 +1,10 @@
-port module Main exposing (Direction(..), Entry(..), Model, Msg(..), addButton, btnClasses, cardView, censorExample, classNames, groupedBtnClasses, hilighted, initialModel, isMatchedTo, main, parseDict, parseLine, resultCountView, searchResultRow, searchResultView, searchResults, textDisposition, update, view)
+port module Main exposing (main)
 
 import Array exposing (Array)
 import Browser
 import Browser.Dom as Dom
+import Dictionary exposing (Dictionary)
+import Entry exposing (Entry(..))
 import Html exposing (a, button, div, h1, input, label, li, p, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
@@ -13,28 +15,49 @@ import Regex
 import Task
 
 
+port persistDictionary : ( String, String ) -> Cmd msg
+
+
+port persistDictionaryDone : (() -> msg) -> Sub msg
+
+
+port signIn : () -> Cmd msg
+
+
+port signInDone : (String -> msg) -> Sub msg
+
+
+port fetchDict : () -> Cmd msg
+
+
+port getDictUrl : String -> Cmd msg
+
+
+port getDictUrlDone : (String -> msg) -> Sub msg
+
+
 port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
 
 
-main : Program ( String, Int ) Model Msg
+main : Program Int Model Msg
 main =
     Browser.document
         { init =
-            \( dictUrl, randomSeed ) ->
+            \randomSeed ->
                 ( initialModel randomSeed
-                , Http.get
-                    { url = dictUrl
-                    , expect = Http.expectString ReceiveDict
-                    }
+                , signIn ()
                 )
-        , subscriptions = \_ -> Sub.batch [ textDisposition TextDispositionChange ]
+        , subscriptions =
+            \_ ->
+                Sub.batch
+                    [ textDisposition TextDispositionChange
+                    , signInDone SignInDone
+                    , persistDictionaryDone PersistDictionaryDone
+                    , getDictUrlDone GetDictUrlDone
+                    ]
         , update = update
         , view = \model -> { title = "Wortkarten", body = [ view model ] }
         }
-
-
-type Entry
-    = Entry String String (Maybe String)
 
 
 type Direction
@@ -43,7 +66,7 @@ type Direction
 
 
 type alias Model =
-    { dict : Array Entry
+    { dict : Dictionary
     , showing : Maybe ( Bool, Entry )
     , seed : Random.Seed
     , direction : Direction
@@ -51,6 +74,7 @@ type alias Model =
     , searchText : Maybe String
     , expandSearchResults : Bool
     , appMode : AppMode
+    , userId : Maybe String
     }
 
 
@@ -68,6 +92,7 @@ initialModel randomSeed =
     , searchText = Nothing
     , expandSearchResults = False
     , appMode = ShowCard
+    , userId = Nothing
     }
 
 
@@ -85,6 +110,9 @@ type Msg
     | CloseEditor
     | SaveAndCloseEditor
     | WordChange Entry
+    | SignInDone String
+    | PersistDictionaryDone ()
+    | GetDictUrlDone String
     | NoOp
 
 
@@ -112,7 +140,7 @@ update msg model =
             )
 
         ReceiveDict (Ok str) ->
-            update NextRandomWord { model | dict = parseDict str }
+            update NextRandomWord { model | dict = Dictionary.parse str }
 
         ReceiveDict (Err _) ->
             ( model, Cmd.none )
@@ -192,48 +220,36 @@ update msg model =
             ( { model | appMode = ShowCard }, Cmd.none )
 
         SaveAndCloseEditor ->
-            case model.appMode of
-                AddWord entry ->
+            case ( model.appMode, model.userId ) of
+                ( AddWord entry, Just userId ) ->
+                    let
+                        updatedDict =
+                            Array.append (Array.fromList [ entry ]) model.dict
+                    in
                     ( { model
                         | appMode = ShowCard
-                        , dict = Array.append (Array.fromList [ entry ]) model.dict
+                        , dict = updatedDict
                       }
-                    , Cmd.none
+                    , persistDictionary ( Dictionary.serialize updatedDict, userId )
                     )
 
                 _ ->
                     ( model, Cmd.none )
 
+        PersistDictionaryDone _ ->
+            ( model, Cmd.none )
+
         WordChange updatedEntry ->
             ( { model | appMode = AddWord updatedEntry }, Cmd.none )
 
+        SignInDone uid ->
+            ( { model | userId = Just uid }, getDictUrl uid )
+
+        GetDictUrlDone url ->
+            ( model, Http.get { url = url, expect = Http.expectString ReceiveDict } )
+
         NoOp ->
             ( model, Cmd.none )
-
-
-parseDict : String -> Array Entry
-parseDict dict =
-    dict
-        |> String.split "\n"
-        |> List.filterMap parseLine
-        |> Array.fromList
-
-
-parseLine : String -> Maybe Entry
-parseLine line =
-    if line == "" || (line |> String.slice 0 1) == "#" then
-        Nothing
-
-    else
-        case line |> String.split "\t" of
-            [ de, ja ] ->
-                Just (Entry de ja Nothing)
-
-            [ de, ja, example ] ->
-                Just (Entry de ja (Just example))
-
-            _ ->
-                Nothing
 
 
 view model =
