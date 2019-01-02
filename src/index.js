@@ -12,9 +12,20 @@ firebase.initializeApp({
   storageBucket: "wortkarten.appspot.com"
 });
 
-const storageRef = firebase.storage().ref();
-const authProvider = new firebase.auth.GoogleAuthProvider();
 const app = Elm.Main.init({ flags: Date.now() });
+
+firebase.auth().onAuthStateChanged(async user => {
+  if (user) {
+    app.ports.signInDone.send(user.uid);
+  } else {
+    await firebase
+      .auth()
+      .setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    await firebase
+      .auth()
+      .signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  }
+});
 
 new MutationObserver(() => {
   const el = document.getElementById("text");
@@ -32,37 +43,23 @@ new MutationObserver(() => {
 });
 
 app.ports.persistDictionary.subscribe(async ([dict, userId]) => {
-  await storageRef.child(`${userId}.tsv`).putString(dict, "raw", {
-    contentType: "text/tab-separated-values"
-  });
+  await firebase
+    .storage()
+    .ref()
+    .child(`${userId}.tsv`)
+    .putString(dict, "raw", {
+      contentType: "text/tab-separated-values"
+    });
 
   app.ports.persistDictionaryDone.send(null);
 });
 
-app.ports.signIn.subscribe(() =>
-  firebase
-    .auth()
-    .signInWithPopup(authProvider)
-    .then(result => {
-      const token = result.credential.accessToken;
-      const user = result.user;
-
-      console.log(token, user);
-
-      app.ports.signInDone.send(user.uid);
-    })
-    .catch(error => {
-      const errorCode = error.code;
-      const errorMessage = error.message;
-      const email = error.email;
-      const credential = error.credential;
-
-      console.log(errorCode, errorMessage, email, credential);
-    })
-);
-
 app.ports.getDictUrl.subscribe(async userId => {
-  const url = await storageRef.child(`${userId}.tsv`).getDownloadURL();
+  const url = await firebase
+    .storage()
+    .ref()
+    .child(`${userId}.tsv`)
+    .getDownloadURL();
 
   app.ports.getDictUrlDone.send(url);
 });

@@ -21,13 +21,7 @@ port persistDictionary : ( String, String ) -> Cmd msg
 port persistDictionaryDone : (() -> msg) -> Sub msg
 
 
-port signIn : () -> Cmd msg
-
-
 port signInDone : (String -> msg) -> Sub msg
-
-
-port fetchDict : () -> Cmd msg
 
 
 port getDictUrl : String -> Cmd msg
@@ -42,11 +36,7 @@ port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
 main : Program Int Model Msg
 main =
     Browser.document
-        { init =
-            \randomSeed ->
-                ( initialModel randomSeed
-                , signIn ()
-                )
+        { init = \randomSeed -> ( initialModel randomSeed, Cmd.none )
         , subscriptions =
             \_ ->
                 Sub.batch
@@ -264,7 +254,7 @@ view model =
             , "items-center"
             ]
         ]
-        [ Html.Keyed.node "div"
+        ([ Html.Keyed.node "div"
             [ classNames
                 [ "container"
                 , "max-w-md"
@@ -313,13 +303,18 @@ view model =
                    )
                 ++ [ ( "card", cardView model ) ]
             )
-        , case model.appMode of
-            ShowCard ->
-                addButton
+         ]
+            ++ (case ( model.appMode, model.userId ) of
+                    ( ShowCard, Just _ ) ->
+                        [ addButton ]
 
-            AddWord entry ->
-                editorView model entry
-        ]
+                    ( ShowCard, Nothing ) ->
+                        []
+
+                    ( AddWord entry, _ ) ->
+                        [ editorView model entry ]
+               )
+        )
 
 
 resultCountView model =
