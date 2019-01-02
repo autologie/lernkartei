@@ -33,10 +33,13 @@ port getDictUrlDone : (String -> msg) -> Sub msg
 port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
 
 
-main : Program Int Model Msg
+port syncLocalStorage : String -> Cmd msg
+
+
+main : Program ( Bool, Int, String ) Model Msg
 main =
     Browser.document
-        { init = \randomSeed -> ( initialModel randomSeed, Cmd.none )
+        { init = \( onLine, randomSeed, localDict ) -> ( initialModel onLine randomSeed localDict, Cmd.none )
         , subscriptions =
             \_ ->
                 Sub.batch
@@ -65,6 +68,7 @@ type alias Model =
     , expandSearchResults : Bool
     , appMode : AppMode
     , userId : Maybe String
+    , onLine : Bool
     }
 
 
@@ -73,16 +77,24 @@ type AppMode
     | AddWord Entry
 
 
-initialModel randomSeed =
-    { dict = Array.empty
-    , showing = Nothing
-    , seed = Random.initialSeed randomSeed
+initialModel onLine randomSeed localDict =
+    let
+        dict =
+            Dictionary.parse localDict
+
+        ( maybeEntry, nextSeed ) =
+            randomEntry (Random.initialSeed randomSeed) dict
+    in
+    { dict = dict
+    , showing = maybeEntry
+    , seed = nextSeed
     , direction = DeToJa
     , textDisposition = Nothing
     , searchText = Nothing
     , expandSearchResults = False
     , appMode = ShowCard
     , userId = Nothing
+    , onLine = onLine
     }
 
 
@@ -110,19 +122,11 @@ update msg model =
     case msg of
         NextRandomWord ->
             let
-                entries =
-                    searchResults model
-
-                ( index, nextSeed ) =
-                    Random.step
-                        (Random.int 0 (Array.length entries - 1))
-                        model.seed
+                ( maybeEntry, nextSeed ) =
+                    randomEntry model.seed (searchResults model)
             in
             ( { model
-                | showing =
-                    entries
-                        |> Array.get index
-                        |> Maybe.map (\entry -> ( False, entry ))
+                | showing = maybeEntry
                 , seed = nextSeed
                 , textDisposition = Nothing
               }
@@ -130,7 +134,23 @@ update msg model =
             )
 
         ReceiveDict (Ok str) ->
-            update NextRandomWord { model | dict = Dictionary.parse str }
+            let
+                updatedModel =
+                    model.showing
+                        |> Maybe.map (\_ -> model)
+                        |> Maybe.withDefault
+                            (let
+                                ( maybeEntry, updatedSeed ) =
+                                    randomEntry model.seed (searchResults model)
+                             in
+                             { model
+                                | showing = maybeEntry
+                                , seed = updatedSeed
+                                , textDisposition = Nothing
+                             }
+                            )
+            in
+            ( updatedModel, syncLocalStorage str )
 
         ReceiveDict (Err _) ->
             ( model, Cmd.none )
@@ -240,6 +260,20 @@ update msg model =
 
         NoOp ->
             ( model, Cmd.none )
+
+
+randomEntry seed entries =
+    let
+        ( index, nextSeed ) =
+            Random.step
+                (Random.int 0 (Array.length entries - 1))
+                seed
+    in
+    ( entries
+        |> Array.get index
+        |> Maybe.map (\entry -> ( False, entry ))
+    , nextSeed
+    )
 
 
 view model =

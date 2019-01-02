@@ -5,27 +5,61 @@ import firebase from "@firebase/app";
 import "@firebase/auth";
 import "@firebase/storage";
 
-firebase.initializeApp({
-  apiKey: "AIzaSyD22gzLwBBW7Ho6bEsLP9wEy01Wwli22Yk",
-  authDomain: "wortkarten.firebaseapp.com",
-  projectId: "wortkarten",
-  storageBucket: "wortkarten.appspot.com"
+const app = Elm.Main.init({
+  flags: [
+    window.navigator.onLine,
+    Date.now(),
+    localStorage.getItem("dict") || ""
+  ]
 });
 
-const app = Elm.Main.init({ flags: Date.now() });
+app.ports.syncLocalStorage.subscribe(dict =>
+  localStorage.setItem("dict", dict)
+);
 
-firebase.auth().onAuthStateChanged(async user => {
-  if (user) {
-    app.ports.signInDone.send(user.uid);
-  } else {
+if (window.navigator.onLine) {
+  firebase.initializeApp({
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: `${process.env.FIREBASE_PROJECT_ID}.firebaseapp.com`,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: `${process.env.FIREBASE_PROJECT_ID}.appspot.com`
+  });
+
+  firebase.auth().onAuthStateChanged(async user => {
+    if (user) {
+      app.ports.signInDone.send(user.uid);
+    } else {
+      await firebase
+        .auth()
+        .setPersistence(firebase.auth.Auth.Persistence.SESSION);
+      await firebase
+        .auth()
+        .signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    }
+  });
+
+  app.ports.persistDictionary.subscribe(async ([dict, userId]) => {
     await firebase
-      .auth()
-      .setPersistence(firebase.auth.Auth.Persistence.SESSION);
-    await firebase
-      .auth()
-      .signInWithPopup(new firebase.auth.GoogleAuthProvider());
-  }
-});
+      .storage()
+      .ref()
+      .child(`${userId}.tsv`)
+      .putString(dict, "raw", {
+        contentType: "text/tab-separated-values"
+      });
+
+    app.ports.persistDictionaryDone.send(null);
+  });
+
+  app.ports.getDictUrl.subscribe(async userId => {
+    const url = await firebase
+      .storage()
+      .ref()
+      .child(`${userId}.tsv`)
+      .getDownloadURL();
+
+    app.ports.getDictUrlDone.send(url);
+  });
+}
 
 new MutationObserver(() => {
   const el = document.getElementById("text");
@@ -42,29 +76,6 @@ new MutationObserver(() => {
   attributes: true
 });
 
-app.ports.persistDictionary.subscribe(async ([dict, userId]) => {
-  await firebase
-    .storage()
-    .ref()
-    .child(`${userId}.tsv`)
-    .putString(dict, "raw", {
-      contentType: "text/tab-separated-values"
-    });
-
-  app.ports.persistDictionaryDone.send(null);
-});
-
-app.ports.getDictUrl.subscribe(async userId => {
-  const url = await firebase
-    .storage()
-    .ref()
-    .child(`${userId}.tsv`)
-    .getDownloadURL();
-
-  app.ports.getDictUrlDone.send(url);
-});
-
-/*
 register("/service-worker.js", {
   ready(registration) {
     console.log("Service worker is active.");
@@ -90,4 +101,3 @@ register("/service-worker.js", {
     console.error("Error during service worker registration:", error);
   }
 });
-*/
