@@ -2,6 +2,7 @@ port module Main exposing (Direction(..), Entry(..), Model, Msg(..), addButton, 
 
 import Array exposing (Array)
 import Browser
+import Browser.Dom as Dom
 import Html exposing (a, button, div, h1, input, label, li, p, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
@@ -9,6 +10,7 @@ import Html.Keyed
 import Http
 import Random
 import Regex
+import Task
 
 
 port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
@@ -83,6 +85,7 @@ type Msg
     | CloseEditor
     | SaveAndCloseEditor
     | WordChange Entry
+    | NoOp
 
 
 update msg model =
@@ -181,7 +184,9 @@ update msg model =
             )
 
         AddButtonClicked ->
-            ( { model | appMode = AddWord (Entry "" "" Nothing) }, Cmd.none )
+            ( { model | appMode = AddWord (Entry "" "" Nothing) }
+            , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+            )
 
         CloseEditor ->
             ( { model | appMode = ShowCard }, Cmd.none )
@@ -201,6 +206,9 @@ update msg model =
 
         WordChange updatedEntry ->
             ( { model | appMode = AddWord updatedEntry }, Cmd.none )
+
+        NoOp ->
+            ( model, Cmd.none )
 
 
 parseDict : String -> Array Entry
@@ -601,14 +609,17 @@ editorView model ((Entry de ja maybeExample) as entry) =
                 ]
             ]
             [ textInputView "De"
+                (Just "editor-input-de")
                 de
                 False
                 (\value -> WordChange (Entry value ja maybeExample))
             , textInputView "Ja"
+                Nothing
                 ja
                 False
                 (\value -> WordChange (Entry de value maybeExample))
             , textInputView "Example"
+                Nothing
                 (maybeExample |> Maybe.withDefault "")
                 True
                 (\value ->
@@ -654,7 +665,7 @@ isValid (Entry de ja maybeExample) =
     de /= "" && ja /= "" |> Debug.log "validity"
 
 
-textInputView fieldName inputValue multiline handleInput =
+textInputView fieldName maybeInputId inputValue multiline handleInput =
     let
         formClasses =
             [ "bg-grey-lighter"
@@ -682,11 +693,16 @@ textInputView fieldName inputValue multiline handleInput =
 
             else
                 input
-                    [ type_ "text"
-                    , classNames ([ "text-lg" ] ++ formClasses)
-                    , value inputValue
-                    , onInput handleInput
-                    ]
+                    ([ type_ "text"
+                     , classNames ([ "text-lg" ] ++ formClasses)
+                     , value inputValue
+                     , onInput handleInput
+                     ]
+                        ++ (maybeInputId
+                                |> Maybe.map (\value -> [ id value ])
+                                |> Maybe.withDefault []
+                           )
+                    )
                     []
     in
     div [ classNames [ "mb-8", "w-full" ] ]
