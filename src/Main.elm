@@ -66,13 +66,13 @@ type alias Model =
     , textDisposition : Maybe ( Int, Int, Float )
     , searchText : Maybe String
     , expandSearchResults : Bool
-    , appMode : AppMode
+    , route : Route
     , userId : Maybe String
     , onLine : Bool
     }
 
 
-type AppMode
+type Route
     = ShowCard
     | AddWord Entry
     | EditWord Entry
@@ -93,7 +93,7 @@ initialModel onLine randomSeed localDict =
     , textDisposition = Nothing
     , searchText = Nothing
     , expandSearchResults = False
-    , appMode = ShowCard
+    , route = ShowCard
     , userId = Nothing
     , onLine = onLine
     }
@@ -205,8 +205,8 @@ update msg model =
 
         ClickSearchResult entry ->
             ( { model
-                | searchText = Nothing
-                , showing = Just ( False, entry )
+                | showing = Just ( False, entry )
+                , expandSearchResults = False
                 , textDisposition = Nothing
               }
             , Cmd.none
@@ -228,12 +228,12 @@ update msg model =
             )
 
         AddButtonClicked ->
-            ( { model | appMode = AddWord (Entry "" "" Nothing) }
+            ( { model | route = AddWord (Entry "" "" Nothing) }
             , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
             )
 
         CloseEditor ->
-            ( { model | appMode = ShowCard }, Cmd.none )
+            ( { model | route = ShowCard }, Cmd.none )
 
         SaveAndCloseEditor True entry ->
             updateDict (Array.append (Array.fromList [ entry ]) model.dict) model
@@ -259,7 +259,7 @@ update msg model =
             ( model, Cmd.none )
 
         WordChange updatedEntry ->
-            ( { model | appMode = AddWord updatedEntry }, Cmd.none )
+            ( { model | route = AddWord updatedEntry }, Cmd.none )
 
         SignInDone uid ->
             ( { model | userId = Just uid }, getDictUrl uid )
@@ -268,7 +268,7 @@ update msg model =
             ( model, Http.get { url = url, expect = Http.expectString ReceiveDict } )
 
         StartEdit entry ->
-            ( { model | appMode = EditWord entry }, Cmd.none )
+            ( { model | route = EditWord entry }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -282,7 +282,7 @@ updateDict dict model =
                     Dictionary.serialize dict
             in
             ( { model
-                | appMode = ShowCard
+                | route = ShowCard
                 , dict = dict
               }
             , Cmd.batch
@@ -291,7 +291,7 @@ updateDict dict model =
                 ]
             )
         )
-        (case model.appMode of
+        (case model.route of
             AddWord entry ->
                 Just entry
 
@@ -381,7 +381,7 @@ view model =
                 ++ [ ( "card", cardView model ) ]
             )
          ]
-            ++ (case ( model.appMode, model.userId ) of
+            ++ (case ( model.route, model.userId ) of
                     ( ShowCard, Just _ ) ->
                         [ addButton ]
 
