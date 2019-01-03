@@ -26,6 +26,9 @@ parseLine line =
             [ de, ja ] ->
                 Just (Entry de ja Nothing)
 
+            [ de, ja, "" ] ->
+                Just (Entry de ja Nothing)
+
             [ de, ja, example ] ->
                 Just (Entry de ja (Just example))
 
