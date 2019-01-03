@@ -82,7 +82,7 @@ type Direction
 type Route
     = ShowCard HomeModel
     | AddWord Entry
-    | EditWord Entry
+    | EditWord Entry Entry
 
 
 initialModel : Bool -> Int -> String -> Model
@@ -143,10 +143,10 @@ type HomeMsg
 
 
 type EditorMsg
-    = CloseEditor Bool Entry
-    | SaveAndCloseEditor Bool Entry
+    = CloseEditor
+    | SaveAndCloseEditor
     | WordChange Entry
-    | DeleteEntry Entry
+    | DeleteEntry
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -270,51 +270,63 @@ update msg model =
                             )
 
                         StartEdit entry ->
-                            ( { model | route = EditWord entry }, Cmd.none )
+                            ( { model | route = EditWord entry entry }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         EditorMsg editorMsg ->
-            case editorMsg of
-                CloseEditor isNew entry ->
-                    ( if isNew then
-                        let
-                            ( maybeEntry, updatedSeed ) =
-                                randomEntry model.seed (searchResults model.dict Nothing)
-                        in
-                        { model
-                            | route = ShowCard (initialHomeModel (Just entry))
-                            , seed = updatedSeed
-                        }
-
-                      else
-                        { model | route = ShowCard (initialHomeModel (Just entry)) }
+            case ( model.route, editorMsg ) of
+                ( AddWord _, CloseEditor ) ->
+                    let
+                        ( maybeEntry, updatedSeed ) =
+                            randomEntry model.seed (searchResults model.dict Nothing)
+                    in
+                    ( { model
+                        | route = ShowCard (initialHomeModel maybeEntry)
+                        , seed = updatedSeed
+                      }
                     , Cmd.none
                     )
 
-                SaveAndCloseEditor True entry ->
-                    updateDict (Array.append (Array.fromList [ entry ]) model.dict) model
+                ( EditWord _ originalEntry, CloseEditor ) ->
+                    ( { model | route = ShowCard (initialHomeModel (Just originalEntry)) }
+                    , Cmd.none
+                    )
 
-                SaveAndCloseEditor False ((Entry de _ _) as changedEntry) ->
+                ( EditWord entry originalEntry, SaveAndCloseEditor ) ->
                     updateDict
                         (Array.map
-                            (\((Entry entryDe _ _) as entry) ->
-                                if de == entryDe then
-                                    changedEntry
+                            (\e ->
+                                if e == originalEntry then
+                                    entry
 
                                 else
-                                    entry
+                                    e
                             )
                             model.dict
                         )
                         model
 
-                DeleteEntry (Entry entryDe _ _) ->
-                    updateDict (model.dict |> Array.filter (\(Entry de _ _) -> de /= entryDe)) model
+                ( AddWord entry, SaveAndCloseEditor ) ->
+                    updateDict
+                        (model.dict |> Array.append (Array.fromList [ entry ]))
+                        model
 
-                WordChange updatedEntry ->
-                    ( { model | route = AddWord updatedEntry }, Cmd.none )
+                ( EditWord _ entry, DeleteEntry ) ->
+                    updateDict (model.dict |> Array.filter ((/=) entry)) model
+
+                ( EditWord _ originalEntry, WordChange entry ) ->
+                    ( { model | route = EditWord entry originalEntry }, Cmd.none )
+
+                ( AddWord _, WordChange entry ) ->
+                    ( { model | route = AddWord entry }, Cmd.none )
+
+                ( AddWord _, DeleteEntry ) ->
+                    ( model, Cmd.none )
+
+                ( ShowCard _, _ ) ->
+                    ( model, Cmd.none )
 
         ReceiveDict (Ok str) ->
             let
@@ -397,7 +409,7 @@ updateDict dict model =
             AddWord entry ->
                 Just entry
 
-            EditWord entry ->
+            EditWord entry _ ->
                 Just entry
 
             ShowCard _ ->
@@ -438,7 +450,7 @@ view model =
             AddWord entry ->
                 editorView model True entry |> Html.map EditorMsg
 
-            EditWord entry ->
+            EditWord entry originalEntry ->
                 editorView model False entry |> Html.map EditorMsg
         , notificationView model.notification
         ]
@@ -877,7 +889,7 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
                         )
                 )
             , button
-                [ onClick (SaveAndCloseEditor isNew entry)
+                [ onClick SaveAndCloseEditor
                 , classNames
                     (btnClasses True hasError
                         ++ [ "w-full"
@@ -890,7 +902,7 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
                 ]
                 [ text "Sparen" ]
             , button
-                [ onClick (DeleteEntry entry)
+                [ onClick DeleteEntry
                 , style "display"
                     (if isNew then
                         "none"
@@ -910,7 +922,7 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
                 ]
                 [ text "Löschen" ]
             , button
-                [ onClick (CloseEditor isNew entry)
+                [ onClick CloseEditor
                 , classNames
                     ((btnClasses True False |> List.filter (\c -> c /= "bg-blue" && c /= "text-white"))
                         ++ [ "w-full"
