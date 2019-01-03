@@ -10,6 +10,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
 import Http
+import Process
 import Random
 import Regex
 import Task
@@ -59,6 +60,7 @@ type alias Model =
     , route : Route
     , userId : Maybe String
     , onLine : Bool
+    , notification : ( Bool, String )
     }
 
 
@@ -97,6 +99,12 @@ initialModel onLine randomSeed localDict =
     , route = ShowCard (initialHomeModel maybeEntry)
     , userId = Nothing
     , onLine = onLine
+    , notification =
+        if onLine then
+            ( False, "" )
+
+        else
+            ( True, "Die App befindet sich im Offline-Modus." )
     }
 
 
@@ -117,6 +125,7 @@ type Msg
     | ReceiveDict (Result Http.Error String)
     | SignInDone String
     | PersistDictionaryDone ()
+    | CloseNotification
     | NoOp
 
 
@@ -346,10 +355,15 @@ update msg model =
             ( updatedModel, syncLocalStorage str )
 
         ReceiveDict (Err _) ->
-            ( model, Cmd.none )
+            ( { model | notification = ( True, "Failed to load the remote dictionary." ) }, Cmd.none )
 
         PersistDictionaryDone _ ->
-            ( model, Cmd.none )
+            ( { model | notification = ( True, "Changes were synchronized." ) }
+            , Process.sleep 2000 |> Task.attempt (\_ -> CloseNotification)
+            )
+
+        CloseNotification ->
+            ( { model | notification = ( False, model.notification |> Tuple.second ) }, Cmd.none )
 
         SignInDone uid ->
             ( { model | userId = Just uid }, getDictUrl uid )
@@ -426,6 +440,47 @@ view model =
 
             EditWord entry ->
                 editorView model False entry |> Html.map EditorMsg
+        , notificationView model.notification
+        ]
+
+
+notificationView ( isShown, message ) =
+    div
+        [ classNames
+            [ "fixed"
+            , "z-50"
+            , "pin-b"
+            , "pin-l"
+            , "p-3"
+            , "bg-black"
+            , "text-white"
+            , "text-xs"
+            , "w-full"
+            , "leading-loose"
+            ]
+        , style "transition" "margin-bottom .3s ease"
+        , style "margin-bottom"
+            (if isShown then
+                "0"
+
+             else
+                "-4em"
+            )
+        ]
+        [ text message
+        , button
+            [ onClick CloseNotification
+            , classNames
+                [ "rounded"
+                , "bg-grey-darker"
+                , "text-grey-lighter"
+                , "text-xs"
+                , "px-2"
+                , "py-1"
+                , "mx-2"
+                ]
+            ]
+            [ text "Entlassen" ]
         ]
 
 
@@ -755,7 +810,7 @@ addButton =
     button
         [ classNames
             [ "fixed"
-            , "pin-l"
+            , "pin-r"
             , "pin-b"
             , "rounded-full"
             , "bg-blue"
@@ -768,7 +823,7 @@ addButton =
             , "flex"
             , "justify-center"
             , "items-center"
-            , "z-50"
+            , "z-30"
             , "shadow-lg"
             ]
         , onClick AddButtonClicked
