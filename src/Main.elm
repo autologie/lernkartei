@@ -5,7 +5,7 @@ import Browser
 import Browser.Dom as Dom
 import Dictionary exposing (Dictionary)
 import Entry exposing (Entry(..))
-import Html exposing (a, button, div, h1, input, label, li, p, span, text, textarea, ul)
+import Html exposing (Html, a, button, div, h1, input, label, li, p, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
@@ -60,7 +60,6 @@ type Direction
 
 type alias Model =
     { dict : Dictionary
-    , showing : Maybe ( Bool, Entry )
     , seed : Random.Seed
     , direction : Direction
     , textDisposition : Maybe ( Int, Int, Float )
@@ -73,11 +72,12 @@ type alias Model =
 
 
 type Route
-    = ShowCard
+    = ShowCard (Maybe ( Bool, Entry ))
     | AddWord Entry
     | EditWord Entry
 
 
+initialModel : Bool -> Int -> String -> Model
 initialModel onLine randomSeed localDict =
     let
         dict =
@@ -87,13 +87,12 @@ initialModel onLine randomSeed localDict =
             randomEntry (Random.initialSeed randomSeed) dict
     in
     { dict = dict
-    , showing = maybeEntry
     , seed = nextSeed
     , direction = DeToJa
     , textDisposition = Nothing
     , searchText = Nothing
     , expandSearchResults = False
-    , route = ShowCard
+    , route = ShowCard maybeEntry
     , userId = Nothing
     , onLine = onLine
     }
@@ -110,7 +109,7 @@ type Msg
     | ToggleSearchResults
     | ClearSearchText
     | AddButtonClicked
-    | CloseEditor
+    | CloseEditor Bool Entry
     | SaveAndCloseEditor Bool Entry
     | WordChange Entry
     | SignInDone String
@@ -129,9 +128,9 @@ update msg model =
                     randomEntry model.seed (searchResults model)
             in
             ( { model
-                | showing = maybeEntry
-                , seed = nextSeed
+                | seed = nextSeed
                 , textDisposition = Nothing
+                , route = ShowCard maybeEntry
               }
             , Cmd.none
             )
@@ -149,11 +148,16 @@ update msg model =
                         ( maybeEntry, updatedSeed ) =
                             randomEntry model.seed (searchResults modelWithNewDict)
                     in
-                    { model
-                        | showing = maybeEntry
-                        , seed = updatedSeed
+                    { modelWithNewDict
+                        | seed = updatedSeed
                         , textDisposition = Nothing
-                        , dict = dict
+                        , route =
+                            case model.route of
+                                ShowCard Nothing ->
+                                    ShowCard maybeEntry
+
+                                other ->
+                                    other
                     }
             in
             ( updatedModel, syncLocalStorage str )
@@ -163,13 +167,14 @@ update msg model =
 
         Translate ->
             ( { model
-                | showing =
-                    model.showing
-                        |> Maybe.map
-                            (\( showTranslation, entry ) ->
-                                ( not showTranslation, entry )
-                            )
-                , textDisposition = Nothing
+                | textDisposition = Nothing
+                , route =
+                    case model.route of
+                        ShowCard (Just ( isTranslated, entry )) ->
+                            ShowCard (Just ( not isTranslated, entry ))
+
+                        other ->
+                            other
               }
             , Cmd.none
             )
@@ -205,9 +210,9 @@ update msg model =
 
         ClickSearchResult entry ->
             ( { model
-                | showing = Just ( False, entry )
-                , expandSearchResults = False
+                | expandSearchResults = False
                 , textDisposition = Nothing
+                , route = ShowCard (Just ( False, entry ))
               }
             , Cmd.none
             )
@@ -232,8 +237,21 @@ update msg model =
             , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
             )
 
-        CloseEditor ->
-            ( { model | route = ShowCard }, Cmd.none )
+        CloseEditor isNew entry ->
+            ( if isNew then
+                let
+                    ( maybeEntry, updatedSeed ) =
+                        randomEntry model.seed (searchResults model)
+                in
+                { model
+                    | route = ShowCard maybeEntry
+                    , seed = updatedSeed
+                }
+
+              else
+                { model | route = ShowCard (Just ( False, entry )) }
+            , Cmd.none
+            )
 
         SaveAndCloseEditor True entry ->
             updateDict (Array.append (Array.fromList [ entry ]) model.dict) model
@@ -274,6 +292,7 @@ update msg model =
             ( model, Cmd.none )
 
 
+updateDict : Dictionary -> Model -> ( Model, Cmd Msg )
 updateDict dict model =
     Maybe.map2
         (\entry userId ->
@@ -282,7 +301,7 @@ updateDict dict model =
                     Dictionary.serialize dict
             in
             ( { model
-                | route = ShowCard
+                | route = ShowCard (Just ( False, entry ))
                 , dict = dict
               }
             , Cmd.batch
@@ -298,7 +317,7 @@ updateDict dict model =
             EditWord entry ->
                 Just entry
 
-            ShowCard ->
+            ShowCard _ ->
                 Nothing
         )
         model.userId
@@ -331,69 +350,73 @@ view model =
             , "items-center"
             ]
         ]
-        ([ Html.Keyed.node "div"
-            [ classNames
-                [ "container"
-                , "max-w-md"
-                ]
+        [ case model.route of
+            ShowCard entry ->
+                homeView model entry
+
+            AddWord entry ->
+                editorView model True entry
+
+            EditWord entry ->
+                editorView model False entry
+        ]
+
+
+homeView : Model -> Maybe ( Bool, Entry ) -> Html Msg
+homeView model maybeEntryAndTranslation =
+    Html.Keyed.node "div"
+        [ classNames
+            [ "container"
+            , "max-w-md"
             ]
-            ([ ( "header"
-               , h1
-                    [ classNames
-                        [ "text-center"
+        ]
+        ([ ( "header"
+           , h1
+                [ classNames
+                    [ "text-center"
+                    , "py-2"
+                    , "lg:py-8"
+                    , "text-grey-dark"
+                    , "text-sm"
+                    , "lg:text-lg"
+                    ]
+                ]
+                [ text "Wortkarten" ]
+           )
+         , ( "search"
+           , div [ classNames [ "relative" ] ]
+                [ input
+                    [ type_ "text"
+                    , onInput SearchInput
+                    , classNames
+                        [ "border-b"
+                        , "text-grey-darkest"
+                        , "bg-transparent"
+                        , "w-full"
+                        , "text-lg"
                         , "py-2"
-                        , "lg:py-8"
-                        , "text-grey-dark"
-                        , "text-sm"
-                        , "lg:text-lg"
                         ]
+                    , placeholder "Filter"
+                    , value (model.searchText |> Maybe.withDefault "")
                     ]
-                    [ text "Wortkarten" ]
-               )
-             , ( "search"
-               , div [ classNames [ "relative" ] ]
-                    [ input
-                        [ type_ "text"
-                        , onInput SearchInput
-                        , classNames
-                            [ "border-b"
-                            , "text-grey-darkest"
-                            , "bg-transparent"
-                            , "w-full"
-                            , "text-lg"
-                            , "py-2"
-                            ]
-                        , placeholder "Filter"
-                        , value (model.searchText |> Maybe.withDefault "")
-                        ]
-                        []
-                    , resultCountView model
-                    ]
-               )
-             ]
-                ++ (case ( model.expandSearchResults, model.searchText ) of
-                        ( True, Just text ) ->
-                            [ ( "searchResult", searchResultView model text ) ]
-
-                        _ ->
-                            []
-                   )
-                ++ [ ( "card", cardView model ) ]
-            )
+                    []
+                , resultCountView model
+                ]
+           )
          ]
-            ++ (case ( model.route, model.userId ) of
-                    ( ShowCard, Just _ ) ->
-                        [ addButton ]
+            ++ (case ( model.expandSearchResults, model.searchText ) of
+                    ( True, Just text ) ->
+                        [ ( "searchResult", searchResultView model text ) ]
 
-                    ( ShowCard, Nothing ) ->
+                    _ ->
                         []
-
-                    ( AddWord entry, _ ) ->
-                        [ editorView model True entry ]
-
-                    ( EditWord entry, _ ) ->
-                        [ editorView model False entry ]
                )
+            ++ (maybeEntryAndTranslation
+                    |> Maybe.map (cardView model)
+                    |> Maybe.map (\v -> [ ( "card", v ) ])
+                    |> Maybe.withDefault []
+               )
+            ++ [ ( "addButton", addButton ) ]
         )
 
 
@@ -528,26 +551,22 @@ hilighted searchText str =
     [ span [] [ text str ] ]
 
 
-cardView model =
+cardView : Model -> ( Bool, Entry ) -> Html Msg
+cardView model ( isTranslated, (Entry de ja ex) as entry ) =
     let
         ( textToShow, maybeExample ) =
-            model.showing
-                |> Maybe.map
-                    (\( showTranslation, Entry de ja ex ) ->
-                        case ( showTranslation, model.direction ) of
-                            ( False, DeToJa ) ->
-                                ( de, Nothing )
+            case ( model.direction, isTranslated ) of
+                ( DeToJa, False ) ->
+                    ( de, Nothing )
 
-                            ( False, JaToDe ) ->
-                                ( ja, Nothing )
+                ( JaToDe, False ) ->
+                    ( ja, Nothing )
 
-                            ( True, DeToJa ) ->
-                                ( ja, ex )
+                ( DeToJa, True ) ->
+                    ( ja, ex )
 
-                            ( True, JaToDe ) ->
-                                ( de, ex )
-                    )
-                |> Maybe.withDefault ( "", Nothing )
+                ( JaToDe, True ) ->
+                    ( de, ex )
     in
     div []
         [ ul
@@ -614,24 +633,18 @@ cardView model =
                         , "m-2"
                         ]
                     ]
-                    (model.showing
-                        |> Maybe.map
-                            (\( _, entry ) ->
-                                [ a
-                                    [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ textToShow)
-                                    , target "_blank"
-                                    , classNames [ "text-blue", "no-underline", "mr-2" ]
-                                    ]
-                                    [ text "Hören" ]
-                                , button
-                                    [ onClick (StartEdit entry)
-                                    , classNames [ "text-blue" ]
-                                    ]
-                                    [ text "Edit" ]
-                                ]
-                            )
-                        |> Maybe.withDefault []
-                    )
+                    [ a
+                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ textToShow)
+                        , target "_blank"
+                        , classNames [ "text-blue", "no-underline", "mr-2" ]
+                        ]
+                        [ text "Hören" ]
+                    , button
+                        [ onClick (StartEdit entry)
+                        , classNames [ "text-blue" ]
+                        ]
+                        [ text "Edit" ]
+                    ]
                 ]
              ]
                 ++ (maybeExample
@@ -698,13 +711,7 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
     in
     div
         [ classNames
-            [ "fixed"
-            , "pin-l"
-            , "pin-t"
-            , "w-full"
-            , "h-full"
-            , "bg-white"
-            , "p-4"
+            [ "w-full"
             , "flex"
             , "justify-center"
             , "items-start"
@@ -743,18 +750,6 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
                         )
                 )
             , button
-                [ onClick CloseEditor
-                , classNames
-                    [ "absolute"
-                    , "pin-t"
-                    , "pin-r"
-                    , "text-lg"
-                    , "p-2"
-                    , "text-grey-darkest"
-                    ]
-                ]
-                [ text "X" ]
-            , button
                 [ onClick (SaveAndCloseEditor isNew entry)
                 , classNames
                     (btnClasses True hasError
@@ -787,6 +782,20 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
                 , disabled hasError
                 ]
                 [ text "Löschen" ]
+            , button
+                [ onClick (CloseEditor isNew entry)
+                , classNames
+                    ((btnClasses True False |> List.filter (\c -> c /= "bg-blue" && c /= "text-white"))
+                        ++ [ "w-full"
+                           , "p-3"
+                           , "text-base"
+                           , "mb-2"
+                           , "bg-grey-lighter"
+                           , "text-grey-darker"
+                           ]
+                    )
+                ]
+                [ text "Abbrechen" ]
             ]
         ]
 
@@ -815,7 +824,7 @@ textInputView fieldName maybeInputId inputValue multiline handleInput =
                          ]
                             ++ formClasses
                         )
-                    , rows 3
+                    , rows 5
                     , value inputValue
                     , onInput handleInput
                     ]
