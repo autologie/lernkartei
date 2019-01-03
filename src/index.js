@@ -63,6 +63,9 @@ if (window.navigator.onLine) {
 
 new MutationObserver(() => {
   const el = document.getElementById("text");
+
+  if (!el) return;
+
   const scale = Math.min(
     (0.6 * el.parentNode.offsetWidth) / el.offsetWidth,
     (0.4 * el.parentNode.offsetHeight) / el.offsetHeight

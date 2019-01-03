@@ -43,7 +43,7 @@ main =
         , subscriptions =
             \_ ->
                 Sub.batch
-                    [ textDisposition TextDispositionChange
+                    [ textDisposition (TextDispositionChange >> HomeMsg)
                     , signInDone SignInDone
                     , persistDictionaryDone PersistDictionaryDone
                     , getDictUrlDone GetDictUrlDone
@@ -53,26 +53,32 @@ main =
         }
 
 
-type Direction
-    = DeToJa
-    | JaToDe
-
-
 type alias Model =
     { dict : Dictionary
     , seed : Random.Seed
-    , direction : Direction
-    , textDisposition : Maybe ( Int, Int, Float )
-    , searchText : Maybe String
-    , expandSearchResults : Bool
     , route : Route
     , userId : Maybe String
     , onLine : Bool
     }
 
 
+type alias HomeModel =
+    { isTranslated : Bool
+    , entry : Maybe Entry
+    , direction : Direction
+    , textDisposition : Maybe ( Int, Int, Float )
+    , searchText : Maybe String
+    , expandSearchResults : Bool
+    }
+
+
+type Direction
+    = DeToJa
+    | JaToDe
+
+
 type Route
-    = ShowCard (Maybe ( Bool, Entry ))
+    = ShowCard HomeModel
     | AddWord Entry
     | EditWord Entry
 
@@ -88,205 +94,268 @@ initialModel onLine randomSeed localDict =
     in
     { dict = dict
     , seed = nextSeed
-    , direction = DeToJa
-    , textDisposition = Nothing
-    , searchText = Nothing
-    , expandSearchResults = False
-    , route = ShowCard maybeEntry
+    , route = ShowCard (initialHomeModel maybeEntry)
     , userId = Nothing
     , onLine = onLine
     }
 
 
+initialHomeModel maybeEntry =
+    { isTranslated = False
+    , direction = DeToJa
+    , entry = maybeEntry
+    , textDisposition = Nothing
+    , searchText = Nothing
+    , expandSearchResults = False
+    }
+
+
 type Msg
-    = NextRandomWord
-    | Translate
+    = HomeMsg HomeMsg
+    | EditorMsg EditorMsg
+    | GetDictUrlDone String
     | ReceiveDict (Result Http.Error String)
-    | DirectionChange
-    | TextDispositionChange ( Int, Int, Float )
-    | SearchInput String
-    | ClickSearchResult Entry
-    | ToggleSearchResults
-    | ClearSearchText
-    | AddButtonClicked
-    | CloseEditor Bool Entry
-    | SaveAndCloseEditor Bool Entry
-    | WordChange Entry
     | SignInDone String
     | PersistDictionaryDone ()
-    | GetDictUrlDone String
-    | StartEdit Entry
-    | DeleteEntry Entry
     | NoOp
 
 
+type HomeMsg
+    = NextRandomWord
+    | ClickSearchResult Entry
+    | Translate
+    | DirectionChange
+    | TextDispositionChange ( Int, Int, Float )
+    | SearchInput String
+    | ToggleSearchResults
+    | ClearSearchText
+    | AddButtonClicked
+    | StartEdit Entry
+
+
+type EditorMsg
+    = CloseEditor Bool Entry
+    | SaveAndCloseEditor Bool Entry
+    | WordChange Entry
+    | DeleteEntry Entry
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NextRandomWord ->
-            let
-                ( maybeEntry, nextSeed ) =
-                    randomEntry model.seed (searchResults model)
-            in
-            ( { model
-                | seed = nextSeed
-                , textDisposition = Nothing
-                , route = ShowCard maybeEntry
-              }
-            , Cmd.none
-            )
+        HomeMsg homeMsg ->
+            case model.route of
+                ShowCard homeModel ->
+                    case homeMsg of
+                        NextRandomWord ->
+                            let
+                                ( maybeEntry, nextSeed ) =
+                                    randomEntry model.seed
+                                        (searchResults model.dict homeModel.searchText)
+                            in
+                            ( { model
+                                | seed = nextSeed
+                                , route =
+                                    ShowCard
+                                        { homeModel
+                                            | textDisposition = Nothing
+                                            , entry = maybeEntry
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        ClickSearchResult entry ->
+                            ( { model
+                                | route =
+                                    ShowCard
+                                        { homeModel
+                                            | expandSearchResults = False
+                                            , textDisposition = Nothing
+                                            , isTranslated = False
+                                            , entry = Just entry
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        Translate ->
+                            ( { model
+                                | route =
+                                    ShowCard
+                                        { homeModel
+                                            | isTranslated = not homeModel.isTranslated
+                                            , textDisposition = Nothing
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        DirectionChange ->
+                            ( { model
+                                | route =
+                                    ShowCard
+                                        { homeModel
+                                            | direction =
+                                                case homeModel.direction of
+                                                    DeToJa ->
+                                                        JaToDe
+
+                                                    JaToDe ->
+                                                        DeToJa
+                                            , textDisposition = Nothing
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        TextDispositionChange value ->
+                            ( { model
+                                | route =
+                                    ShowCard
+                                        { homeModel
+                                            | textDisposition = Just value
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        SearchInput text ->
+                            ( { model
+                                | route =
+                                    ShowCard
+                                        { homeModel
+                                            | searchText =
+                                                if text == "" then
+                                                    Nothing
+
+                                                else
+                                                    Just text
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        ToggleSearchResults ->
+                            ( { model
+                                | route =
+                                    ShowCard
+                                        { homeModel
+                                            | expandSearchResults =
+                                                not homeModel.expandSearchResults
+                                        }
+                              }
+                            , Cmd.none
+                            )
+
+                        ClearSearchText ->
+                            ( { model
+                                | route = ShowCard { homeModel | searchText = Nothing }
+                              }
+                            , Cmd.none
+                            )
+
+                        AddButtonClicked ->
+                            ( { model | route = AddWord (Entry "" "" Nothing) }
+                            , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+                            )
+
+                        StartEdit entry ->
+                            ( { model | route = EditWord entry }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        EditorMsg editorMsg ->
+            case editorMsg of
+                CloseEditor isNew entry ->
+                    ( if isNew then
+                        let
+                            ( maybeEntry, updatedSeed ) =
+                                randomEntry model.seed (searchResults model.dict Nothing)
+                        in
+                        { model
+                            | route = ShowCard (initialHomeModel (Just entry))
+                            , seed = updatedSeed
+                        }
+
+                      else
+                        { model | route = ShowCard (initialHomeModel (Just entry)) }
+                    , Cmd.none
+                    )
+
+                SaveAndCloseEditor True entry ->
+                    updateDict (Array.append (Array.fromList [ entry ]) model.dict) model
+
+                SaveAndCloseEditor False ((Entry de _ _) as changedEntry) ->
+                    updateDict
+                        (Array.map
+                            (\((Entry entryDe _ _) as entry) ->
+                                if de == entryDe then
+                                    changedEntry
+
+                                else
+                                    entry
+                            )
+                            model.dict
+                        )
+                        model
+
+                DeleteEntry (Entry entryDe _ _) ->
+                    updateDict (model.dict |> Array.filter (\(Entry de _ _) -> de /= entryDe)) model
+
+                WordChange updatedEntry ->
+                    ( { model | route = AddWord updatedEntry }, Cmd.none )
 
         ReceiveDict (Ok str) ->
             let
                 updatedModel =
                     let
-                        dict =
+                        newDict =
                             Dictionary.parse str
 
                         modelWithNewDict =
-                            { model | dict = dict }
-
-                        ( maybeEntry, updatedSeed ) =
-                            randomEntry model.seed (searchResults modelWithNewDict)
+                            { model | dict = newDict }
                     in
-                    { modelWithNewDict
-                        | seed = updatedSeed
-                        , textDisposition = Nothing
-                        , route =
-                            case model.route of
-                                ShowCard Nothing ->
-                                    ShowCard maybeEntry
+                    case model.route of
+                        ShowCard homeModel ->
+                            case homeModel.entry of
+                                Just _ ->
+                                    modelWithNewDict
 
-                                other ->
-                                    other
-                    }
+                                Nothing ->
+                                    let
+                                        ( maybeEntry, updatedSeed ) =
+                                            randomEntry model.seed
+                                                (searchResults newDict homeModel.searchText)
+                                    in
+                                    { modelWithNewDict
+                                        | seed = updatedSeed
+                                        , route =
+                                            ShowCard
+                                                { homeModel
+                                                    | entry = maybeEntry
+                                                    , isTranslated = False
+                                                    , textDisposition = Nothing
+                                                }
+                                    }
+
+                        _ ->
+                            modelWithNewDict
             in
             ( updatedModel, syncLocalStorage str )
 
         ReceiveDict (Err _) ->
             ( model, Cmd.none )
 
-        Translate ->
-            ( { model
-                | textDisposition = Nothing
-                , route =
-                    case model.route of
-                        ShowCard (Just ( isTranslated, entry )) ->
-                            ShowCard (Just ( not isTranslated, entry ))
-
-                        other ->
-                            other
-              }
-            , Cmd.none
-            )
-
-        DirectionChange ->
-            ( { model
-                | direction =
-                    case model.direction of
-                        DeToJa ->
-                            JaToDe
-
-                        JaToDe ->
-                            DeToJa
-                , textDisposition = Nothing
-              }
-            , Cmd.none
-            )
-
-        TextDispositionChange value ->
-            ( { model | textDisposition = Just value }, Cmd.none )
-
-        SearchInput text ->
-            ( { model
-                | searchText =
-                    if text == "" then
-                        Nothing
-
-                    else
-                        Just text
-              }
-            , Cmd.none
-            )
-
-        ClickSearchResult entry ->
-            ( { model
-                | expandSearchResults = False
-                , textDisposition = Nothing
-                , route = ShowCard (Just ( False, entry ))
-              }
-            , Cmd.none
-            )
-
-        ToggleSearchResults ->
-            ( { model
-                | expandSearchResults =
-                    not model.expandSearchResults
-              }
-            , Cmd.none
-            )
-
-        ClearSearchText ->
-            ( { model
-                | searchText = Nothing
-              }
-            , Cmd.none
-            )
-
-        AddButtonClicked ->
-            ( { model | route = AddWord (Entry "" "" Nothing) }
-            , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
-            )
-
-        CloseEditor isNew entry ->
-            ( if isNew then
-                let
-                    ( maybeEntry, updatedSeed ) =
-                        randomEntry model.seed (searchResults model)
-                in
-                { model
-                    | route = ShowCard maybeEntry
-                    , seed = updatedSeed
-                }
-
-              else
-                { model | route = ShowCard (Just ( False, entry )) }
-            , Cmd.none
-            )
-
-        SaveAndCloseEditor True entry ->
-            updateDict (Array.append (Array.fromList [ entry ]) model.dict) model
-
-        SaveAndCloseEditor False ((Entry de _ _) as changedEntry) ->
-            updateDict
-                (Array.map
-                    (\((Entry entryDe _ _) as entry) ->
-                        if de == entryDe then
-                            changedEntry
-
-                        else
-                            entry
-                    )
-                    model.dict
-                )
-                model
-
-        DeleteEntry (Entry entryDe _ _) ->
-            updateDict (model.dict |> Array.filter (\(Entry de _ _) -> de /= entryDe)) model
-
         PersistDictionaryDone _ ->
             ( model, Cmd.none )
-
-        WordChange updatedEntry ->
-            ( { model | route = AddWord updatedEntry }, Cmd.none )
 
         SignInDone uid ->
             ( { model | userId = Just uid }, getDictUrl uid )
 
         GetDictUrlDone url ->
             ( model, Http.get { url = url, expect = Http.expectString ReceiveDict } )
-
-        StartEdit entry ->
-            ( { model | route = EditWord entry }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -301,7 +370,7 @@ updateDict dict model =
                     Dictionary.serialize dict
             in
             ( { model
-                | route = ShowCard (Just ( False, entry ))
+                | route = ShowCard (initialHomeModel (Just entry))
                 , dict = dict
               }
             , Cmd.batch
@@ -331,9 +400,7 @@ randomEntry seed entries =
                 (Random.int 0 (Array.length entries - 1))
                 seed
     in
-    ( entries
-        |> Array.get index
-        |> Maybe.map (\entry -> ( False, entry ))
+    ( entries |> Array.get index
     , nextSeed
     )
 
@@ -352,18 +419,18 @@ view model =
         ]
         [ case model.route of
             ShowCard entry ->
-                homeView model entry
+                homeView model.onLine model.dict entry |> Html.map HomeMsg
 
             AddWord entry ->
-                editorView model True entry
+                editorView model True entry |> Html.map EditorMsg
 
             EditWord entry ->
-                editorView model False entry
+                editorView model False entry |> Html.map EditorMsg
         ]
 
 
-homeView : Model -> Maybe ( Bool, Entry ) -> Html Msg
-homeView model maybeEntryAndTranslation =
+homeView : Bool -> Dictionary -> HomeModel -> Html HomeMsg
+homeView onLine dict homeModel =
     Html.Keyed.node "div"
         [ classNames
             [ "container"
@@ -397,38 +464,42 @@ homeView model maybeEntryAndTranslation =
                         , "py-2"
                         ]
                     , placeholder "Filter"
-                    , value (model.searchText |> Maybe.withDefault "")
+                    , value (homeModel.searchText |> Maybe.withDefault "")
                     ]
                     []
-                , resultCountView model
+                , resultCountView dict homeModel
                 ]
            )
          ]
-            ++ (case ( model.expandSearchResults, model.searchText ) of
+            ++ (case ( homeModel.expandSearchResults, homeModel.searchText ) of
                     ( True, Just text ) ->
-                        [ ( "searchResult", searchResultView model text ) ]
+                        [ ( "searchResult", searchResultView dict text ) ]
 
                     _ ->
                         []
                )
-            ++ (maybeEntryAndTranslation
-                    |> Maybe.map (cardView model)
+            ++ (homeModel.entry
+                    |> Maybe.map (cardView homeModel)
                     |> Maybe.map (\v -> [ ( "card", v ) ])
                     |> Maybe.withDefault []
                )
-            ++ [ ( "addButton", addButton ) ]
+            ++ (if onLine then
+                    [ ( "addButton", addButton ) ]
+
+                else
+                    []
+               )
         )
 
 
-resultCountView model =
+resultCountView : Dictionary -> HomeModel -> Html HomeMsg
+resultCountView dict homeModel =
     let
         resultCount =
-            model
-                |> searchResults
-                |> Array.length
+            searchResults dict homeModel.searchText |> Array.length
 
         ( isFiltered, isClickable ) =
-            model.searchText
+            homeModel.searchText
                 |> Maybe.map (\_ -> ( True, resultCount > 0 ))
                 |> Maybe.withDefault ( False, False )
 
@@ -489,20 +560,21 @@ resultCountView model =
         )
 
 
-searchResults model =
-    model.searchText
+searchResults : Dictionary -> Maybe String -> Array Entry
+searchResults dict maybeSearchText =
+    maybeSearchText
         |> Maybe.map
             (\searchText ->
-                model.dict
+                dict
                     |> Array.filter (isMatchedTo searchText)
             )
-        |> Maybe.withDefault model.dict
+        |> Maybe.withDefault dict
 
 
-searchResultView model searchText =
+searchResultView : Dictionary -> String -> Html HomeMsg
+searchResultView dict searchText =
     ul [ classNames [ "list-reset", "py-3" ] ]
-        (model
-            |> searchResults
+        (searchResults dict (Just searchText)
             |> Array.map (searchResultRow searchText)
             |> Array.toList
         )
@@ -551,11 +623,11 @@ hilighted searchText str =
     [ span [] [ text str ] ]
 
 
-cardView : Model -> ( Bool, Entry ) -> Html Msg
-cardView model ( isTranslated, (Entry de ja ex) as entry ) =
+cardView : HomeModel -> Entry -> Html HomeMsg
+cardView model ((Entry de ja ex) as entry) =
     let
         ( textToShow, maybeExample ) =
-            case ( model.direction, isTranslated ) of
+            case ( model.direction, model.isTranslated ) of
                 ( DeToJa, False ) ->
                     ( de, Nothing )
 

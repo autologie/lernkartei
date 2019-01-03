@@ -5,9 +5,11 @@
   "license": "MIT",
   "scripts": {
     "start": "parcel index.html",
-    "build": "parcel build index.html"
+    "build": "parcel build index.html",
+    "format": "elm-format --yes src/"
   },
   "devDependencies": {
+    "elm-format": "^0.8.1",
     "elm-hot": "^1.0.1",
     "node-elm-compiler": "^5.0.1",
     "parcel-bundler": "^1.11.0",
