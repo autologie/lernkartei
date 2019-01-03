@@ -75,6 +75,7 @@ type alias Model =
 type AppMode
     = ShowCard
     | AddWord Entry
+    | EditWord Entry
 
 
 initialModel onLine randomSeed localDict =
@@ -110,11 +111,13 @@ type Msg
     | ClearSearchText
     | AddButtonClicked
     | CloseEditor
-    | SaveAndCloseEditor
+    | SaveAndCloseEditor Bool Entry
     | WordChange Entry
     | SignInDone String
     | PersistDictionaryDone ()
     | GetDictUrlDone String
+    | StartEdit Entry
+    | DeleteEntry Entry
     | NoOp
 
 
@@ -136,19 +139,22 @@ update msg model =
         ReceiveDict (Ok str) ->
             let
                 updatedModel =
-                    model.showing
-                        |> Maybe.map (\_ -> model)
-                        |> Maybe.withDefault
-                            (let
-                                ( maybeEntry, updatedSeed ) =
-                                    randomEntry model.seed (searchResults model)
-                             in
-                             { model
-                                | showing = maybeEntry
-                                , seed = updatedSeed
-                                , textDisposition = Nothing
-                             }
-                            )
+                    let
+                        dict =
+                            Dictionary.parse str
+
+                        modelWithNewDict =
+                            { model | dict = dict }
+
+                        ( maybeEntry, updatedSeed ) =
+                            randomEntry model.seed (searchResults modelWithNewDict)
+                    in
+                    { model
+                        | showing = maybeEntry
+                        , seed = updatedSeed
+                        , textDisposition = Nothing
+                        , dict = dict
+                    }
             in
             ( updatedModel, syncLocalStorage str )
 
@@ -229,22 +235,25 @@ update msg model =
         CloseEditor ->
             ( { model | appMode = ShowCard }, Cmd.none )
 
-        SaveAndCloseEditor ->
-            case ( model.appMode, model.userId ) of
-                ( AddWord entry, Just userId ) ->
-                    let
-                        updatedDict =
-                            Array.append (Array.fromList [ entry ]) model.dict
-                    in
-                    ( { model
-                        | appMode = ShowCard
-                        , dict = updatedDict
-                      }
-                    , persistDictionary ( Dictionary.serialize updatedDict, userId )
-                    )
+        SaveAndCloseEditor True entry ->
+            updateDict (Array.append (Array.fromList [ entry ]) model.dict) model
 
-                _ ->
-                    ( model, Cmd.none )
+        SaveAndCloseEditor False ((Entry de _ _) as changedEntry) ->
+            updateDict
+                (Array.map
+                    (\((Entry entryDe _ _) as entry) ->
+                        if de == entryDe then
+                            changedEntry
+
+                        else
+                            entry
+                    )
+                    model.dict
+                )
+                model
+
+        DeleteEntry (Entry entryDe _ _) ->
+            updateDict (model.dict |> Array.filter (\(Entry de _ _) -> de /= entryDe)) model
 
         PersistDictionaryDone _ ->
             ( model, Cmd.none )
@@ -258,8 +267,42 @@ update msg model =
         GetDictUrlDone url ->
             ( model, Http.get { url = url, expect = Http.expectString ReceiveDict } )
 
+        StartEdit entry ->
+            ( { model | appMode = EditWord entry }, Cmd.none )
+
         NoOp ->
             ( model, Cmd.none )
+
+
+updateDict dict model =
+    Maybe.map2
+        (\entry userId ->
+            let
+                serializedDict =
+                    Dictionary.serialize dict
+            in
+            ( { model
+                | appMode = ShowCard
+                , dict = dict
+              }
+            , Cmd.batch
+                [ persistDictionary ( serializedDict, userId )
+                , syncLocalStorage serializedDict
+                ]
+            )
+        )
+        (case model.appMode of
+            AddWord entry ->
+                Just entry
+
+            EditWord entry ->
+                Just entry
+
+            ShowCard ->
+                Nothing
+        )
+        model.userId
+        |> Maybe.withDefault ( model, Cmd.none )
 
 
 randomEntry seed entries =
@@ -346,7 +389,10 @@ view model =
                         []
 
                     ( AddWord entry, _ ) ->
-                        [ editorView model entry ]
+                        [ editorView model True entry ]
+
+                    ( EditWord entry, _ ) ->
+                        [ editorView model False entry ]
                )
         )
 
@@ -560,19 +606,32 @@ cardView model =
                            )
                     )
                     [ text textToShow ]
-                , a
-                    [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ textToShow)
-                    , target "_blank"
-                    , classNames
+                , div
+                    [ classNames
                         [ "absolute"
                         , "pin-t"
                         , "pin-r"
                         , "m-2"
-                        , "text-blue"
-                        , "no-underline"
                         ]
                     ]
-                    [ text "Hören" ]
+                    (model.showing
+                        |> Maybe.map
+                            (\( _, entry ) ->
+                                [ a
+                                    [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ textToShow)
+                                    , target "_blank"
+                                    , classNames [ "text-blue", "no-underline", "mr-2" ]
+                                    ]
+                                    [ text "Hören" ]
+                                , button
+                                    [ onClick (StartEdit entry)
+                                    , classNames [ "text-blue" ]
+                                    ]
+                                    [ text "Edit" ]
+                                ]
+                            )
+                        |> Maybe.withDefault []
+                    )
                 ]
              ]
                 ++ (maybeExample
@@ -632,10 +691,10 @@ addButton =
         [ div [ style "margin-top" "-8px" ] [ text "+" ] ]
 
 
-editorView model ((Entry de ja maybeExample) as entry) =
+editorView model isNew ((Entry de ja maybeExample) as entry) =
     let
         hasError =
-            not (isValid model.dict entry)
+            not (isValid entry)
     in
     div
         [ classNames
@@ -657,17 +716,17 @@ editorView model ((Entry de ja maybeExample) as entry) =
                 , "max-w-md"
                 ]
             ]
-            [ textInputView "De"
+            [ textInputView "Deutsch"
                 (Just "editor-input-de")
                 de
                 False
                 (\value -> WordChange (Entry value ja maybeExample))
-            , textInputView "Ja"
+            , textInputView "Japanisch"
                 Nothing
                 ja
                 False
                 (\value -> WordChange (Entry de value maybeExample))
-            , textInputView "Example"
+            , textInputView "Beispiel"
                 Nothing
                 (maybeExample |> Maybe.withDefault "")
                 True
@@ -696,25 +755,44 @@ editorView model ((Entry de ja maybeExample) as entry) =
                 ]
                 [ text "X" ]
             , button
-                [ onClick SaveAndCloseEditor
+                [ onClick (SaveAndCloseEditor isNew entry)
                 , classNames
                     (btnClasses True hasError
                         ++ [ "w-full"
-                           , "p-4"
-                           , "text-lg"
+                           , "p-3"
+                           , "text-base"
+                           , "mb-2"
                            ]
                     )
                 , disabled hasError
                 ]
-                [ text "Save" ]
+                [ text "Sparen" ]
+            , button
+                [ onClick (DeleteEntry entry)
+                , style "display"
+                    (if isNew then
+                        "none"
+
+                     else
+                        "inline"
+                    )
+                , classNames
+                    ((btnClasses True False |> List.filter (\c -> c /= "bg-blue"))
+                        ++ [ "w-full"
+                           , "p-3"
+                           , "text-base"
+                           , "bg-red"
+                           ]
+                    )
+                , disabled hasError
+                ]
+                [ text "Löschen" ]
             ]
         ]
 
 
-isValid dict (Entry de ja maybeExample) =
-    (de /= "")
-        && (ja /= "")
-        && (dict |> Array.filter (\(Entry dictDe _ _) -> dictDe == de) |> Array.isEmpty)
+isValid (Entry de ja maybeExample) =
+    (de /= "") && (ja /= "")
 
 
 textInputView fieldName maybeInputId inputValue multiline handleInput =
@@ -722,7 +800,7 @@ textInputView fieldName maybeInputId inputValue multiline handleInput =
         formClasses =
             [ "bg-grey-lighter"
             , "rounded"
-            , "p-4"
+            , "p-3"
             , "text-grey-darkest"
             , "w-full"
             ]
@@ -731,7 +809,7 @@ textInputView fieldName maybeInputId inputValue multiline handleInput =
             if multiline then
                 textarea
                     [ classNames
-                        ([ "text-base"
+                        ([ "text-sm"
                          , "leading-normal"
                          , "resize-none"
                          ]
@@ -746,7 +824,7 @@ textInputView fieldName maybeInputId inputValue multiline handleInput =
             else
                 input
                     ([ type_ "text"
-                     , classNames ([ "text-lg" ] ++ formClasses)
+                     , classNames ([ "text-base" ] ++ formClasses)
                      , value inputValue
                      , onInput handleInput
                      ]
@@ -757,13 +835,13 @@ textInputView fieldName maybeInputId inputValue multiline handleInput =
                     )
                     []
     in
-    div [ classNames [ "mb-8", "w-full" ] ]
+    div [ classNames [ "mb-6", "w-full" ] ]
         [ label [ classNames [ "w-full" ] ]
             [ div
                 [ classNames
                     [ "mr-2"
                     , "text-left"
-                    , "text-sm"
+                    , "text-xs"
                     , "my-2"
                     , "w-full"
                     , "text-grey-dark"
