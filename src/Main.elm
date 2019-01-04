@@ -18,10 +18,13 @@ import Regex
 import Task
 
 
-port persistDictionary : ( String, String ) -> Cmd msg
+port saveEntry : ( String, Encode.Value ) -> Cmd msg
 
 
-port persistDictionaryDone : (() -> msg) -> Sub msg
+port deleteEntry : ( String, String ) -> Cmd msg
+
+
+port syncEntryDone : (() -> msg) -> Sub msg
 
 
 port signInDone : (String -> msg) -> Sub msg
@@ -42,7 +45,7 @@ main =
                 Sub.batch
                     [ textDisposition (TextDispositionChange >> HomeMsg)
                     , signInDone SignInDone
-                    , persistDictionaryDone PersistDictionaryDone
+                    , syncEntryDone SyncEntryDone
                     , dictionaryLoaded
                         (List.map (Decode.decodeValue Entry.decode)
                             >> reduceError
@@ -109,7 +112,7 @@ type Msg
     | EditorMsg EditorMsg
     | ReceiveDict (Result Decode.Error (List Entry))
     | SignInDone String
-    | PersistDictionaryDone ()
+    | SyncEntryDone ()
     | CloseNotification
     | NoOp
 
@@ -280,7 +283,7 @@ update msg model =
                     )
 
                 ( EditWord entry originalEntry, SaveAndCloseEditor ) ->
-                    updateDict
+                    ( updateDict
                         (Array.map
                             (\e ->
                                 if e == originalEntry then
@@ -292,17 +295,31 @@ update msg model =
                             model.dict
                         )
                         model
+                    , model.userId
+                        |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode entry ))
+                        |> Maybe.withDefault Cmd.none
+                    )
 
                 ( AddWord entry, SaveAndCloseEditor ) ->
-                    updateDict
+                    ( updateDict
                         (model.dict |> Array.append (Array.fromList [ entry ]))
                         model
+                    , model.userId
+                        |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode entry ))
+                        |> Maybe.withDefault Cmd.none
+                    )
 
-                ( EditWord _ entry, DeleteEntry ) ->
-                    updateDict (model.dict |> Array.filter ((/=) entry)) model
+                ( EditWord _ ((Entry de _ _) as entry), DeleteEntry ) ->
+                    ( updateDict (model.dict |> Array.filter ((/=) entry)) model
+                    , model.userId
+                        |> Maybe.map (\userId -> deleteEntry ( userId, de ))
+                        |> Maybe.withDefault Cmd.none
+                    )
 
                 ( EditWord _ originalEntry, WordChange entry ) ->
-                    ( { model | route = EditWord entry originalEntry }, Cmd.none )
+                    ( { model | route = EditWord entry originalEntry }
+                    , Cmd.none
+                    )
 
                 ( AddWord _, WordChange entry ) ->
                     ( { model | route = AddWord entry }, Cmd.none )
@@ -354,7 +371,7 @@ update msg model =
         ReceiveDict (Err _) ->
             ( { model | notification = ( True, "Failed to load the dictionary." ) }, Cmd.none )
 
-        PersistDictionaryDone _ ->
+        SyncEntryDone _ ->
             ( { model | notification = ( True, "Changes were synchronized." ) }
             , Process.sleep 2000 |> Task.attempt (\_ -> CloseNotification)
             )
@@ -369,20 +386,18 @@ update msg model =
             ( model, Cmd.none )
 
 
-updateDict : Dictionary -> Model -> ( Model, Cmd Msg )
+updateDict : Dictionary -> Model -> Model
 updateDict dict model =
-    Maybe.map2
-        (\entry userId ->
+    Maybe.map
+        (\entry ->
             let
                 serializedDict =
                     Dictionary.serialize dict
             in
-            ( { model
+            { model
                 | route = ShowCard (initialHomeModel (Just entry))
                 , dict = dict
-              }
-            , persistDictionary ( serializedDict, userId )
-            )
+            }
         )
         (case model.route of
             AddWord entry ->
@@ -394,8 +409,7 @@ updateDict dict model =
             ShowCard _ ->
                 Nothing
         )
-        model.userId
-        |> Maybe.withDefault ( model, Cmd.none )
+        |> Maybe.withDefault model
 
 
 randomEntry seed entries =

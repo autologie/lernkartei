@@ -42,8 +42,24 @@ import "@firebase/firestore";
     }
   });
 
-  app.ports.persistDictionary.subscribe(async ([dict, userId]) => {
-    console.log("TODO: persist", dict, userId); // TODO
+  app.ports.saveEntry.subscribe(async ([userId, { id, ...data }]) => {
+    await db
+      .collection("users")
+      .doc(userId)
+      .collection("entries")
+      .doc(id)
+      .set(data);
+
+    app.ports.persistDictionaryDone.send(null);
+  });
+
+  app.ports.deleteEntry.subscribe(async ([userId, entryId]) => {
+    await db
+      .collection("users")
+      .doc(userId)
+      .collection("entries")
+      .doc(entryId)
+      .delete();
 
     app.ports.persistDictionaryDone.send(null);
   });
