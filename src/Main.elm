@@ -10,6 +10,8 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
 import Http
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Process
 import Random
 import Regex
@@ -25,29 +27,27 @@ port persistDictionaryDone : (() -> msg) -> Sub msg
 port signInDone : (String -> msg) -> Sub msg
 
 
-port getDictUrl : String -> Cmd msg
-
-
-port getDictUrlDone : (String -> msg) -> Sub msg
+port dictionaryLoaded : (List Encode.Value -> msg) -> Sub msg
 
 
 port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
 
 
-port syncLocalStorage : String -> Cmd msg
-
-
-main : Program ( Bool, Int, String ) Model Msg
+main : Program Int Model Msg
 main =
     Browser.document
-        { init = \( onLine, randomSeed, localDict ) -> ( initialModel onLine randomSeed localDict, Cmd.none )
+        { init = \randomSeed -> ( initialModel randomSeed, Cmd.none )
         , subscriptions =
             \_ ->
                 Sub.batch
                     [ textDisposition (TextDispositionChange >> HomeMsg)
                     , signInDone SignInDone
                     , persistDictionaryDone PersistDictionaryDone
-                    , getDictUrlDone GetDictUrlDone
+                    , dictionaryLoaded
+                        (List.map (Decode.decodeValue Entry.decode)
+                            >> reduceError
+                            >> ReceiveDict
+                        )
                     ]
         , update = update
         , view = \model -> { title = "Wortkarten", body = [ view model ] }
@@ -59,7 +59,6 @@ type alias Model =
     , seed : Random.Seed
     , route : Route
     , userId : Maybe String
-    , onLine : Bool
     , notification : ( Bool, String )
     }
 
@@ -85,26 +84,13 @@ type Route
     | EditWord Entry Entry
 
 
-initialModel : Bool -> Int -> String -> Model
-initialModel onLine randomSeed localDict =
-    let
-        dict =
-            Dictionary.parse localDict
-
-        ( maybeEntry, nextSeed ) =
-            randomEntry (Random.initialSeed randomSeed) dict
-    in
-    { dict = dict
-    , seed = nextSeed
-    , route = ShowCard (initialHomeModel maybeEntry)
+initialModel : Int -> Model
+initialModel randomSeed =
+    { dict = Array.empty
+    , seed = Random.initialSeed randomSeed
+    , route = ShowCard (initialHomeModel Nothing)
     , userId = Nothing
-    , onLine = onLine
-    , notification =
-        if onLine then
-            ( False, "" )
-
-        else
-            ( True, "Die App befindet sich im Offline-Modus." )
+    , notification = ( False, "" )
     }
 
 
@@ -121,8 +107,7 @@ initialHomeModel maybeEntry =
 type Msg
     = HomeMsg HomeMsg
     | EditorMsg EditorMsg
-    | GetDictUrlDone String
-    | ReceiveDict (Result Http.Error String)
+    | ReceiveDict (Result Decode.Error (List Entry))
     | SignInDone String
     | PersistDictionaryDone ()
     | CloseNotification
@@ -328,12 +313,12 @@ update msg model =
                 ( ShowCard _, _ ) ->
                     ( model, Cmd.none )
 
-        ReceiveDict (Ok str) ->
+        ReceiveDict (Ok dict) ->
             let
                 updatedModel =
                     let
                         newDict =
-                            Dictionary.parse str
+                            Array.fromList dict
 
                         modelWithNewDict =
                             { model | dict = newDict }
@@ -364,10 +349,10 @@ update msg model =
                         _ ->
                             modelWithNewDict
             in
-            ( updatedModel, syncLocalStorage str )
+            ( updatedModel, Cmd.none )
 
         ReceiveDict (Err _) ->
-            ( { model | notification = ( True, "Failed to load the remote dictionary." ) }, Cmd.none )
+            ( { model | notification = ( True, "Failed to load the dictionary." ) }, Cmd.none )
 
         PersistDictionaryDone _ ->
             ( { model | notification = ( True, "Changes were synchronized." ) }
@@ -378,10 +363,7 @@ update msg model =
             ( { model | notification = ( False, model.notification |> Tuple.second ) }, Cmd.none )
 
         SignInDone uid ->
-            ( { model | userId = Just uid }, getDictUrl uid )
-
-        GetDictUrlDone url ->
-            ( model, Http.get { url = url, expect = Http.expectString ReceiveDict } )
+            ( { model | userId = Just uid }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -399,10 +381,7 @@ updateDict dict model =
                 | route = ShowCard (initialHomeModel (Just entry))
                 , dict = dict
               }
-            , Cmd.batch
-                [ persistDictionary ( serializedDict, userId )
-                , syncLocalStorage serializedDict
-                ]
+            , persistDictionary ( serializedDict, userId )
             )
         )
         (case model.route of
@@ -445,7 +424,7 @@ view model =
         ]
         [ case model.route of
             ShowCard entry ->
-                homeView model.onLine model.dict entry |> Html.map HomeMsg
+                homeView model.dict entry |> Html.map HomeMsg
 
             AddWord entry ->
                 editorView model True entry |> Html.map EditorMsg
@@ -496,8 +475,8 @@ notificationView ( isShown, message ) =
         ]
 
 
-homeView : Bool -> Dictionary -> HomeModel -> Html HomeMsg
-homeView onLine dict homeModel =
+homeView : Dictionary -> HomeModel -> Html HomeMsg
+homeView dict homeModel =
     Html.Keyed.node "div"
         [ classNames
             [ "container"
@@ -550,12 +529,7 @@ homeView onLine dict homeModel =
                     |> Maybe.map (\v -> [ ( "card", v ) ])
                     |> Maybe.withDefault []
                )
-            ++ (if onLine then
-                    [ ( "addButton", addButton ) ]
-
-                else
-                    []
-               )
+            ++ [ ( "addButton", addButton ) ]
         )
 
 
@@ -1035,3 +1009,21 @@ classNames names =
     names
         |> List.map (\className -> ( className, True ))
         |> classList
+
+
+reduceError : List (Result a b) -> Result a (List b)
+reduceError results =
+    results
+        |> List.foldl
+            (\result passed ->
+                case ( passed, result ) of
+                    ( Err e, _ ) ->
+                        Err e
+
+                    ( _, Err e ) ->
+                        Err e
+
+                    ( Ok r, Ok rr ) ->
+                        Ok (r ++ [ rr ])
+            )
+            (Ok [])

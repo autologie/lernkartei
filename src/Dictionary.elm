@@ -2,6 +2,8 @@ module Dictionary exposing (Dictionary, parse, serialize)
 
 import Array exposing (Array)
 import Entry exposing (Entry(..))
+import Json.Decode as Decode
+import Json.Encode as Encode
 
 
 type alias Dictionary =
