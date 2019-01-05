@@ -5,6 +5,7 @@ import Browser
 import Browser.Dom as Dom
 import Dictionary exposing (Dictionary)
 import Entry exposing (Entry(..))
+import FilterCondition
 import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
@@ -619,7 +620,7 @@ searchResults dict maybeSearchText =
         |> Maybe.map
             (\searchText ->
                 dict
-                    |> Array.filter (isMatchedTo searchText)
+                    |> Array.filter (FilterCondition.isMatchedTo searchText)
             )
         |> Maybe.withDefault dict
 
@@ -631,24 +632,6 @@ searchResultView dict searchText =
             |> Array.map (searchResultRow searchText)
             |> Array.toList
         )
-
-
-isMatchedTo searchText (Entry de _ ja _) =
-    let
-        ( test, search ) =
-            if String.startsWith "^" searchText then
-                ( String.startsWith, String.dropLeft 1 searchText )
-
-            else if String.endsWith "$" searchText then
-                ( String.endsWith, String.dropRight 1 searchText )
-
-            else
-                ( String.contains, searchText )
-
-        lowerSearchText =
-            String.toLower search
-    in
-    test lowerSearchText de || test lowerSearchText ja
 
 
 searchResultRow searchText entry =
@@ -812,7 +795,7 @@ entryDetailView (Entry de pos ja maybeExample) =
             ]
         ]
         ([ section [ classNames [ "mb-2" ] ]
-            [ h3 [] [ text "Tile" ]
+            [ h3 [] [ text "Teil" ]
             , p [] [ text (PartOfSpeech.toString pos) ]
             ]
          ]
@@ -880,7 +863,7 @@ editorView model isNew ((Entry de pos ja maybeExample) as entry) =
                     False
                     (\value -> WordChange (Entry value pos ja maybeExample))
                 )
-            , inputRowView "Tile"
+            , inputRowView "Teil"
                 (selectInputView
                     pos
                     (\value ->
