@@ -25,7 +25,16 @@ encode (Entry de ja example) =
 decode : Decode.Decoder Entry
 decode =
     Decode.map3
-        (\de ja example -> Entry de ja example)
+        (\de ja example ->
+            Entry de
+                ja
+                (if example == Just "" then
+                    Nothing
+
+                 else
+                    example
+                )
+        )
         (Decode.field "id" Decode.string)
         (Decode.field "translation" Decode.string)
-        (Decode.maybe (Decode.field "id" Decode.string))
+        (Decode.maybe (Decode.field "example" Decode.string))

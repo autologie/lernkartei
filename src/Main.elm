@@ -761,7 +761,13 @@ cardView model ((Entry de ja ex) as entry) =
                         ]
                     ]
                     [ a
-                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ textToShow)
+                        [ href ("https://de.wiktionary.org/wiki/" ++ de)
+                        , target "_blank"
+                        , classNames [ "text-blue", "no-underline", "mr-2" ]
+                        ]
+                        [ text "Untersuchen" ]
+                    , a
+                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ de)
                         , target "_blank"
                         , classNames [ "text-blue", "no-underline", "mr-2" ]
                         ]
