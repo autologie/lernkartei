@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Browser
 import Browser.Dom as Dom
 import Dictionary exposing (Dictionary)
-import Entry exposing (Entry(..))
+import Entry exposing (Entry(..), PartOfSpeech(..))
 import Html exposing (Html, a, button, div, h1, input, label, li, p, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
@@ -253,7 +253,7 @@ update msg model =
                             )
 
                         AddButtonClicked ->
-                            ( { model | route = AddWord (Entry "" "" Nothing) }
+                            ( { model | route = AddWord (Entry "" Verb "" Nothing) }
                             , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
                             )
 
@@ -309,7 +309,7 @@ update msg model =
                         |> Maybe.withDefault Cmd.none
                     )
 
-                ( EditWord _ ((Entry de _ _) as entry), DeleteEntry ) ->
+                ( EditWord _ ((Entry de _ _ _) as entry), DeleteEntry ) ->
                     ( updateDict (model.dict |> Array.filter ((/=) entry)) model
                     , model.userId
                         |> Maybe.map (\userId -> deleteEntry ( userId, de ))
@@ -390,10 +390,6 @@ updateDict : Dictionary -> Model -> Model
 updateDict dict model =
     Maybe.map
         (\entry ->
-            let
-                serializedDict =
-                    Dictionary.serialize dict
-            in
             { model
                 | route = ShowCard (initialHomeModel (Just entry))
                 , dict = dict
@@ -635,7 +631,7 @@ searchResultView dict searchText =
         )
 
 
-isMatchedTo searchText (Entry de ja _) =
+isMatchedTo searchText (Entry de _ ja _) =
     let
         ( test, search ) =
             if String.startsWith "^" searchText then
@@ -655,7 +651,7 @@ isMatchedTo searchText (Entry de ja _) =
 
 searchResultRow searchText entry =
     let
-        (Entry de ja _) =
+        (Entry de _ ja _) =
             entry
     in
     li
@@ -679,7 +675,7 @@ hilighted searchText str =
 
 
 cardView : HomeModel -> Entry -> Html HomeMsg
-cardView model ((Entry de ja ex) as entry) =
+cardView model ((Entry de _ ja ex) as entry) =
     let
         ( textToShow, maybeExample ) =
             case ( model.direction, model.isTranslated ) of
@@ -837,7 +833,7 @@ addButton =
         [ div [ style "margin-top" "-8px" ] [ text "+" ] ]
 
 
-editorView model isNew ((Entry de ja maybeExample) as entry) =
+editorView model isNew ((Entry de pos ja maybeExample) as entry) =
     let
         hasError =
             not (isValid entry)
@@ -860,12 +856,12 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
                 (Just "editor-input-de")
                 de
                 False
-                (\value -> WordChange (Entry value ja maybeExample))
+                (\value -> WordChange (Entry value pos ja maybeExample))
             , textInputView "Japanisch"
                 Nothing
                 ja
                 False
-                (\value -> WordChange (Entry de value maybeExample))
+                (\value -> WordChange (Entry de pos value maybeExample))
             , textInputView "Beispiel"
                 Nothing
                 (maybeExample |> Maybe.withDefault "")
@@ -873,6 +869,7 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
                 (\value ->
                     WordChange
                         (Entry de
+                            pos
                             ja
                             (if value == "" then
                                 Nothing
@@ -933,7 +930,7 @@ editorView model isNew ((Entry de ja maybeExample) as entry) =
         ]
 
 
-isValid (Entry de ja maybeExample) =
+isValid (Entry de _ ja maybeExample) =
     (de /= "") && (ja /= "")
 
 
