@@ -4,14 +4,15 @@ import Array exposing (Array)
 import Browser
 import Browser.Dom as Dom
 import Dictionary exposing (Dictionary)
-import Entry exposing (Entry(..), PartOfSpeech(..))
-import Html exposing (Html, a, button, div, h1, input, label, li, p, span, text, textarea, ul)
+import Entry exposing (Entry(..))
+import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
+import PartOfSpeech exposing (PartOfSpeech(..))
 import Process
 import Random
 import Regex
@@ -157,6 +158,7 @@ update msg model =
                                         { homeModel
                                             | textDisposition = Nothing
                                             , entry = maybeEntry
+                                            , isTranslated = False
                                         }
                               }
                             , Cmd.none
@@ -677,19 +679,19 @@ hilighted searchText str =
 cardView : HomeModel -> Entry -> Html HomeMsg
 cardView model ((Entry de _ ja ex) as entry) =
     let
-        ( textToShow, maybeExample ) =
+        textToShow =
             case ( model.direction, model.isTranslated ) of
                 ( DeToJa, False ) ->
-                    ( de, Nothing )
+                    de
 
                 ( JaToDe, False ) ->
-                    ( ja, Nothing )
+                    ja
 
                 ( DeToJa, True ) ->
-                    ( ja, ex )
+                    ja
 
                 ( JaToDe, True ) ->
-                    ( de, ex )
+                    de
     in
     div []
         [ ul
@@ -776,21 +778,11 @@ cardView model ((Entry de _ ja ex) as entry) =
                     ]
                 ]
              ]
-                ++ (maybeExample
-                        |> Maybe.map
-                            (\example ->
-                                [ p
-                                    [ classNames
-                                        [ "text-grey-dark"
-                                        , "p-8"
-                                        , "leading-normal"
-                                        , "bg-grey-lighter"
-                                        ]
-                                    ]
-                                    [ text (censorExample example) ]
-                                ]
-                            )
-                        |> Maybe.withDefault []
+                ++ (if model.isTranslated then
+                        [ entryDetailView entry ]
+
+                    else
+                        []
                    )
             )
         , button
@@ -806,6 +798,36 @@ cardView model ((Entry de _ ja ex) as entry) =
             ]
             [ text "Nächst" ]
         ]
+
+
+entryDetailView (Entry de pos ja maybeExample) =
+    div
+        [ classNames
+            [ "text-grey-dark"
+            , "px-8"
+            , "py-4"
+            , "leading-normal"
+            , "bg-grey-lighter"
+            , "text-left"
+            ]
+        ]
+        ([ section [ classNames [ "mb-2" ] ]
+            [ h3 [] [ text "Tile" ]
+            , p [] [ text (PartOfSpeech.toString pos) ]
+            ]
+         ]
+            ++ (maybeExample
+                    |> Maybe.map
+                        (\example ->
+                            [ section [ classNames [ "mb-2" ] ]
+                                [ h3 [] [ text "Beispiel" ]
+                                , p [] [ text (censorExample example) ]
+                                ]
+                            ]
+                        )
+                    |> Maybe.withDefault []
+               )
+        )
 
 
 addButton =
@@ -852,32 +874,51 @@ editorView model isNew ((Entry de pos ja maybeExample) as entry) =
                 , "max-w-md"
                 ]
             ]
-            [ textInputView "Deutsch"
-                (Just "editor-input-de")
-                de
-                False
-                (\value -> WordChange (Entry value pos ja maybeExample))
-            , textInputView "Japanisch"
-                Nothing
-                ja
-                False
-                (\value -> WordChange (Entry de pos value maybeExample))
-            , textInputView "Beispiel"
-                Nothing
-                (maybeExample |> Maybe.withDefault "")
-                True
-                (\value ->
-                    WordChange
-                        (Entry de
-                            pos
-                            ja
-                            (if value == "" then
-                                Nothing
-
-                             else
-                                Just value
+            [ inputRowView "Deutsch"
+                (textInputView (Just "editor-input-de")
+                    de
+                    False
+                    (\value -> WordChange (Entry value pos ja maybeExample))
+                )
+            , inputRowView "Tile"
+                (selectInputView
+                    pos
+                    (\value ->
+                        WordChange
+                            (Entry de
+                                (value |> PartOfSpeech.fromString |> Result.withDefault pos)
+                                ja
+                                maybeExample
                             )
-                        )
+                    )
+                    (PartOfSpeech.items
+                        |> List.map PartOfSpeech.toString
+                        |> List.map (\v -> ( v, v ))
+                    )
+                )
+            , inputRowView "Japanisch"
+                (textInputView Nothing
+                    ja
+                    False
+                    (\value -> WordChange (Entry de pos value maybeExample))
+                )
+            , inputRowView "Beispiel"
+                (textInputView Nothing
+                    (maybeExample |> Maybe.withDefault "")
+                    True
+                    (\value ->
+                        WordChange
+                            (Entry de
+                                pos
+                                ja
+                                (if value == "" then
+                                    Nothing
+
+                                 else
+                                    Just value
+                                )
+                            )
+                    )
                 )
             , button
                 [ onClick SaveAndCloseEditor
@@ -934,46 +975,8 @@ isValid (Entry de _ ja maybeExample) =
     (de /= "") && (ja /= "")
 
 
-textInputView fieldName maybeInputId inputValue multiline handleInput =
-    let
-        formClasses =
-            [ "bg-grey-lighter"
-            , "rounded"
-            , "p-3"
-            , "text-grey-darkest"
-            , "w-full"
-            ]
-
-        formView =
-            if multiline then
-                textarea
-                    [ classNames
-                        ([ "text-sm"
-                         , "leading-normal"
-                         , "resize-none"
-                         ]
-                            ++ formClasses
-                        )
-                    , rows 5
-                    , value inputValue
-                    , onInput handleInput
-                    ]
-                    []
-
-            else
-                input
-                    ([ type_ "text"
-                     , classNames ([ "text-base" ] ++ formClasses)
-                     , value inputValue
-                     , onInput handleInput
-                     ]
-                        ++ (maybeInputId
-                                |> Maybe.map (\value -> [ id value ])
-                                |> Maybe.withDefault []
-                           )
-                    )
-                    []
-    in
+inputRowView : String -> (List String -> Html msg) -> Html msg
+inputRowView fieldName inputView =
     div [ classNames [ "mb-6", "w-full" ] ]
         [ label [ classNames [ "w-full" ] ]
             [ div
@@ -987,9 +990,55 @@ textInputView fieldName maybeInputId inputValue multiline handleInput =
                     ]
                 ]
                 [ text fieldName ]
-            , formView
+            , inputView
+                [ "bg-grey-lighter"
+                , "rounded"
+                , "p-3"
+                , "text-grey-darkest"
+                , "w-full"
+                ]
             ]
         ]
+
+
+textInputView maybeInputId inputValue multiline handleInput formClasses =
+    if multiline then
+        textarea
+            [ classNames
+                ([ "text-sm"
+                 , "leading-normal"
+                 , "resize-none"
+                 ]
+                    ++ formClasses
+                )
+            , rows 5
+            , value inputValue
+            , onInput handleInput
+            ]
+            []
+
+    else
+        input
+            ([ type_ "text"
+             , classNames ([ "text-base" ] ++ formClasses)
+             , value inputValue
+             , onInput handleInput
+             ]
+                ++ (maybeInputId
+                        |> Maybe.map (\value -> [ id value ])
+                        |> Maybe.withDefault []
+                   )
+            )
+            []
+
+
+selectInputView inputValue handleInput options formClasses =
+    select
+        [ classNames ([ "text-base" ] ++ formClasses)
+        , style "-webkit-appearance" "none"
+        , onInput handleInput
+        ]
+        (options |> List.map (\( v, label ) -> option [ value v ] [ text label ]))
 
 
 censorExample text =
