@@ -50,7 +50,7 @@ import "@firebase/firestore";
       .doc(id)
       .set(data);
 
-    app.ports.persistDictionaryDone.send(null);
+    app.ports.syncEntryDone.send(null);
   });
 
   app.ports.deleteEntry.subscribe(async ([userId, entryId]) => {
@@ -61,7 +61,7 @@ import "@firebase/firestore";
       .doc(entryId)
       .delete();
 
-    app.ports.persistDictionaryDone.send(null);
+    app.ports.syncEntryDone.send(null);
   });
 
   new MutationObserver(() => {
