@@ -44,7 +44,7 @@ main =
     Browser.application
         { init =
             \randomSeed url key ->
-                initialModel url key randomSeed |> Debug.log "initial model"
+                initialModel url key randomSeed
         , subscriptions =
             \_ ->
                 Sub.batch
@@ -59,8 +59,8 @@ main =
                     ]
         , update = update
         , view = \model -> { title = "Wortkarten", body = [ view model ] }
-        , onUrlRequest = Debug.log "url request" >> RouteChanged
-        , onUrlChange = Debug.log "url changed" >> (\_ -> NoOp)
+        , onUrlRequest = RouteChanged
+        , onUrlChange = \_ -> NoOp
         }
 
 
@@ -97,7 +97,7 @@ type Route
 
 route : Url -> ( Route, Cmd Msg )
 route { path } =
-    case String.split "/" path |> List.drop 1 |> Debug.log "path" of
+    case String.split "/" path |> List.drop 1 of
         [ "entries", "_new" ] ->
             ( AddWord (Entry "" Verb "" Nothing), Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp) )
 
