@@ -5,12 +5,14 @@
   "license": "MIT",
   "scripts": {
     "start": "parcel index.html",
-    "build": "parcel build index.html",
-    "format": "elm-format --yes src/"
+    "build": "yarn run deploy:firebase && parcel build index.html",
+    "format": "elm-format --yes src/",
+    "deploy:firebase": "firebase deploy --token \"$FIREBASE_TOKEN\" --only firestore"
   },
   "devDependencies": {
     "elm-format": "^0.8.1",
     "elm-hot": "^1.0.1",
+    "firebase-tools": "^6.2.2",
     "node-elm-compiler": "^5.0.1",
     "parcel-bundler": "^1.11.0",
     "parcel-plugin-sw-precache": "^1.0.3",
