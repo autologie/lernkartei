@@ -16,7 +16,6 @@ import Json.Encode as Encode
 import PartOfSpeech exposing (PartOfSpeech(..))
 import Process
 import Random
-import Regex
 import Task
 
 
@@ -629,8 +628,9 @@ searchResultView : Dictionary -> String -> Html HomeMsg
 searchResultView dict searchText =
     ul [ classNames [ "list-reset", "py-3" ] ]
         (searchResults dict (Just searchText)
-            |> Array.map (searchResultRow searchText)
             |> Array.toList
+            |> List.sortBy Entry.toComparable
+            |> List.map (searchResultRow searchText)
         )
 
 
@@ -804,7 +804,7 @@ entryDetailView (Entry de pos ja maybeExample) =
                         (\example ->
                             [ section [ classNames [ "mb-2" ] ]
                                 [ h3 [] [ text "Beispiel" ]
-                                , p [] [ text (censorExample example) ]
+                                , p [] [ text (Entry.censorExample example) ]
                                 ]
                             ]
                         )
@@ -1022,18 +1022,6 @@ selectInputView inputValue handleInput options formClasses =
         , onInput handleInput
         ]
         (options |> List.map (\( v, label ) -> option [ value v ] [ text label ]))
-
-
-censorExample text =
-    let
-        regex =
-            Regex.fromString "\\[[^\\]]+\\]"
-                |> Maybe.withDefault Regex.never
-
-        replacer =
-            \_ -> "(...)"
-    in
-    Regex.replace regex replacer text
 
 
 btnClasses selected disabled =
