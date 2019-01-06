@@ -112,3 +112,4 @@ tags
 
 .envrc
 dist
+.cache

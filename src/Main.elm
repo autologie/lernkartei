@@ -1,8 +1,9 @@
 port module Main exposing (main)
 
 import Array exposing (Array)
-import Browser
+import Browser exposing (UrlRequest(..))
 import Browser.Dom as Dom
+import Browser.Navigation exposing (Key)
 import Dictionary exposing (Dictionary)
 import Entry exposing (Entry(..))
 import FilterCondition
@@ -17,6 +18,7 @@ import PartOfSpeech exposing (PartOfSpeech(..))
 import Process
 import Random
 import Task
+import Url exposing (Protocol(..), Url)
 
 
 port saveEntry : ( String, Encode.Value ) -> Cmd msg
@@ -39,8 +41,10 @@ port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
 
 main : Program Int Model Msg
 main =
-    Browser.document
-        { init = \randomSeed -> ( initialModel randomSeed, Cmd.none )
+    Browser.application
+        { init =
+            \randomSeed url key ->
+                initialModel url key randomSeed |> Debug.log "initial model"
         , subscriptions =
             \_ ->
                 Sub.batch
@@ -55,6 +59,8 @@ main =
                     ]
         , update = update
         , view = \model -> { title = "Wortkarten", body = [ view model ] }
+        , onUrlRequest = Debug.log "url request" >> RouteChanged
+        , onUrlChange = Debug.log "url changed" >> (\_ -> NoOp)
         }
 
 
@@ -64,6 +70,7 @@ type alias Model =
     , route : Route
     , userId : Maybe String
     , notification : ( Bool, String )
+    , key : Key
     }
 
 
@@ -88,14 +95,31 @@ type Route
     | EditWord Entry Entry
 
 
-initialModel : Int -> Model
-initialModel randomSeed =
-    { dict = Array.empty
-    , seed = Random.initialSeed randomSeed
-    , route = ShowCard (initialHomeModel Nothing)
-    , userId = Nothing
-    , notification = ( False, "" )
-    }
+route : Url -> ( Route, Cmd Msg )
+route { path } =
+    case String.split "/" path |> List.drop 1 |> Debug.log "path" of
+        [ "entries", "_new" ] ->
+            ( AddWord (Entry "" Verb "" Nothing), Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp) )
+
+        _ ->
+            ( ShowCard (initialHomeModel Nothing), Cmd.none )
+
+
+initialModel : Url -> Key -> Int -> ( Model, Cmd Msg )
+initialModel url key randomSeed =
+    let
+        ( theRoute, cmd ) =
+            route url
+    in
+    ( { dict = Array.empty
+      , seed = Random.initialSeed randomSeed
+      , route = theRoute
+      , userId = Nothing
+      , notification = ( False, "" )
+      , key = key
+      }
+    , cmd
+    )
 
 
 initialHomeModel maybeEntry =
@@ -115,6 +139,8 @@ type Msg
     | SignInDone String
     | SyncEntryDone ()
     | CloseNotification
+    | ClickedLink UrlRequest
+    | RouteChanged UrlRequest
     | NoOp
 
 
@@ -127,7 +153,6 @@ type HomeMsg
     | SearchInput String
     | ToggleSearchResults
     | ClearSearchText
-    | AddButtonClicked
     | StartEdit Entry
 
 
@@ -252,11 +277,6 @@ update msg model =
                                 | route = ShowCard { homeModel | searchText = Nothing }
                               }
                             , Cmd.none
-                            )
-
-                        AddButtonClicked ->
-                            ( { model | route = AddWord (Entry "" Verb "" Nothing) }
-                            , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
                             )
 
                         StartEdit entry ->
@@ -384,6 +404,25 @@ update msg model =
         SignInDone uid ->
             ( { model | userId = Just uid }, Cmd.none )
 
+        ClickedLink urlRequest ->
+            update (RouteChanged urlRequest) model
+
+        RouteChanged urlRequest ->
+            case urlRequest of
+                Internal url ->
+                    let
+                        ( theRoute, cmd ) =
+                            route url
+                    in
+                    ( { model | route = theRoute }
+                    , Cmd.batch [ cmd, Browser.Navigation.pushUrl model.key (Url.toString url) ]
+                    )
+
+                External url ->
+                    ( model
+                    , Browser.Navigation.load url
+                    )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -436,7 +475,7 @@ view model =
         ]
         [ case model.route of
             ShowCard entry ->
-                homeView model.dict entry |> Html.map HomeMsg
+                homeView model.dict entry
 
             AddWord entry ->
                 editorView model True entry |> Html.map EditorMsg
@@ -487,7 +526,7 @@ notificationView ( isShown, message ) =
         ]
 
 
-homeView : Dictionary -> HomeModel -> Html HomeMsg
+homeView : Dictionary -> HomeModel -> Html Msg
 homeView dict homeModel =
     Html.Keyed.node "div"
         [ classNames
@@ -512,7 +551,7 @@ homeView dict homeModel =
            , div [ classNames [ "relative" ] ]
                 [ input
                     [ type_ "text"
-                    , onInput SearchInput
+                    , onInput (SearchInput >> HomeMsg)
                     , classNames
                         [ "border-b"
                         , "text-grey-darkest"
@@ -525,19 +564,19 @@ homeView dict homeModel =
                     , value (homeModel.searchText |> Maybe.withDefault "")
                     ]
                     []
-                , resultCountView dict homeModel
+                , resultCountView dict homeModel |> Html.map HomeMsg
                 ]
            )
          ]
             ++ (case ( homeModel.expandSearchResults, homeModel.searchText ) of
                     ( True, Just text ) ->
-                        [ ( "searchResult", searchResultView dict text ) ]
+                        [ ( "searchResult", searchResultView dict text |> Html.map HomeMsg ) ]
 
                     _ ->
                         []
                )
             ++ (homeModel.entry
-                    |> Maybe.map (cardView homeModel)
+                    |> Maybe.map (cardView homeModel >> Html.map HomeMsg)
                     |> Maybe.map (\v -> [ ( "card", v ) ])
                     |> Maybe.withDefault []
                )
@@ -814,7 +853,7 @@ entryDetailView (Entry de pos ja maybeExample) =
 
 
 addButton =
-    button
+    a
         [ classNames
             [ "fixed"
             , "pin-r"
@@ -833,7 +872,7 @@ addButton =
             , "z-30"
             , "shadow-lg"
             ]
-        , onClick AddButtonClicked
+        , href "/entries/_new"
         ]
         [ div [ style "margin-top" "-8px" ] [ text "+" ] ]
 
