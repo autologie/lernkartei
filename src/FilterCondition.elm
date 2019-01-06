@@ -30,29 +30,31 @@ parse str =
 
 fromString : String -> Result String FilterCondition
 fromString str =
-    if String.startsWith ":v" str then
-        Ok (PartOfSpeechIs Verb)
+    if String.startsWith ":" str then
+        case str of
+            ":v" ->
+                Ok (PartOfSpeechIs Verb)
 
-    else if String.startsWith ":s" str then
-        Ok (PartOfSpeechIs Substantiv)
+            ":s" ->
+                Ok (PartOfSpeechIs Substantiv)
 
-    else if String.startsWith ":adj" str then
-        Ok (PartOfSpeechIs Adjektiv)
+            ":adj" ->
+                Ok (PartOfSpeechIs Adjektiv)
 
-    else if String.startsWith ":adv" str then
-        Ok (PartOfSpeechIs Adverb)
+            ":adv" ->
+                Ok (PartOfSpeechIs Adverb)
 
-    else if String.startsWith ":k" str then
-        Ok (PartOfSpeechIs Konjunktion)
+            ":k" ->
+                Ok (PartOfSpeechIs Konjunktion)
 
-    else if String.startsWith ":p" str then
-        Ok (PartOfSpeechIs Praeposition)
+            ":p" ->
+                Ok (PartOfSpeechIs Praeposition)
 
-    else if String.startsWith ":m" str then
-        Ok (PartOfSpeechIs Modalpartikel)
+            ":m" ->
+                Ok (PartOfSpeechIs Modalpartikel)
 
-    else if String.startsWith ":" str then
-        Err (str ++ " is unsupported directive.")
+            _ ->
+                Err (str ++ " is unsupported directive.")
 
     else if String.startsWith "^" str then
         Ok (StartsWith (String.toLower (String.dropLeft 1 str)))
