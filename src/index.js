@@ -78,8 +78,10 @@ import "@firebase/firestore";
 
     app.ports.textDisposition.send([x, y, scale]);
   }).observe(document.documentElement, {
+    childList: true,
     subtree: true,
-    attributes: true
+    attributes: true,
+    attributeFilter: ["data-text"]
   });
 
   register("/service-worker.js", {
