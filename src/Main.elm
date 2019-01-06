@@ -975,7 +975,7 @@ editorView model isNew ((Entry de pos ja maybeExample) as entry) =
                 , disabled hasError
                 ]
                 [ text "Löschen" ]
-            , button
+            , a
                 [ onClick CloseEditor
                 , classNames
                     ((btnClasses True False |> List.filter (\c -> c /= "bg-blue" && c /= "text-white"))
