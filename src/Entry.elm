@@ -1,4 +1,4 @@
-module Entry exposing (Entry, censorExample, decode, empty, encode, toComparable)
+module Entry exposing (Entry, censorExample, decode, empty, encode, toComparable, withoutArticle)
 
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -59,15 +59,21 @@ decode =
         (Decode.maybe (Decode.field "updatedAt" Decode.int))
 
 
-toComparable : Entry -> String
-toComparable { de } =
+withoutArticle : Entry -> String
+withoutArticle { de } =
     let
         articleRegex =
             Regex.fromString "^(der|die|das) " |> Maybe.withDefault Regex.never
     in
     de
-        |> String.toLower
         |> Regex.replace articleRegex (.match >> (\_ -> ""))
+
+
+toComparable : Entry -> String
+toComparable entry =
+    entry
+        |> withoutArticle
+        |> String.toLower
         |> String.replace "ä" "a"
         |> String.replace "ü" "u"
         |> String.replace "ö" "o"

@@ -643,17 +643,14 @@ homeView dict homeModel =
                 ]
            )
          ]
-            ++ (
-                let 
+            ++ (let
                     results =
-                        searchResults dict (homeModel.searchText)
+                        searchResults dict homeModel.searchText
                             |> Array.toList
                 in
                 case ( homeModel.expandSearchResults || List.length results == 0, homeModel.searchText ) of
                     ( True, Just text ) ->
-
                         [ ( "searchResult", searchResultView dict results text |> Html.map HomeMsg ) ]
-
 
                     _ ->
                         []
@@ -746,7 +743,7 @@ searchResults dict maybeSearchText =
         |> Maybe.withDefault dict
 
 
-searchResultView : Dictionary -> (List Entry) -> String -> Html HomeMsg
+searchResultView : Dictionary -> List Entry -> String -> Html HomeMsg
 searchResultView dict results searchText =
     case List.length results of
         0 ->
@@ -809,6 +806,9 @@ cardView model entry =
 
                 ( JaToDe, True ) ->
                     entry.de
+
+        simpleDe =
+            Entry.withoutArticle entry
     in
     div []
         [ ul
@@ -876,13 +876,13 @@ cardView model entry =
                         ]
                     ]
                     [ a
-                        [ href ("https://de.wiktionary.org/wiki/" ++ entry.de)
+                        [ href ("https://de.wiktionary.org/wiki/" ++ simpleDe)
                         , target "_blank"
                         , classNames [ "text-blue", "no-underline", "mr-2" ]
                         ]
                         [ text "Untersuchen" ]
                     , a
-                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ entry.de)
+                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ simpleDe)
                         , target "_blank"
                         , classNames [ "text-blue", "no-underline", "mr-2" ]
                         ]
