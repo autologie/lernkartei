@@ -20,6 +20,8 @@ import Random
 import Task
 import Time exposing (Month(..), Zone, ZoneName(..))
 import Url exposing (Protocol(..), Url)
+import Url.Parser exposing ((</>), (<?>))
+import Url.Parser.Query
 
 
 port saveEntry : ( String, Encode.Value ) -> Cmd msg
@@ -98,15 +100,32 @@ type Route
     | EditWord Entry Entry
 
 
-route : Url -> ( Route, Cmd Msg )
-route { path } =
-    case String.split "/" path |> List.drop 1 of
-        [ "entries", "_new" ] ->
-            ( AddWord Entry.empty
-            , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+routeParser : Url.Parser.Parser (Route -> a) a
+routeParser =
+    Url.Parser.oneOf
+        [ Url.Parser.map (ShowCard (initialHomeModel Nothing)) Url.Parser.top
+        , Url.Parser.map
+            (\de ->
+                let
+                    entry =
+                        Entry.empty
+                in
+                AddWord { entry | de = de |> Maybe.withDefault "" }
             )
+            (Url.Parser.s "entries" </> Url.Parser.s "_new" <?> Url.Parser.Query.string "de")
+        ]
 
-        _ ->
+
+route : Url -> ( Route, Cmd Msg )
+route url =
+    case Url.Parser.parse routeParser url of
+        Just (AddWord word) ->
+            ( AddWord word, Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp) )
+
+        Just r ->
+            ( r, Cmd.none )
+
+        Nothing ->
             ( ShowCard (initialHomeModel Nothing), Cmd.none )
 
 
@@ -195,7 +214,12 @@ update msg model =
                                 , route =
                                     ShowCard
                                         { homeModel
-                                            | textDisposition = Nothing
+                                            | textDisposition =
+                                                if maybeEntry == homeModel.entry then
+                                                    homeModel.textDisposition
+
+                                                else
+                                                    Nothing
                                             , entry = maybeEntry
                                             , isTranslated = False
                                         }
@@ -619,9 +643,17 @@ homeView dict homeModel =
                 ]
            )
          ]
-            ++ (case ( homeModel.expandSearchResults, homeModel.searchText ) of
+            ++ (
+                let 
+                    results =
+                        searchResults dict (homeModel.searchText)
+                            |> Array.toList
+                in
+                case ( homeModel.expandSearchResults || List.length results == 0, homeModel.searchText ) of
                     ( True, Just text ) ->
-                        [ ( "searchResult", searchResultView dict text |> Html.map HomeMsg ) ]
+
+                        [ ( "searchResult", searchResultView dict results text |> Html.map HomeMsg ) ]
+
 
                     _ ->
                         []
@@ -714,14 +746,30 @@ searchResults dict maybeSearchText =
         |> Maybe.withDefault dict
 
 
-searchResultView : Dictionary -> String -> Html HomeMsg
-searchResultView dict searchText =
-    ul [ classNames [ "list-reset", "py-3" ] ]
-        (searchResults dict (Just searchText)
-            |> Array.toList
-            |> List.sortBy Entry.toComparable
-            |> List.map (searchResultRow searchText)
-        )
+searchResultView : Dictionary -> (List Entry) -> String -> Html HomeMsg
+searchResultView dict results searchText =
+    case List.length results of
+        0 ->
+            a
+                [ href ("/entries/_new?de=" ++ searchText)
+                , classNames
+                    (btnClasses True False
+                        ++ [ "p-3"
+                           , "w-full"
+                           , "my-2"
+                           , "block"
+                           , "no-underline"
+                           ]
+                    )
+                ]
+                [ text ("\"" ++ searchText ++ "\" hinzufügen") ]
+
+        _ ->
+            ul [ classNames [ "list-reset", "py-3" ] ]
+                (results
+                    |> List.sortBy Entry.toComparable
+                    |> List.map (searchResultRow searchText)
+                )
 
 
 searchResultRow searchText entry =
