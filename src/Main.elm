@@ -62,8 +62,8 @@ main =
                     ]
         , update = update
         , view = \model -> { title = "Wortkarten", body = [ view model ] }
-        , onUrlRequest = Debug.log "url request" >> NewUrlRequested
-        , onUrlChange = Debug.log "url changed" >> RouteChanged
+        , onUrlRequest = NewUrlRequested
+        , onUrlChange = RouteChanged
         }
 
 
@@ -455,7 +455,7 @@ update msg model =
         RouteChanged url ->
             let
                 ( theRoute, cmd ) =
-                    route url model.dict |> Debug.log "route"
+                    route url model.dict
             in
             ( { model | route = theRoute }, cmd )
 
