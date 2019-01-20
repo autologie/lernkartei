@@ -63,7 +63,7 @@ fromString str =
         Ok (EndsWith (String.toLower (String.dropRight 1 str)))
 
     else
-        Ok (Contains str)
+        Ok (Contains (String.toLower str))
 
 
 isMatchedToHelp : Entry -> FilterCondition -> Bool

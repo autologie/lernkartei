@@ -678,7 +678,7 @@ resultCountView dict homeModel =
                     )
                 , onClick ToggleSearchResults
                 ]
-                [ text (prefix ++ (resultCount |> String.fromInt) ++ " Worten") ]
+                [ text (prefix ++ (resultCount |> String.fromInt) ++ " Wörter") ]
             ]
          ]
             ++ (if isFiltered then
