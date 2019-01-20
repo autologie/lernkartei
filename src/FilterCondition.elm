@@ -1,6 +1,6 @@
 module FilterCondition exposing (FilterCondition(..), isMatchedTo)
 
-import Entry exposing (Entry(..))
+import Entry exposing (Entry)
 import PartOfSpeech exposing (PartOfSpeech(..))
 
 
@@ -67,7 +67,7 @@ fromString str =
 
 
 isMatchedToHelp : Entry -> FilterCondition -> Bool
-isMatchedToHelp (Entry de pos ja _) filter =
+isMatchedToHelp { de, pos, ja } filter =
     let
         lowerDe =
             String.toLower de

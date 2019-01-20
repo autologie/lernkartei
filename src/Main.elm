@@ -5,7 +5,7 @@ import Browser exposing (UrlRequest(..))
 import Browser.Dom as Dom
 import Browser.Navigation exposing (Key)
 import Dictionary exposing (Dictionary)
-import Entry exposing (Entry(..))
+import Entry exposing (Entry)
 import FilterCondition
 import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
 import Html.Attributes exposing (..)
@@ -18,6 +18,7 @@ import PartOfSpeech exposing (PartOfSpeech(..))
 import Process
 import Random
 import Task
+import Time exposing (Month(..), Zone, ZoneName(..))
 import Url exposing (Protocol(..), Url)
 
 
@@ -71,6 +72,8 @@ type alias Model =
     , userId : Maybe String
     , notification : ( Bool, String )
     , key : Key
+    , zone : Zone
+    , zoneName : ZoneName
     }
 
 
@@ -99,7 +102,9 @@ route : Url -> ( Route, Cmd Msg )
 route { path } =
     case String.split "/" path |> List.drop 1 of
         [ "entries", "_new" ] ->
-            ( AddWord (Entry "" Verb "" Nothing), Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp) )
+            ( AddWord Entry.empty
+            , Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+            )
 
         _ ->
             ( ShowCard (initialHomeModel Nothing), Cmd.none )
@@ -108,7 +113,7 @@ route { path } =
 initialModel : Url -> Key -> Int -> ( Model, Cmd Msg )
 initialModel url key randomSeed =
     let
-        ( theRoute, cmd ) =
+        ( theRoute, routeCmd ) =
             route url
     in
     ( { dict = Array.empty
@@ -117,8 +122,14 @@ initialModel url key randomSeed =
       , userId = Nothing
       , notification = ( False, "" )
       , key = key
+      , zone = Time.utc
+      , zoneName = Offset 0
       }
-    , cmd
+    , Cmd.batch
+        [ routeCmd
+        , Time.here |> Task.attempt ZoneResolved
+        , Time.getZoneName |> Task.attempt ZoneNameResolved
+        ]
     )
 
 
@@ -141,6 +152,9 @@ type Msg
     | CloseNotification
     | ClickedLink UrlRequest
     | RouteChanged UrlRequest
+    | WithModel (Model -> ( Model, Cmd Msg ))
+    | ZoneResolved (Result String Zone)
+    | ZoneNameResolved (Result String ZoneName)
     | NoOp
 
 
@@ -305,36 +319,48 @@ update msg model =
                     )
 
                 ( EditWord entry originalEntry, SaveAndCloseEditor ) ->
-                    ( updateDict
-                        (Array.map
-                            (\e ->
-                                if e == originalEntry then
-                                    entry
+                    updateWithCurrentTime model
+                        (\now theModel ->
+                            { entry | updatedAt = now }
+                                |> (\theEntry ->
+                                        ( updateDict
+                                            (Array.map
+                                                (\e ->
+                                                    if e == originalEntry then
+                                                        theEntry
 
-                                else
-                                    e
-                            )
-                            model.dict
+                                                    else
+                                                        e
+                                                )
+                                                theModel.dict
+                                            )
+                                            theModel
+                                        , theModel.userId
+                                            |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode theEntry ))
+                                            |> Maybe.withDefault Cmd.none
+                                        )
+                                   )
                         )
-                        model
-                    , model.userId
-                        |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode entry ))
-                        |> Maybe.withDefault Cmd.none
-                    )
 
                 ( AddWord entry, SaveAndCloseEditor ) ->
-                    ( updateDict
-                        (model.dict |> Array.append (Array.fromList [ entry ]))
-                        model
-                    , model.userId
-                        |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode entry ))
-                        |> Maybe.withDefault Cmd.none
-                    )
+                    updateWithCurrentTime model
+                        (\now theModel ->
+                            { entry | addedAt = now, updatedAt = now }
+                                |> (\theEntry ->
+                                        ( updateDict
+                                            (theModel.dict |> Array.append (Array.fromList [ theEntry ]))
+                                            theModel
+                                        , theModel.userId
+                                            |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode theEntry ))
+                                            |> Maybe.withDefault Cmd.none
+                                        )
+                                   )
+                        )
 
-                ( EditWord _ ((Entry de _ _ _) as entry), DeleteEntry ) ->
+                ( EditWord _ entry, DeleteEntry ) ->
                     ( updateDict (model.dict |> Array.filter ((/=) entry)) model
                     , model.userId
-                        |> Maybe.map (\userId -> deleteEntry ( userId, de ))
+                        |> Maybe.map (\userId -> deleteEntry ( userId, entry.de ))
                         |> Maybe.withDefault Cmd.none
                     )
 
@@ -423,8 +449,33 @@ update msg model =
                     , Browser.Navigation.load url
                     )
 
+        ZoneResolved (Ok zone) ->
+            ( { model | zone = zone }, Cmd.none )
+
+        ZoneResolved (Err errorMessage) ->
+            ( { model | notification = ( True, errorMessage ) }, Cmd.none )
+
+        ZoneNameResolved (Ok zoneName) ->
+            ( { model | zoneName = zoneName }, Cmd.none )
+
+        ZoneNameResolved (Err errorMessage) ->
+            ( { model | notification = ( True, errorMessage ) }, Cmd.none )
+
+        WithModel withModel ->
+            withModel model
+
         NoOp ->
             ( model, Cmd.none )
+
+
+updateWithCurrentTime :
+    Model
+    -> (Time.Posix -> Model -> ( Model, Cmd Msg ))
+    -> ( Model, Cmd Msg )
+updateWithCurrentTime model theUpdate =
+    ( model
+    , Time.now |> Task.attempt (Result.map (\now -> WithModel (theUpdate now)) >> Result.withDefault NoOp)
+    )
 
 
 updateDict : Dictionary -> Model -> Model
@@ -674,10 +725,6 @@ searchResultView dict searchText =
 
 
 searchResultRow searchText entry =
-    let
-        (Entry de _ ja _) =
-            entry
-    in
     li
         [ classNames
             [ "p-3"
@@ -688,8 +735,8 @@ searchResultRow searchText entry =
             ]
         , onClick (ClickSearchResult entry)
         ]
-        [ div [ classNames [ "inline-block", "mr-2" ] ] (hilighted searchText de)
-        , div [ classNames [ "inline-block", "text-grey-dark" ] ] (hilighted searchText ja)
+        [ div [ classNames [ "inline-block", "mr-2" ] ] (hilighted searchText entry.de)
+        , div [ classNames [ "inline-block", "text-grey-dark" ] ] (hilighted searchText entry.ja)
         ]
 
 
@@ -699,21 +746,21 @@ hilighted searchText str =
 
 
 cardView : HomeModel -> Entry -> Html HomeMsg
-cardView model ((Entry de _ ja ex) as entry) =
+cardView model entry =
     let
         textToShow =
             case ( model.direction, model.isTranslated ) of
                 ( DeToJa, False ) ->
-                    de
+                    entry.de
 
                 ( JaToDe, False ) ->
-                    ja
+                    entry.ja
 
                 ( DeToJa, True ) ->
-                    ja
+                    entry.ja
 
                 ( JaToDe, True ) ->
-                    de
+                    entry.de
     in
     div []
         [ ul
@@ -781,13 +828,13 @@ cardView model ((Entry de _ ja ex) as entry) =
                         ]
                     ]
                     [ a
-                        [ href ("https://de.wiktionary.org/wiki/" ++ de)
+                        [ href ("https://de.wiktionary.org/wiki/" ++ entry.de)
                         , target "_blank"
                         , classNames [ "text-blue", "no-underline", "mr-2" ]
                         ]
                         [ text "Untersuchen" ]
                     , a
-                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ de)
+                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ entry.de)
                         , target "_blank"
                         , classNames [ "text-blue", "no-underline", "mr-2" ]
                         ]
@@ -822,7 +869,7 @@ cardView model ((Entry de _ ja ex) as entry) =
         ]
 
 
-entryDetailView (Entry de pos ja maybeExample) =
+entryDetailView { de, pos, ja, example } =
     div
         [ classNames
             [ "text-grey-dark"
@@ -838,12 +885,12 @@ entryDetailView (Entry de pos ja maybeExample) =
             , p [] [ text (PartOfSpeech.toString pos) ]
             ]
          ]
-            ++ (maybeExample
+            ++ (example
                     |> Maybe.map
-                        (\example ->
+                        (\ex ->
                             [ section [ classNames [ "mb-2" ] ]
                                 [ h3 [] [ text "Beispiel" ]
-                                , p [] [ text (Entry.censorExample example) ]
+                                , p [] [ text (Entry.censorExample ex) ]
                                 ]
                             ]
                         )
@@ -871,13 +918,15 @@ addButton =
             , "items-center"
             , "z-30"
             , "shadow-lg"
+            , "no-underline"
             ]
         , href "/entries/_new"
         ]
         [ div [ style "margin-top" "-8px" ] [ text "+" ] ]
 
 
-editorView model isNew ((Entry de pos ja maybeExample) as entry) =
+editorView : Model -> Bool -> Entry -> Html EditorMsg
+editorView model isNew ({ de, pos, ja, example, updatedAt, addedAt } as entry) =
     let
         hasError =
             not (isValid entry)
@@ -900,18 +949,19 @@ editorView model isNew ((Entry de pos ja maybeExample) as entry) =
                 (textInputView (Just "editor-input-de")
                     de
                     False
-                    (\value -> WordChange (Entry value pos ja maybeExample))
+                    (\value -> WordChange { entry | de = value })
                 )
             , inputRowView "Teil"
                 (selectInputView
                     pos
                     (\value ->
                         WordChange
-                            (Entry de
-                                (value |> PartOfSpeech.fromString |> Result.withDefault pos)
-                                ja
-                                maybeExample
-                            )
+                            { entry
+                                | pos =
+                                    value
+                                        |> PartOfSpeech.fromString
+                                        |> Result.withDefault pos
+                            }
                     )
                     (PartOfSpeech.items
                         |> List.map PartOfSpeech.toString
@@ -922,26 +972,38 @@ editorView model isNew ((Entry de pos ja maybeExample) as entry) =
                 (textInputView Nothing
                     ja
                     False
-                    (\value -> WordChange (Entry de pos value maybeExample))
+                    (\value -> WordChange { entry | ja = value })
                 )
             , inputRowView "Beispiel"
                 (textInputView Nothing
-                    (maybeExample |> Maybe.withDefault "")
+                    (example |> Maybe.withDefault "")
                     True
                     (\value ->
                         WordChange
-                            (Entry de
-                                pos
-                                ja
-                                (if value == "" then
-                                    Nothing
+                            { entry
+                                | example =
+                                    if value == "" then
+                                        Nothing
 
-                                 else
-                                    Just value
-                                )
-                            )
+                                    else
+                                        Just value
+                            }
                     )
                 )
+            , p
+                [ classNames
+                    [ "text-grey-darker"
+                    , "my-3"
+                    ]
+                ]
+                [ text ("Added at " ++ describeDate model.zone model.zoneName addedAt) ]
+            , p
+                [ classNames
+                    [ "text-grey-darker"
+                    , "my-3"
+                    ]
+                ]
+                [ text ("Updated at " ++ describeDate model.zone model.zoneName updatedAt) ]
             , button
                 [ onClick SaveAndCloseEditor
                 , classNames
@@ -993,7 +1055,66 @@ editorView model isNew ((Entry de pos ja maybeExample) as entry) =
         ]
 
 
-isValid (Entry de _ ja maybeExample) =
+describeDate zone zoneName posix =
+    if Time.posixToMillis posix == 0 then
+        "-"
+
+    else
+        [ posix |> Time.toDay zone |> String.fromInt
+        , "."
+        , (case posix |> Time.toMonth zone of
+            Jan ->
+                1
+
+            Feb ->
+                2
+
+            Mar ->
+                3
+
+            Apr ->
+                4
+
+            May ->
+                5
+
+            Jun ->
+                6
+
+            Jul ->
+                7
+
+            Aug ->
+                8
+
+            Sep ->
+                9
+
+            Oct ->
+                10
+
+            Nov ->
+                11
+
+            Dec ->
+                12
+          )
+            |> String.fromInt
+        , "."
+        , posix |> Time.toYear zone |> String.fromInt
+        , " ("
+        , case zoneName of
+            Name name ->
+                name
+
+            Offset value ->
+                String.fromInt value
+        , ")"
+        ]
+            |> String.join ""
+
+
+isValid { de, ja, example } =
     (de /= "") && (ja /= "")
 
 

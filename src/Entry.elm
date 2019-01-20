@@ -1,21 +1,30 @@
-module Entry exposing (Entry(..), decode, encode, toComparable, censorExample)
+module Entry exposing (Entry, censorExample, decode, empty, encode, toComparable)
 
 import Json.Decode as Decode
 import Json.Encode as Encode
 import PartOfSpeech exposing (PartOfSpeech(..))
 import Regex exposing (Regex)
+import Time
 
 
-type Entry
-    = Entry String PartOfSpeech String (Maybe String)
+type alias Entry =
+    { de : String
+    , ja : String
+    , pos : PartOfSpeech
+    , example : Maybe String
+    , addedAt : Time.Posix
+    , updatedAt : Time.Posix
+    }
 
 
 encode : Entry -> Encode.Value
-encode (Entry de pos ja example) =
+encode { de, pos, ja, example, addedAt, updatedAt } =
     Encode.object
         ([ ( "id", Encode.string de )
          , ( "partOfSpeech", PartOfSpeech.encode pos )
          , ( "translation", Encode.string ja )
+         , ( "addedAt", Encode.int (Time.posixToMillis addedAt) )
+         , ( "updatedAt", Encode.int (Time.posixToMillis updatedAt) )
          ]
             ++ (example
                     |> Maybe.map
@@ -27,26 +36,31 @@ encode (Entry de pos ja example) =
 
 decode : Decode.Decoder Entry
 decode =
-    Decode.map4
-        (\de pos ja example ->
-            Entry de
-                (pos |> Maybe.withDefault Verb)
-                ja
-                (if example == Just "" then
+    Decode.map6
+        (\de pos ja example addedAt updatedAt ->
+            { de = de
+            , pos = pos |> Maybe.withDefault Verb
+            , ja = ja
+            , example =
+                if example == Just "" then
                     Nothing
 
-                 else
+                else
                     example
-                )
+            , addedAt = Time.millisToPosix (addedAt |> Maybe.withDefault 0)
+            , updatedAt = Time.millisToPosix (updatedAt |> Maybe.withDefault 0)
+            }
         )
         (Decode.field "id" Decode.string)
         (Decode.maybe (Decode.field "partOfSpeech" PartOfSpeech.decode))
         (Decode.field "translation" Decode.string)
         (Decode.maybe (Decode.field "example" Decode.string))
+        (Decode.maybe (Decode.field "addedAt" Decode.int))
+        (Decode.maybe (Decode.field "updatedAt" Decode.int))
 
 
 toComparable : Entry -> String
-toComparable (Entry de _ _ _) =
+toComparable { de } =
     let
         articleRegex =
             Regex.fromString "^(der|die|das) " |> Maybe.withDefault Regex.never
@@ -59,6 +73,7 @@ toComparable (Entry de _ _ _) =
         |> String.replace "ö" "o"
         |> String.replace "ß" "ss"
 
+
 censorExample text =
     let
         regex =
@@ -69,3 +84,13 @@ censorExample text =
             \_ -> "(...)"
     in
     Regex.replace regex replacer text
+
+
+empty =
+    { de = ""
+    , pos = Verb
+    , ja = ""
+    , example = Nothing
+    , addedAt = Time.millisToPosix 0
+    , updatedAt = Time.millisToPosix 0
+    }
