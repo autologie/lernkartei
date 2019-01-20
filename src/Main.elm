@@ -347,18 +347,22 @@ update msg model =
                         (\now theModel ->
                             { entry | updatedAt = now }
                                 |> (\theEntry ->
-                                        ( updateDict
-                                            (Array.map
-                                                (\e ->
-                                                    if e == originalEntry then
-                                                        theEntry
+                                        let
+                                            replace from to e =
+                                                if e == originalEntry then
+                                                    theEntry
 
-                                                    else
-                                                        e
-                                                )
-                                                theModel.dict
-                                            )
-                                            theModel
+                                                else
+                                                    e
+
+                                            dict =
+                                                model.dict
+                                                    |> Array.map (replace originalEntry theEntry)
+                                        in
+                                        ( { theModel
+                                            | dict = dict
+                                            , route = ShowCard (initialHomeModel (Just theEntry))
+                                          }
                                         , theModel.userId
                                             |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode theEntry ))
                                             |> Maybe.withDefault Cmd.none
@@ -371,9 +375,10 @@ update msg model =
                         (\now theModel ->
                             { entry | addedAt = now, updatedAt = now }
                                 |> (\theEntry ->
-                                        ( updateDict
-                                            (theModel.dict |> Array.append (Array.fromList [ theEntry ]))
-                                            theModel
+                                        ( { theModel
+                                            | dict = theModel.dict |> Array.append (Array.fromList [ theEntry ])
+                                            , route = ShowCard (initialHomeModel (Just theEntry))
+                                          }
                                         , theModel.userId
                                             |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode theEntry ))
                                             |> Maybe.withDefault Cmd.none
@@ -382,7 +387,10 @@ update msg model =
                         )
 
                 ( EditWord _ entry, DeleteEntry ) ->
-                    ( updateDict (model.dict |> Array.filter ((/=) entry)) model
+                    ( { model
+                        | dict = model.dict |> Array.filter ((/=) entry)
+                        , route = ShowCard (initialHomeModel Nothing)
+                      }
                     , model.userId
                         |> Maybe.map (\userId -> deleteEntry ( userId, entry.de ))
                         |> Maybe.withDefault Cmd.none
@@ -502,28 +510,6 @@ updateWithCurrentTime model theUpdate =
     )
 
 
-updateDict : Dictionary -> Model -> Model
-updateDict dict model =
-    Maybe.map
-        (\entry ->
-            { model
-                | route = ShowCard (initialHomeModel (Just entry))
-                , dict = dict
-            }
-        )
-        (case model.route of
-            AddWord entry ->
-                Just entry
-
-            EditWord entry _ ->
-                Just entry
-
-            ShowCard _ ->
-                Nothing
-        )
-        |> Maybe.withDefault model
-
-
 randomEntry seed entries =
     let
         ( index, nextSeed ) =
@@ -618,6 +604,7 @@ homeView dict homeModel =
                     , "text-grey-dark"
                     , "text-sm"
                     , "lg:text-lg"
+                    , "select-none"
                     ]
                 ]
                 [ text "Wortkarten" ]
@@ -993,13 +980,13 @@ editorView model isNew ({ de, pos, ja, example, updatedAt, addedAt } as entry) =
                 , "max-w-md"
                 ]
             ]
-            [ inputRowView "Deutsch"
+            ([ inputRowView "Deutsch"
                 (textInputView (Just "editor-input-de")
                     de
                     False
                     (\value -> WordChange { entry | de = value })
                 )
-            , inputRowView "Teil"
+             , inputRowView "Teil"
                 (selectInputView
                     pos
                     (\value ->
@@ -1016,13 +1003,13 @@ editorView model isNew ({ de, pos, ja, example, updatedAt, addedAt } as entry) =
                         |> List.map (\v -> ( v, v ))
                     )
                 )
-            , inputRowView "Japanisch"
+             , inputRowView "Japanisch"
                 (textInputView Nothing
                     ja
                     False
                     (\value -> WordChange { entry | ja = value })
                 )
-            , inputRowView "Beispiel"
+             , inputRowView "Beispiel"
                 (textInputView Nothing
                     (example |> Maybe.withDefault "")
                     True
@@ -1038,74 +1025,93 @@ editorView model isNew ({ de, pos, ja, example, updatedAt, addedAt } as entry) =
                             }
                     )
                 )
-            , p
-                [ classNames
-                    [ "text-grey-darker"
-                    , "my-3"
-                    ]
-                ]
-                [ text ("Added at " ++ describeDate model.zone model.zoneName addedAt) ]
-            , p
-                [ classNames
-                    [ "text-grey-darker"
-                    , "my-3"
-                    ]
-                ]
-                [ text ("Updated at " ++ describeDate model.zone model.zoneName updatedAt) ]
-            , button
-                [ onClick SaveAndCloseEditor
-                , classNames
-                    (btnClasses True hasError
-                        ++ [ "w-full"
-                           , "p-3"
-                           , "text-base"
-                           , "mb-2"
-                           ]
-                    )
-                , disabled hasError
-                ]
-                [ text "Sparen" ]
-            , button
-                [ onClick DeleteEntry
-                , style "display"
-                    (if isNew then
-                        "none"
+             ]
+                ++ (if isNew then
+                        []
 
-                     else
-                        "inline"
-                    )
-                , classNames
-                    ((btnClasses True False |> List.filter (\c -> c /= "bg-blue"))
-                        ++ [ "w-full"
-                           , "p-3"
-                           , "text-base"
-                           , "bg-red"
-                           ]
-                    )
-                , disabled hasError
-                ]
-                [ text "Löschen" ]
-            , button
-                [ onClick CloseEditor
-                , classNames
-                    ((btnClasses True False |> List.filter (\c -> c /= "bg-blue" && c /= "text-white"))
-                        ++ [ "w-full"
-                           , "p-3"
-                           , "text-base"
-                           , "mb-2"
-                           , "bg-grey-lighter"
-                           , "text-grey-darker"
-                           ]
-                    )
-                ]
-                [ text "Abbrechen" ]
-            ]
+                    else
+                        let
+                            addedAtExpr =
+                                describeDate model.zone model.zoneName addedAt
+
+                            updatedAtExpr =
+                                describeDate model.zone model.zoneName updatedAt
+                        in
+                        [ p
+                            [ classNames
+                                [ "text-grey-dark"
+                                , "my-6"
+                                ]
+                            ]
+                            [ text
+                                ("Added on "
+                                    ++ addedAtExpr
+                                    ++ (if addedAtExpr /= updatedAtExpr then
+                                            ", updated on "
+                                                ++ updatedAtExpr
+
+                                        else
+                                            ""
+                                       )
+                                )
+                            ]
+                        ]
+                   )
+                ++ [ button
+                        [ onClick SaveAndCloseEditor
+                        , classNames
+                            (btnClasses True hasError
+                                ++ [ "w-full"
+                                   , "p-3"
+                                   , "text-base"
+                                   , "mb-2"
+                                   ]
+                            )
+                        , disabled hasError
+                        ]
+                        [ text "Sparen" ]
+                   , button
+                        [ onClick DeleteEntry
+                        , style "display"
+                            (if isNew then
+                                "none"
+
+                             else
+                                "inline"
+                            )
+                        , classNames
+                            ((btnClasses True False |> List.filter (\c -> c /= "bg-blue"))
+                                ++ [ "w-full"
+                                   , "p-3"
+                                   , "text-base"
+                                   , "bg-red"
+                                   ]
+                            )
+                        , disabled hasError
+                        ]
+                        [ text "Löschen" ]
+                   , button
+                        [ onClick CloseEditor
+                        , classNames
+                            ((btnClasses True False |> List.filter (\c -> c /= "bg-blue" && c /= "text-white"))
+                                ++ [ "w-full"
+                                   , "p-3"
+                                   , "text-base"
+                                   , "mb-2"
+                                   , "bg-grey-lighter"
+                                   , "text-grey-darker"
+                                   ]
+                            )
+                        ]
+                        [ text "Abbrechen" ]
+                   ]
+            )
         ]
 
 
 describeDate zone zoneName posix =
     if Time.posixToMillis posix == 0 then
-        "-"
+        "(Unknown)"
 
     else
         [ posix |> Time.toDay zone |> String.fromInt
@@ -1245,6 +1251,7 @@ groupedBtnClasses selected disabled isFirst isLast =
     , ( "text-blue", not selected && not disabled )
     , ( "shadow", selected )
     , ( "cursor-default", disabled )
+    , ( "select-none", True )
     ]
         |> List.filter (\( _, isIncluded ) -> isIncluded)
         |> List.map Tuple.first
