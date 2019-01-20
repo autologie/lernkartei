@@ -62,8 +62,8 @@ main =
                     ]
         , update = update
         , view = \model -> { title = "Wortkarten", body = [ view model ] }
-        , onUrlRequest = RouteChanged
-        , onUrlChange = \_ -> NoOp
+        , onUrlRequest = Debug.log "url request" >> NewUrlRequested
+        , onUrlChange = Debug.log "url changed" >> RouteChanged
         }
 
 
@@ -100,25 +100,58 @@ type Route
     | EditWord Entry Entry
 
 
-routeParser : Url.Parser.Parser (Route -> a) a
-routeParser =
+routeParser : Dictionary -> Url.Parser.Parser (Route -> a) a
+routeParser dict =
+    let
+        emptyEntry =
+            Entry.empty
+    in
     Url.Parser.oneOf
-        [ Url.Parser.map (ShowCard (initialHomeModel Nothing)) Url.Parser.top
-        , Url.Parser.map
-            (\de ->
+        [ Url.Parser.map
+            (\filter ->
                 let
-                    entry =
-                        Entry.empty
+                    homeModel =
+                        initialHomeModel Nothing
                 in
-                AddWord { entry | de = de |> Maybe.withDefault "" }
+                ShowCard { homeModel | searchText = filter }
             )
+            (Url.Parser.top <?> Url.Parser.Query.string "filter")
+        , Url.Parser.map
+            (\de -> AddWord { emptyEntry | de = Maybe.withDefault "" de })
             (Url.Parser.s "entries" </> Url.Parser.s "_new" <?> Url.Parser.Query.string "de")
+        , Url.Parser.map
+            (\de filter ->
+                let
+                    homeModel =
+                        initialHomeModel (Just (entryOf dict de))
+                in
+                ShowCard { homeModel | searchText = filter }
+            )
+            (Url.Parser.s "entries" </> Url.Parser.string <?> Url.Parser.Query.string "filter")
+        , Url.Parser.map
+            (entryOf dict >> (\entry -> EditWord entry entry))
+            (Url.Parser.s "entries" </> Url.Parser.string </> Url.Parser.s "_edit")
         ]
 
 
-route : Url -> ( Route, Cmd Msg )
-route url =
-    case Url.Parser.parse routeParser url of
+entryOf dict de =
+    let
+        emptyEntry =
+            Entry.empty
+
+        decoded =
+            Url.percentDecode de |> Maybe.withDefault de
+    in
+    dict
+        |> Array.filter (\e -> e.de == decoded)
+        |> Array.toList
+        |> List.head
+        |> Maybe.withDefault { emptyEntry | de = decoded }
+
+
+route : Url -> Dictionary -> ( Route, Cmd Msg )
+route url dict =
+    case Url.Parser.parse (routeParser dict) url of
         Just (AddWord word) ->
             ( AddWord word, Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp) )
 
@@ -133,7 +166,7 @@ initialModel : Url -> Key -> Int -> ( Model, Cmd Msg )
 initialModel url key randomSeed =
     let
         ( theRoute, routeCmd ) =
-            route url
+            route url Array.empty
     in
     ( { dict = Array.empty
       , seed = Random.initialSeed randomSeed
@@ -152,6 +185,7 @@ initialModel url key randomSeed =
     )
 
 
+initialHomeModel : Maybe Entry -> HomeModel
 initialHomeModel maybeEntry =
     { isTranslated = False
     , direction = DeToJa
@@ -169,11 +203,11 @@ type Msg
     | SignInDone String
     | SyncEntryDone ()
     | CloseNotification
-    | ClickedLink UrlRequest
-    | RouteChanged UrlRequest
+    | RouteChanged Url
     | WithModel (Model -> ( Model, Cmd Msg ))
     | ZoneResolved (Result String Zone)
     | ZoneNameResolved (Result String ZoneName)
+    | NewUrlRequested UrlRequest
     | NoOp
 
 
@@ -209,36 +243,15 @@ update msg model =
                                     randomEntry model.seed
                                         (searchResults model.dict homeModel.searchText)
                             in
-                            ( { model
-                                | seed = nextSeed
-                                , route =
-                                    ShowCard
-                                        { homeModel
-                                            | textDisposition =
-                                                if maybeEntry == homeModel.entry then
-                                                    homeModel.textDisposition
-
-                                                else
-                                                    Nothing
-                                            , entry = maybeEntry
-                                            , isTranslated = False
-                                        }
-                              }
-                            , Cmd.none
+                            ( { model | seed = nextSeed }
+                            , maybeEntry
+                                |> Maybe.map (\{ de } -> Browser.Navigation.pushUrl model.key ("/entries/" ++ de))
+                                |> Maybe.withDefault Cmd.none
                             )
 
                         ClickSearchResult entry ->
-                            ( { model
-                                | route =
-                                    ShowCard
-                                        { homeModel
-                                            | expandSearchResults = False
-                                            , textDisposition = Nothing
-                                            , isTranslated = False
-                                            , entry = Just entry
-                                        }
-                              }
-                            , Cmd.none
+                            ( model
+                            , Browser.Navigation.pushUrl model.key ("/entries/" ++ entry.de)
                             )
 
                         Translate ->
@@ -283,19 +296,15 @@ update msg model =
                             )
 
                         SearchInput text ->
-                            ( { model
-                                | route =
-                                    ShowCard
-                                        { homeModel
-                                            | searchText =
-                                                if text == "" then
-                                                    Nothing
-
-                                                else
-                                                    Just text
-                                        }
-                              }
-                            , Cmd.none
+                            ( model
+                            , Browser.Navigation.pushUrl model.key
+                                ((homeModel.entry
+                                    |> Maybe.map (\entry -> "/entries/" ++ entry.de)
+                                    |> Maybe.withDefault "/"
+                                 )
+                                    ++ "?filter="
+                                    ++ text
+                                )
                             )
 
                         ToggleSearchResults ->
@@ -325,22 +334,8 @@ update msg model =
 
         EditorMsg editorMsg ->
             case ( model.route, editorMsg ) of
-                ( AddWord _, CloseEditor ) ->
-                    let
-                        ( maybeEntry, updatedSeed ) =
-                            randomEntry model.seed (searchResults model.dict Nothing)
-                    in
-                    ( { model
-                        | route = ShowCard (initialHomeModel maybeEntry)
-                        , seed = updatedSeed
-                      }
-                    , Cmd.none
-                    )
-
-                ( EditWord _ originalEntry, CloseEditor ) ->
-                    ( { model | route = ShowCard (initialHomeModel (Just originalEntry)) }
-                    , Cmd.none
-                    )
+                ( _, CloseEditor ) ->
+                    ( model, Browser.Navigation.back model.key 1 )
 
                 ( EditWord entry originalEntry, SaveAndCloseEditor ) ->
                     updateWithCurrentTime model
@@ -387,13 +382,13 @@ update msg model =
                         )
 
                 ( EditWord _ entry, DeleteEntry ) ->
-                    ( { model
-                        | dict = model.dict |> Array.filter ((/=) entry)
-                        , route = ShowCard (initialHomeModel Nothing)
-                      }
-                    , model.userId
-                        |> Maybe.map (\userId -> deleteEntry ( userId, entry.de ))
-                        |> Maybe.withDefault Cmd.none
+                    ( { model | dict = model.dict |> Array.filter ((/=) entry) }
+                    , Cmd.batch
+                        [ model.userId
+                            |> Maybe.map (\userId -> deleteEntry ( userId, entry.de ))
+                            |> Maybe.withDefault Cmd.none
+                        , Browser.Navigation.pushUrl model.key "" -- TODO
+                        ]
                     )
 
                 ( EditWord _ originalEntry, WordChange entry ) ->
@@ -412,41 +407,36 @@ update msg model =
 
         ReceiveDict (Ok dict) ->
             let
-                updatedModel =
-                    let
-                        newDict =
-                            Array.fromList dict
+                newDict =
+                    Array.fromList dict
 
-                        modelWithNewDict =
-                            { model | dict = newDict }
-                    in
-                    case model.route of
-                        ShowCard homeModel ->
-                            case homeModel.entry of
-                                Just _ ->
-                                    modelWithNewDict
-
-                                Nothing ->
-                                    let
-                                        ( maybeEntry, updatedSeed ) =
-                                            randomEntry model.seed
-                                                (searchResults newDict homeModel.searchText)
-                                    in
-                                    { modelWithNewDict
-                                        | seed = updatedSeed
-                                        , route =
-                                            ShowCard
-                                                { homeModel
-                                                    | entry = maybeEntry
-                                                    , isTranslated = False
-                                                    , textDisposition = Nothing
-                                                }
-                                    }
-
-                        _ ->
-                            modelWithNewDict
+                modelWithNewDict =
+                    { model | dict = newDict }
             in
-            ( updatedModel, Cmd.none )
+            case model.route of
+                ShowCard { entry, searchText } ->
+                    case entry of
+                        Just { de } ->
+                            de
+                                |> entryOf newDict
+                                |> Just
+                                |> initialHomeModel
+                                |> (\homeModel -> ( { modelWithNewDict | route = ShowCard homeModel }, Cmd.none ))
+
+                        Nothing ->
+                            let
+                                ( maybeEntry, updatedSeed ) =
+                                    randomEntry model.seed
+                                        (searchResults newDict searchText)
+                            in
+                            ( { modelWithNewDict | seed = updatedSeed }
+                            , maybeEntry
+                                |> Maybe.map (\{ de } -> Browser.Navigation.pushUrl model.key ("/entries/" ++ de))
+                                |> Maybe.withDefault Cmd.none
+                            )
+
+                _ ->
+                    ( modelWithNewDict, Cmd.none )
 
         ReceiveDict (Err _) ->
             ( { model | notification = ( True, "Failed to load the dictionary." ) }, Cmd.none )
@@ -462,24 +452,12 @@ update msg model =
         SignInDone uid ->
             ( { model | userId = Just uid }, Cmd.none )
 
-        ClickedLink urlRequest ->
-            update (RouteChanged urlRequest) model
-
-        RouteChanged urlRequest ->
-            case urlRequest of
-                Internal url ->
-                    let
-                        ( theRoute, cmd ) =
-                            route url
-                    in
-                    ( { model | route = theRoute }
-                    , Cmd.batch [ cmd, Browser.Navigation.pushUrl model.key (Url.toString url) ]
-                    )
-
-                External url ->
-                    ( model
-                    , Browser.Navigation.load url
-                    )
+        RouteChanged url ->
+            let
+                ( theRoute, cmd ) =
+                    route url model.dict |> Debug.log "route"
+            in
+            ( { model | route = theRoute }, cmd )
 
         ZoneResolved (Ok zone) ->
             ( { model | zone = zone }, Cmd.none )
@@ -495,6 +473,18 @@ update msg model =
 
         WithModel withModel ->
             withModel model
+
+        NewUrlRequested urlRequest ->
+            case urlRequest of
+                Internal url ->
+                    ( model
+                    , Browser.Navigation.pushUrl model.key (Url.toString url)
+                    )
+
+                External url ->
+                    ( model
+                    , Browser.Navigation.load url
+                    )
 
         NoOp ->
             ( model, Cmd.none )
@@ -874,8 +864,8 @@ cardView model entry =
                         , classNames [ "text-blue", "no-underline", "mr-2" ]
                         ]
                         [ text "Hören" ]
-                    , button
-                        [ onClick (StartEdit entry)
+                    , a
+                        [ href ("/entries/" ++ entry.de ++ "/_edit")
                         , classNames [ "text-blue" ]
                         ]
                         [ text "Edit" ]
