@@ -9,6 +9,7 @@ type FilterCondition
     | EndsWith String
     | Contains String
     | PartOfSpeechIs PartOfSpeech
+    | IsStarred
 
 
 isMatchedTo : String -> Entry -> Bool
@@ -32,10 +33,13 @@ fromString : String -> Result String FilterCondition
 fromString str =
     if String.startsWith ":" str then
         case str of
+            ":s" ->
+                Ok IsStarred
+
             ":v" ->
                 Ok (PartOfSpeechIs Verb)
 
-            ":s" ->
+            ":sub" ->
                 Ok (PartOfSpeechIs Substantiv)
 
             ":adj" ->
@@ -67,7 +71,7 @@ fromString str =
 
 
 isMatchedToHelp : Entry -> FilterCondition -> Bool
-isMatchedToHelp { de, pos, ja } filter =
+isMatchedToHelp { de, pos, ja, starred } filter =
     let
         lowerDe =
             String.toLower de
@@ -90,3 +94,6 @@ isMatchedToHelp { de, pos, ja } filter =
 
         PartOfSpeechIs myPos ->
             pos == myPos
+
+        IsStarred ->
+            starred

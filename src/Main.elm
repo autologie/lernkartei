@@ -9,7 +9,7 @@ import Entry exposing (Entry)
 import FilterCondition
 import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Html.Keyed
 import Http
 import Json.Decode as Decode
@@ -134,6 +134,7 @@ routeParser dict =
         ]
 
 
+entryOf : Dictionary -> String -> Entry
 entryOf dict de =
     let
         emptyEntry =
@@ -221,6 +222,7 @@ type HomeMsg
     | ToggleSearchResults
     | ClearSearchText
     | StartEdit Entry
+    | ToggleStar
 
 
 type EditorMsg
@@ -329,6 +331,29 @@ update msg model =
                         StartEdit entry ->
                             ( { model | route = EditWord entry entry }, Cmd.none )
 
+                        ToggleStar ->
+                            homeModel.entry
+                                |> Maybe.map
+                                    (\entry ->
+                                        let
+                                            updatedEntry =
+                                                { entry | starred = not entry.starred }
+                                        in
+                                        ( { model
+                                            | dict = model.dict |> Array.map (replaceEntry entry updatedEntry)
+                                            , route =
+                                                ShowCard
+                                                    { homeModel
+                                                        | entry = Just updatedEntry
+                                                    }
+                                          }
+                                        , model.userId
+                                            |> Maybe.map (\userId -> saveEntry ( userId, Entry.encode updatedEntry ))
+                                            |> Maybe.withDefault Cmd.none
+                                        )
+                                    )
+                                |> Maybe.withDefault ( model, Cmd.none )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -343,16 +368,9 @@ update msg model =
                             { entry | updatedAt = now }
                                 |> (\theEntry ->
                                         let
-                                            replace from to e =
-                                                if e == originalEntry then
-                                                    theEntry
-
-                                                else
-                                                    e
-
                                             dict =
                                                 model.dict
-                                                    |> Array.map (replace originalEntry theEntry)
+                                                    |> Array.map (replaceEntry originalEntry theEntry)
                                         in
                                         ( { theModel
                                             | dict = dict
@@ -488,6 +506,15 @@ update msg model =
 
         NoOp ->
             ( model, Cmd.none )
+
+
+replaceEntry : Entry -> Entry -> Entry -> Entry
+replaceEntry from to e =
+    if e == from then
+        to
+
+    else
+        e
 
 
 updateWithCurrentTime :
@@ -848,6 +875,42 @@ cardView model entry =
                     [ classNames
                         [ "absolute"
                         , "pin-t"
+                        , "pin-l"
+                        , "m-2"
+                        ]
+                    ]
+                    [ button
+                        [ stopPropagationOn "click" (Decode.map (\msg -> ( msg, True )) (Decode.succeed ToggleStar))
+                        , classNames
+                            ([ "text-lg"
+                             , "text-black"
+                             ]
+                                ++ (if entry.starred then
+                                        [ "text-orange" ]
+
+                                    else
+                                        [ "text-grey" ]
+                                   )
+                            )
+                        , if entry.starred then
+                            style "text-shadow" "0 0 .4em rgba(0,0,0,.1)"
+
+                          else
+                            style "" ""
+                        ]
+                        [ text
+                            (if entry.starred then
+                                "★"
+
+                             else
+                                "☆︎"
+                            )
+                        ]
+                    ]
+                , div
+                    [ classNames
+                        [ "absolute"
+                        , "pin-t"
                         , "pin-r"
                         , "m-2"
                         ]
@@ -866,7 +929,7 @@ cardView model entry =
                         [ text "Hören" ]
                     , a
                         [ href ("/entries/" ++ entry.de ++ "/_edit")
-                        , classNames [ "text-blue" ]
+                        , classNames [ "text-blue", "no-underline" ]
                         ]
                         [ text "Edit" ]
                     ]

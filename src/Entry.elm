@@ -14,17 +14,19 @@ type alias Entry =
     , example : Maybe String
     , addedAt : Time.Posix
     , updatedAt : Time.Posix
+    , starred : Bool
     }
 
 
 encode : Entry -> Encode.Value
-encode { de, pos, ja, example, addedAt, updatedAt } =
+encode { de, pos, ja, example, addedAt, updatedAt, starred } =
     Encode.object
         ([ ( "id", Encode.string de )
          , ( "partOfSpeech", PartOfSpeech.encode pos )
          , ( "translation", Encode.string ja )
          , ( "addedAt", Encode.int (Time.posixToMillis addedAt) )
          , ( "updatedAt", Encode.int (Time.posixToMillis updatedAt) )
+         , ( "starred", Encode.bool starred )
          ]
             ++ (example
                     |> Maybe.map
@@ -36,8 +38,8 @@ encode { de, pos, ja, example, addedAt, updatedAt } =
 
 decode : Decode.Decoder Entry
 decode =
-    Decode.map6
-        (\de pos ja example addedAt updatedAt ->
+    Decode.map7
+        (\de pos ja example addedAt updatedAt starred ->
             { de = de
             , pos = pos |> Maybe.withDefault Verb
             , ja = ja
@@ -49,6 +51,7 @@ decode =
                     example
             , addedAt = Time.millisToPosix (addedAt |> Maybe.withDefault 0)
             , updatedAt = Time.millisToPosix (updatedAt |> Maybe.withDefault 0)
+            , starred = starred |> Maybe.withDefault False
             }
         )
         (Decode.field "id" Decode.string)
@@ -57,6 +60,7 @@ decode =
         (Decode.maybe (Decode.field "example" Decode.string))
         (Decode.maybe (Decode.field "addedAt" Decode.int))
         (Decode.maybe (Decode.field "updatedAt" Decode.int))
+        (Decode.maybe (Decode.field "starred" Decode.bool))
 
 
 withoutArticle : Entry -> String
@@ -92,6 +96,7 @@ censorExample text =
     Regex.replace regex replacer text
 
 
+empty : Entry
 empty =
     { de = ""
     , pos = Verb
@@ -99,4 +104,5 @@ empty =
     , example = Nothing
     , addedAt = Time.millisToPosix 0
     , updatedAt = Time.millisToPosix 0
+    , starred = False
     }
