@@ -1041,7 +1041,7 @@ editorView model isNew ({ de, pos, ja, example, updatedAt, addedAt } as entry) =
                 )
              , inputRowView "Teil"
                 (selectInputView
-                    pos
+                    (pos |> PartOfSpeech.toString)
                     (\value ->
                         WordChange
                             { entry
@@ -1282,13 +1282,23 @@ textInputView maybeInputId inputValue multiline handleInput formClasses =
             []
 
 
+selectInputView : String -> (String -> a) -> List ( String, String ) -> List String -> Html a
 selectInputView inputValue handleInput options formClasses =
     select
         [ classNames ([ "text-base" ] ++ formClasses)
         , style "-webkit-appearance" "none"
         , onInput handleInput
         ]
-        (options |> List.map (\( v, label ) -> option [ value v ] [ text label ]))
+        (options
+            |> List.map
+                (\( v, label ) ->
+                    option
+                        [ value v
+                        , selected (inputValue == v)
+                        ]
+                        [ text label ]
+                )
+        )
 
 
 btnClasses selected disabled =
