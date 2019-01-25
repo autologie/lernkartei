@@ -83,15 +83,9 @@ type alias Model =
 type alias HomeModel =
     { isTranslated : Bool
     , entry : Maybe Entry
-    , direction : Direction
     , textDisposition : Maybe ( Int, Int, Float )
     , expandSearchResults : Bool
     }
-
-
-type Direction
-    = DeToJa
-    | JaToDe
 
 
 type Route
@@ -203,7 +197,6 @@ initialModel url key randomSeed =
 initialHomeModel : Maybe Entry -> HomeModel
 initialHomeModel maybeEntry =
     { isTranslated = False
-    , direction = DeToJa
     , entry = maybeEntry
     , textDisposition = Nothing
     , expandSearchResults = False
@@ -229,7 +222,6 @@ type HomeMsg
     = NextRandomWord
     | ClickSearchResult Entry
     | Translate
-    | DirectionChange
     | TextDispositionChange ( Int, Int, Float )
     | SearchInput String
     | ToggleSearchResults
@@ -292,24 +284,6 @@ update msg model =
                                     ShowCard
                                         { homeModel
                                             | isTranslated = not homeModel.isTranslated
-                                            , textDisposition = Nothing
-                                        }
-                              }
-                            , Cmd.none
-                            )
-
-                        DirectionChange ->
-                            ( { model
-                                | route =
-                                    ShowCard
-                                        { homeModel
-                                            | direction =
-                                                case homeModel.direction of
-                                                    DeToJa ->
-                                                        JaToDe
-
-                                                    JaToDe ->
-                                                        DeToJa
                                             , textDisposition = Nothing
                                         }
                               }
@@ -651,22 +625,8 @@ homeView searchText dict homeModel =
             , "max-w-md"
             ]
         ]
-        ([ ( "header"
-           , h1
-                [ classNames
-                    [ "text-center"
-                    , "py-2"
-                    , "lg:py-8"
-                    , "text-grey-dark"
-                    , "text-sm"
-                    , "lg:text-lg"
-                    , "select-none"
-                    ]
-                ]
-                [ text "Wortkarten" ]
-           )
-         , ( "search"
-           , div [ classNames [ "relative" ] ]
+        ([ ( "search"
+           , div [ classNames [ "relative", "mb-5" ] ]
                 [ input
                     [ type_ "text"
                     , onInput (SearchInput >> HomeMsg)
@@ -678,7 +638,6 @@ homeView searchText dict homeModel =
                         , "text-lg"
                         , "py-2"
                         ]
-                    , placeholder "Filter"
                     , value (searchText |> Maybe.withDefault "")
                     ]
                     []
@@ -837,46 +796,17 @@ cardView : Maybe String -> HomeModel -> Entry -> Html HomeMsg
 cardView searchText model entry =
     let
         textToShow =
-            case ( model.direction, model.isTranslated ) of
-                ( DeToJa, False ) ->
-                    entry.de
+            if model.isTranslated then
+                entry.ja
 
-                ( JaToDe, False ) ->
-                    entry.ja
-
-                ( DeToJa, True ) ->
-                    entry.ja
-
-                ( JaToDe, True ) ->
-                    entry.de
+            else
+                entry.de
 
         simpleDe =
             Entry.withoutArticle entry
     in
     div []
-        [ ul
-            [ classNames
-                [ "py-4"
-                , "list-reset"
-                , "flex"
-                ]
-            ]
-            [ li [ classNames [ "flex-1", "mr-2" ] ]
-                [ button
-                    [ onClick DirectionChange
-                    , classNames (btnClasses (model.direction == DeToJa) False ++ [ "p-3", "w-full" ])
-                    ]
-                    [ text "De → Ja" ]
-                ]
-            , li [ classNames [ "flex-1" ] ]
-                [ button
-                    [ onClick DirectionChange
-                    , classNames (btnClasses (model.direction == JaToDe) False ++ [ "p-3", "w-full" ])
-                    ]
-                    [ text "Ja → De" ]
-                ]
-            ]
-        , div
+        [ div
             [ classNames
                 [ "rounded"
                 , "bg-white"
