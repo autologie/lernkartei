@@ -1,4 +1,4 @@
-module Entry exposing (Entry, censorExample, decode, empty, encode, toComparable, withoutArticle)
+module Entry exposing (Entry, censorExample, decode, empty, encode, isValid, toComparable, withoutArticle)
 
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -106,3 +106,8 @@ empty =
     , updatedAt = Time.millisToPosix 0
     , starred = False
     }
+
+
+isValid : Entry -> Bool
+isValid { de, ja, example } =
+    (de /= "") && (ja /= "")
