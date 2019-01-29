@@ -13,6 +13,7 @@ type FilterCondition
     | PartOfSpeechIs PartOfSpeech
     | IsStarred
     | IsAddedIn Duration
+    | NeverMatch String
 
 
 type Duration
@@ -28,19 +29,14 @@ parse : String -> List FilterCondition
 parse str =
     str
         |> String.split " "
-        |> List.concatMap
-            (fromString
-                >> Result.toMaybe
-                >> Maybe.map List.singleton
-                >> Maybe.withDefault []
-            )
+        |> List.map fromString
 
 
 relativeDaysRegex =
     Regex.fromString "^-([\\d]+)d\\+([\\d]+)d$" |> Maybe.withDefault Regex.never
 
 
-fromString : String -> Result String FilterCondition
+fromString : String -> FilterCondition
 fromString str =
     if String.startsWith "t:" str then
         case
@@ -50,51 +46,51 @@ fromString str =
         of
             [ [ Just fromExpr, Just numberOfDaysExpr ] ] ->
                 Maybe.map2
-                    (\from numberOfDays -> Ok (IsAddedIn (RelativeDays from numberOfDays)))
+                    (\from numberOfDays -> IsAddedIn (RelativeDays from numberOfDays))
                     (String.toInt fromExpr)
                     (String.toInt numberOfDaysExpr)
-                    |> Maybe.withDefault (Err "Failed to parse number.")
+                    |> Maybe.withDefault (NeverMatch "Failed to parse number.")
 
             _ ->
-                Err (str ++ " is unsupported notation of a term.")
+                NeverMatch (str ++ " is unsupported notation of a term.")
 
     else if String.startsWith ":" str then
         case str of
             ":s" ->
-                Ok IsStarred
+                IsStarred
 
             ":v" ->
-                Ok (PartOfSpeechIs Verb)
+                PartOfSpeechIs Verb
 
             ":sub" ->
-                Ok (PartOfSpeechIs Substantiv)
+                PartOfSpeechIs Substantiv
 
             ":adj" ->
-                Ok (PartOfSpeechIs Adjektiv)
+                PartOfSpeechIs Adjektiv
 
             ":adv" ->
-                Ok (PartOfSpeechIs Adverb)
+                PartOfSpeechIs Adverb
 
             ":k" ->
-                Ok (PartOfSpeechIs Konjunktion)
+                PartOfSpeechIs Konjunktion
 
             ":p" ->
-                Ok (PartOfSpeechIs Praeposition)
+                PartOfSpeechIs Praeposition
 
             ":m" ->
-                Ok (PartOfSpeechIs Modalpartikel)
+                PartOfSpeechIs Modalpartikel
 
             _ ->
-                Err (str ++ " is unsupported directive.")
+                NeverMatch (str ++ " is unsupported directive.")
 
     else if String.startsWith "^" str then
-        Ok (StartsWith (String.toLower (String.dropLeft 1 str)))
+        StartsWith (String.toLower (String.dropLeft 1 str))
 
     else if String.endsWith "$" str then
-        Ok (EndsWith (String.toLower (String.dropRight 1 str)))
+        EndsWith (String.toLower (String.dropRight 1 str))
 
     else
-        Ok (Contains (String.toLower str))
+        Contains (String.toLower str)
 
 
 isMatchedToHelp : Time.Posix -> Entry -> FilterCondition -> Bool
@@ -140,3 +136,6 @@ isMatchedToHelp now { de, pos, ja, starred, addedAt } filter =
                     fromMillis + numberOfDays * millisInDay
             in
             fromMillis < addedAtMillis && addedAtMillis < toMillis
+
+        NeverMatch _ ->
+            False
