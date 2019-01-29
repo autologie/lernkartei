@@ -2,6 +2,8 @@ module FilterCondition exposing (FilterCondition(..), isMatchedTo)
 
 import Entry exposing (Entry)
 import PartOfSpeech exposing (PartOfSpeech(..))
+import Regex
+import Time
 
 
 type FilterCondition
@@ -10,11 +12,16 @@ type FilterCondition
     | Contains String
     | PartOfSpeechIs PartOfSpeech
     | IsStarred
+    | IsAddedIn Duration
 
 
-isMatchedTo : String -> Entry -> Bool
-isMatchedTo str entry =
-    str |> parse |> List.all (isMatchedToHelp entry)
+type Duration
+    = RelativeDays Int Int
+
+
+isMatchedTo : Time.Posix -> String -> Entry -> Bool
+isMatchedTo now str entry =
+    str |> parse |> List.all (isMatchedToHelp now entry)
 
 
 parse : String -> List FilterCondition
@@ -29,9 +36,29 @@ parse str =
             )
 
 
+relativeDaysRegex =
+    Regex.fromString "^-([\\d]+)d\\+([\\d]+)d$" |> Maybe.withDefault Regex.never
+
+
 fromString : String -> Result String FilterCondition
 fromString str =
-    if String.startsWith ":" str then
+    if String.startsWith "t:" str then
+        case
+            String.dropLeft 2 str
+                |> Regex.find relativeDaysRegex
+                |> List.map .submatches
+        of
+            [ [ Just fromExpr, Just numberOfDaysExpr ] ] ->
+                Maybe.map2
+                    (\from numberOfDays -> Ok (IsAddedIn (RelativeDays from numberOfDays)))
+                    (String.toInt fromExpr)
+                    (String.toInt numberOfDaysExpr)
+                    |> Maybe.withDefault (Err "Failed to parse number.")
+
+            _ ->
+                Err (str ++ " is unsupported notation of a term.")
+
+    else if String.startsWith ":" str then
         case str of
             ":s" ->
                 Ok IsStarred
@@ -70,8 +97,8 @@ fromString str =
         Ok (Contains (String.toLower str))
 
 
-isMatchedToHelp : Entry -> FilterCondition -> Bool
-isMatchedToHelp { de, pos, ja, starred } filter =
+isMatchedToHelp : Time.Posix -> Entry -> FilterCondition -> Bool
+isMatchedToHelp now { de, pos, ja, starred, addedAt } filter =
     let
         lowerDe =
             String.toLower de
@@ -97,3 +124,19 @@ isMatchedToHelp { de, pos, ja, starred } filter =
 
         IsStarred ->
             starred
+
+        IsAddedIn (RelativeDays from numberOfDays) ->
+            let
+                millisInDay =
+                    24 * 60 * 60 * 1000
+
+                addedAtMillis =
+                    addedAt |> Time.posixToMillis
+
+                fromMillis =
+                    ((now |> Time.posixToMillis) // millisInDay + 1 - from) * millisInDay
+
+                toMillis =
+                    fromMillis + numberOfDays * millisInDay
+            in
+            fromMillis < addedAtMillis && addedAtMillis < toMillis

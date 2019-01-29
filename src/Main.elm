@@ -42,8 +42,8 @@ main : Program Int Model Msg
 main =
     Browser.application
         { init =
-            \randomSeed url key ->
-                initialModel url key randomSeed
+            \startTimeMillis url key ->
+                initialModel startTimeMillis url key startTimeMillis
         , subscriptions =
             \_ ->
                 Sub.batch
@@ -73,6 +73,7 @@ type alias Model =
     , zone : Zone
     , zoneName : ZoneName
     , searchText : Maybe String
+    , startTime : Time.Posix
     }
 
 
@@ -182,8 +183,8 @@ route url dict =
             ( ShowCard (initialHomeModel Nothing), Nothing, Cmd.none )
 
 
-initialModel : Url -> Key -> Int -> ( Model, Cmd Msg )
-initialModel url key randomSeed =
+initialModel : Int -> Url -> Key -> Int -> ( Model, Cmd Msg )
+initialModel startTimeMillis url key randomSeed =
     let
         ( theRoute, filter, routeCmd ) =
             route url Array.empty
@@ -197,6 +198,7 @@ initialModel url key randomSeed =
       , zone = Time.utc
       , zoneName = Offset 0
       , searchText = filter
+      , startTime = startTimeMillis |> Time.millisToPosix
       }
     , Cmd.batch
         [ routeCmd
@@ -250,7 +252,7 @@ update msg model =
                     let
                         ( maybeEntry, nextSeed ) =
                             randomEntry model.seed
-                                (searchResults model.dict model.searchText)
+                                (searchResults model.startTime model.dict model.searchText)
                     in
                     ( { model | seed = nextSeed }
                     , maybeEntry
@@ -397,7 +399,7 @@ update msg model =
                             let
                                 ( maybeEntry, updatedSeed ) =
                                     randomEntry model.seed
-                                        (searchResults newDict model.searchText)
+                                        (searchResults model.startTime newDict model.searchText)
                             in
                             ( { modelWithNewDict | seed = updatedSeed }
                             , maybeEntry
@@ -491,7 +493,7 @@ view model =
         ]
         [ case model.route of
             ShowCard entry ->
-                homeView model.searchText model.dict entry
+                homeView model.startTime model.searchText model.dict entry
 
             EditWord pageModel ->
                 Pages.Editor.view model.zone model.zoneName pageModel |> Html.map EditorMsg
@@ -539,8 +541,8 @@ notificationView ( isShown, message ) =
         ]
 
 
-homeView : Maybe String -> Dictionary -> HomeModel -> Html Msg
-homeView searchText dict homeModel =
+homeView : Time.Posix -> Maybe String -> Dictionary -> HomeModel -> Html Msg
+homeView startTime searchText dict homeModel =
     Html.Keyed.node "div"
         [ Help.classNames
             [ "container"
@@ -563,13 +565,13 @@ homeView searchText dict homeModel =
                     , value (searchText |> Maybe.withDefault "")
                     ]
                     []
-                , resultCountView searchText dict homeModel |> Html.map HomeMsg
+                , resultCountView startTime searchText dict homeModel |> Html.map HomeMsg
                 ]
            )
          ]
             ++ (let
                     results =
-                        searchResults dict searchText
+                        searchResults startTime dict searchText
                             |> Array.toList
                 in
                 case ( homeModel.expandSearchResults || List.length results == 0, searchText ) of
@@ -588,11 +590,11 @@ homeView searchText dict homeModel =
         )
 
 
-resultCountView : Maybe String -> Dictionary -> HomeModel -> Html HomeMsg
-resultCountView searchText dict homeModel =
+resultCountView : Time.Posix -> Maybe String -> Dictionary -> HomeModel -> Html HomeMsg
+resultCountView startTime searchText dict homeModel =
     let
         resultCount =
-            searchResults dict searchText |> Array.length
+            searchResults startTime dict searchText |> Array.length
 
         ( isFiltered, isClickable ) =
             searchText
@@ -656,13 +658,13 @@ resultCountView searchText dict homeModel =
         )
 
 
-searchResults : Dictionary -> Maybe String -> Array Entry
-searchResults dict maybeSearchText =
+searchResults : Time.Posix -> Dictionary -> Maybe String -> Array Entry
+searchResults now dict maybeSearchText =
     maybeSearchText
         |> Maybe.map
             (\searchText ->
                 dict
-                    |> Array.filter (FilterCondition.isMatchedTo searchText)
+                    |> Array.filter (FilterCondition.isMatchedTo now searchText)
             )
         |> Maybe.withDefault dict
 
