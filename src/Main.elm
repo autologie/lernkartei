@@ -237,14 +237,7 @@ update msg model =
             case homeMsg of
                 ClickSearchResult entry ->
                     ( model
-                    , Browser.Navigation.pushUrl model.key
-                        ("/entries/"
-                            ++ entry.de
-                            ++ (model.searchText
-                                    |> Maybe.map (\st -> "?filter=" ++ st)
-                                    |> Maybe.withDefault ""
-                               )
-                        )
+                    , navigateTo model (Just entry)
                     )
 
                 Translate ->
@@ -399,7 +392,18 @@ update msg model =
                 Just ( Err (), filter ) ->
                     let
                         ( maybeEntry, updatedSeed ) =
-                            randomEntry model.seed (searchResults model.startTime model.dict filter)
+                            randomEntry
+                                model.seed
+                                (searchResults model.startTime
+                                    (case model.route of
+                                        ShowCard { entry } ->
+                                            model.dict |> Dictionary.without entry
+
+                                        _ ->
+                                            model.dict
+                                    )
+                                    filter
+                                )
                     in
                     ( { model
                         | route = Initializing (Just url)
