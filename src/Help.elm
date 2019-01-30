@@ -17,12 +17,15 @@ btnClasses selected disabled =
 groupedBtnClasses selected disabled isFirst isLast =
     [ ( "rounded-l", isFirst )
     , ( "rounded-r", isLast )
+    , ( "block", True )
+    , ( "no-underline", True )
     , ( "bg-blue", selected && not disabled )
     , ( "text-white", selected && not disabled )
     , ( "text-grey", disabled )
     , ( "text-blue", not selected && not disabled )
     , ( "shadow", selected )
     , ( "cursor-default", disabled )
+    , ( "pointer-events-none", disabled )
     , ( "select-none", True )
     ]
         |> List.filter (\( _, isIncluded ) -> isIncluded)
