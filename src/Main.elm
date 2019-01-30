@@ -549,7 +549,43 @@ homeView startTime searchText dict homeModel =
             , "max-w-md"
             ]
         ]
-        ([ ( "search"
+        ([ ( "dateLinks"
+           , ul
+                [ Help.classNames
+                    [ "list-reset"
+                    , "flex"
+                    , "justify-between"
+                    , "mb-2"
+                    , "bg-grey-light"
+                    , "rounded-full"
+                    , "p-2"
+                    ]
+                ]
+                ([ 1, 2, 3, 4, 5, 6, 7 ]
+                    |> List.reverse
+                    |> List.map
+                        (\n ->
+                            li
+                                []
+                                [ a
+                                    [ href ("/?filter=t:" ++ String.fromInt -n ++ "d+1d")
+                                    , Help.classNames
+                                        [ "no-underline"
+                                        , "block"
+                                        , "text-white"
+                                        , "rounded-full"
+                                        , "py-2"
+                                        , "px-3"
+                                        , "mx-1"
+                                        , "bg-blue"
+                                        ]
+                                    ]
+                                    [ text ("-" ++ String.fromInt n ++ "d") ]
+                                ]
+                        )
+                )
+           )
+         , ( "search"
            , div [ Help.classNames [ "relative", "mb-5" ] ]
                 [ input
                     [ type_ "text"
