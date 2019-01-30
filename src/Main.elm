@@ -12,6 +12,7 @@ import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p,
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Html.Keyed
+import Html.Lazy
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Pages.Editor
@@ -57,7 +58,7 @@ main =
                         )
                     ]
         , update = update
-        , view = \model -> { title = "Wortkarten", body = [ view model ] }
+        , view = \model -> { title = "Wortkarten", body = [ Html.Lazy.lazy view model ] }
         , onUrlRequest = NewUrlRequested
         , onUrlChange = RouteChanged
         }
@@ -493,7 +494,11 @@ view model =
         ]
         [ case model.route of
             ShowCard entry ->
-                homeView model.startTime model.searchText model.dict entry
+                homeView
+                    model.startTime
+                    model.searchText
+                    (searchResults model.startTime model.dict model.searchText)
+                    entry
 
             EditWord pageModel ->
                 Pages.Editor.view model.zone model.zoneName pageModel |> Html.map EditorMsg
@@ -542,7 +547,7 @@ notificationView ( isShown, message ) =
 
 
 homeView : Time.Posix -> Maybe String -> Dictionary -> HomeModel -> Html Msg
-homeView startTime searchText dict homeModel =
+homeView startTime searchText results homeModel =
     Html.Keyed.node "div"
         [ Help.classNames
             [ "container"
@@ -558,6 +563,7 @@ homeView startTime searchText dict homeModel =
                     , "mb-2"
                     , "bg-grey-light"
                     , "rounded-full"
+                    , "overflow-scroll"
                     , "p-2"
                     ]
                 ]
@@ -601,18 +607,13 @@ homeView startTime searchText dict homeModel =
                     , value (searchText |> Maybe.withDefault "")
                     ]
                     []
-                , resultCountView startTime searchText dict homeModel |> Html.map HomeMsg
+                , resultCountView startTime searchText results homeModel |> Html.map HomeMsg
                 ]
            )
          ]
-            ++ (let
-                    results =
-                        searchResults startTime dict searchText
-                            |> Array.toList
-                in
-                case ( homeModel.expandSearchResults || List.length results == 0, searchText ) of
+            ++ (case ( homeModel.expandSearchResults || Array.length results == 0, searchText ) of
                     ( True, Just text ) ->
-                        [ ( "searchResult", searchResultView dict results text |> Html.map HomeMsg ) ]
+                        [ ( "searchResult", searchResultView results text |> Html.map HomeMsg ) ]
 
                     _ ->
                         []
@@ -627,10 +628,10 @@ homeView startTime searchText dict homeModel =
 
 
 resultCountView : Time.Posix -> Maybe String -> Dictionary -> HomeModel -> Html HomeMsg
-resultCountView startTime searchText dict homeModel =
+resultCountView startTime searchText results homeModel =
     let
         resultCount =
-            searchResults startTime dict searchText |> Array.length
+            results |> Array.length
 
         ( isFiltered, isClickable ) =
             searchText
@@ -705,9 +706,9 @@ searchResults now dict maybeSearchText =
         |> Maybe.withDefault dict
 
 
-searchResultView : Dictionary -> List Entry -> String -> Html HomeMsg
-searchResultView dict results searchText =
-    case List.length results of
+searchResultView : Dictionary -> String -> Html HomeMsg
+searchResultView results searchText =
+    case Array.length results of
         0 ->
             a
                 [ href ("/entries/_new?de=" ++ searchText ++ "&filter=" ++ searchText)
@@ -726,6 +727,7 @@ searchResultView dict results searchText =
         _ ->
             ul [ Help.classNames [ "list-reset", "py-3" ] ]
                 (results
+                    |> Array.toList
                     |> List.sortBy Entry.toComparable
                     |> List.map (searchResultRow searchText)
                 )
