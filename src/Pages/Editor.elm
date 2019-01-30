@@ -39,8 +39,8 @@ view zone zoneName { entry, originalEntry } =
 
         isNew =
             originalEntry
-                |> Maybe.map (\_ -> True)
-                |> Maybe.withDefault False
+                |> Maybe.map (\_ -> False)
+                |> Maybe.withDefault True
     in
     div
         [ Help.classNames

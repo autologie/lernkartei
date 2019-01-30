@@ -559,7 +559,7 @@ homeView startTime searchText results homeModel =
                 [ Help.classNames
                     [ "list-reset"
                     , "flex"
-                    , "justify-between"
+                    , "justify-center"
                     , "mb-2"
                     , "bg-grey-light"
                     , "rounded-full"
@@ -580,8 +580,7 @@ homeView startTime searchText results homeModel =
                                         , "block"
                                         , "text-white"
                                         , "rounded-full"
-                                        , "py-2"
-                                        , "px-3"
+                                        , "p-2"
                                         , "mx-1"
                                         , "bg-blue"
                                         ]
