@@ -484,14 +484,20 @@ view model =
                 text "Initializing..."
 
             ShowCard entry ->
-                homeView
+                Html.Lazy.lazy4
+                    homeView
                     model.startTime
                     model.searchText
                     (searchResults model.startTime model.dict model.searchText)
                     entry
 
             EditWord pageModel ->
-                Pages.Editor.view model.zone model.zoneName pageModel |> Html.map EditorMsg
+                Html.Lazy.lazy3
+                    Pages.Editor.view
+                    model.zone
+                    model.zoneName
+                    pageModel
+                    |> Html.map EditorMsg
         , notificationView model.notification
         ]
 
