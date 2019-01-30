@@ -15,6 +15,7 @@ import Html.Keyed
 import Html.Lazy
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Pages.Card exposing (Msg(..))
 import Pages.Editor
 import PartOfSpeech exposing (PartOfSpeech(..))
 import Ports
@@ -27,18 +28,6 @@ import Url.Parser exposing ((</>), (<?>))
 import Url.Parser.Query
 
 
-port syncEntryDone : (() -> msg) -> Sub msg
-
-
-port signInDone : (String -> msg) -> Sub msg
-
-
-port dictionaryLoaded : (List Encode.Value -> msg) -> Sub msg
-
-
-port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
-
-
 main : Program Int Model Msg
 main =
     Browser.application
@@ -48,10 +37,10 @@ main =
         , subscriptions =
             \_ ->
                 Sub.batch
-                    [ textDisposition (TextDispositionChange >> HomeMsg)
-                    , signInDone SignInDone
-                    , syncEntryDone SyncEntryDone
-                    , dictionaryLoaded
+                    [ Ports.textDisposition (TextDispositionChange >> CardMsg)
+                    , Ports.signInDone SignInDone
+                    , Ports.syncEntryDone SyncEntryDone
+                    , Ports.dictionaryLoaded
                         (List.map (Decode.decodeValue Entry.decode)
                             >> reduceError
                             >> ReceiveDict
@@ -78,17 +67,9 @@ type alias Model =
     }
 
 
-type alias HomeModel =
-    { isTranslated : Bool
-    , entry : Entry
-    , textDisposition : Maybe ( Int, Int, Float )
-    , expandSearchResults : Bool
-    }
-
-
 type Route
     = Initializing (Maybe Url)
-    | ShowCard HomeModel
+    | ShowCard Pages.Card.Model
     | EditWord Pages.Editor.Model
 
 
@@ -130,7 +111,7 @@ routeParser dict =
             (\de filter ->
                 let
                     homeModel =
-                        initialHomeModel (entryOf dict de)
+                        Pages.Card.initialModel (entryOf dict de)
                 in
                 ( Ok (ShowCard homeModel), filter )
             )
@@ -196,17 +177,8 @@ initialModel startTimeMillis url key randomSeed =
     )
 
 
-initialHomeModel : Entry -> HomeModel
-initialHomeModel entry =
-    { isTranslated = False
-    , entry = entry
-    , textDisposition = Nothing
-    , expandSearchResults = False
-    }
-
-
 type Msg
-    = HomeMsg HomeMsg
+    = CardMsg Pages.Card.Msg
     | EditorMsg Pages.Editor.Msg
     | ReceiveDict (Result Decode.Error (List Entry))
     | SignInDone String
@@ -220,88 +192,25 @@ type Msg
     | NoOp
 
 
-type HomeMsg
-    = ClickSearchResult Entry
-    | Translate
-    | TextDispositionChange ( Int, Int, Float )
-    | SearchInput String
-    | ToggleSearchResults
-    | ClearSearchText
-    | ToggleStar
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model.route, msg ) of
-        ( ShowCard homeModel, HomeMsg homeMsg ) ->
-            case homeMsg of
-                ClickSearchResult entry ->
-                    ( model
-                    , navigateTo model (Just entry)
+        ( ShowCard pageModel, CardMsg pageMsg ) ->
+            model.userId
+                |> Maybe.map
+                    (\userId ->
+                        let
+                            ( updatedPageModel, updatedDict, pageCmd ) =
+                                Pages.Card.update model.key userId model.dict pageModel pageMsg
+                        in
+                        ( { model
+                            | route = ShowCard updatedPageModel
+                            , dict = updatedDict
+                          }
+                        , pageCmd |> Cmd.map CardMsg
+                        )
                     )
-
-                Translate ->
-                    ( { model
-                        | route =
-                            ShowCard
-                                { homeModel
-                                    | isTranslated = not homeModel.isTranslated
-                                    , textDisposition = Nothing
-                                }
-                      }
-                    , Cmd.none
-                    )
-
-                TextDispositionChange value ->
-                    ( { model
-                        | route =
-                            ShowCard
-                                { homeModel
-                                    | textDisposition = Just value
-                                }
-                      }
-                    , Cmd.none
-                    )
-
-                SearchInput text ->
-                    ( model
-                    , Browser.Navigation.pushUrl model.key
-                        ("/entries/" ++ homeModel.entry.de ++ "?filter=" ++ text)
-                    )
-
-                ToggleSearchResults ->
-                    ( { model
-                        | route =
-                            ShowCard
-                                { homeModel
-                                    | expandSearchResults =
-                                        not homeModel.expandSearchResults
-                                }
-                      }
-                    , Cmd.none
-                    )
-
-                ClearSearchText ->
-                    ( { model | searchText = Nothing }
-                    , Cmd.none
-                    )
-
-                ToggleStar ->
-                    let
-                        entry =
-                            homeModel.entry
-
-                        updatedEntry =
-                            { entry | starred = not entry.starred }
-                    in
-                    ( { model
-                        | dict = model.dict |> Array.map (Help.replaceEntry entry updatedEntry)
-                        , route = ShowCard { homeModel | entry = updatedEntry }
-                      }
-                    , model.userId
-                        |> Maybe.map (\userId -> Ports.saveEntry ( userId, Entry.encode updatedEntry ))
-                        |> Maybe.withDefault Cmd.none
-                    )
+                |> Maybe.withDefault ( model, Cmd.none )
 
         ( EditWord pageModel, EditorMsg editorMsg ) ->
             updateWithCurrentTime model
@@ -335,7 +244,7 @@ update msg model =
                 ShowCard { entry } ->
                     entry.de
                         |> entryOf newDict
-                        |> initialHomeModel
+                        |> Pages.Card.initialModel
                         |> (\homeModel -> ( { modelWithNewDict | route = ShowCard homeModel }, Cmd.none ))
 
                 EditWord pageModel ->
@@ -489,11 +398,12 @@ view model =
 
             ShowCard entry ->
                 Html.Lazy.lazy4
-                    homeView
+                    Pages.Card.view
                     model.startTime
                     model.searchText
                     (searchResults model.startTime model.dict model.searchText)
                     entry
+                    |> Html.map CardMsg
 
             EditWord pageModel ->
                 Html.Lazy.lazy3
@@ -546,150 +456,6 @@ notificationView ( isShown, message ) =
         ]
 
 
-homeView : Time.Posix -> Maybe String -> Dictionary -> HomeModel -> Html Msg
-homeView startTime searchText results homeModel =
-    Html.Keyed.node "div"
-        [ Help.classNames
-            [ "container"
-            , "max-w-md"
-            ]
-        ]
-        ([ ( "dateLinks"
-           , ul
-                [ Help.classNames
-                    [ "list-reset"
-                    , "flex"
-                    , "justify-center"
-                    , "mb-2"
-                    , "bg-grey-light"
-                    , "rounded-full"
-                    , "overflow-scroll"
-                    , "p-2"
-                    ]
-                ]
-                ([ 1, 2, 3, 4, 5, 6, 7 ]
-                    |> List.reverse
-                    |> List.map
-                        (\n ->
-                            li
-                                []
-                                [ a
-                                    [ href ("/entries/_random?filter=t:" ++ String.fromInt -n ++ "d+1d")
-                                    , Help.classNames
-                                        [ "no-underline"
-                                        , "block"
-                                        , "text-white"
-                                        , "rounded-full"
-                                        , "p-2"
-                                        , "mx-1"
-                                        , "bg-blue"
-                                        ]
-                                    ]
-                                    [ text ("-" ++ String.fromInt n ++ "d") ]
-                                ]
-                        )
-                )
-           )
-         , ( "search"
-           , div [ Help.classNames [ "relative", "mb-5" ] ]
-                [ input
-                    [ type_ "text"
-                    , onInput (SearchInput >> HomeMsg)
-                    , Help.classNames
-                        [ "border-b"
-                        , "text-grey-darkest"
-                        , "bg-transparent"
-                        , "w-full"
-                        , "text-lg"
-                        , "py-2"
-                        ]
-                    , value (searchText |> Maybe.withDefault "")
-                    ]
-                    []
-                , resultCountView startTime searchText results homeModel |> Html.map HomeMsg
-                ]
-           )
-         ]
-            ++ (case ( homeModel.expandSearchResults || Array.length results == 0, searchText ) of
-                    ( True, Just text ) ->
-                        [ ( "searchResult", searchResultView results text |> Html.map HomeMsg ) ]
-
-                    _ ->
-                        []
-               )
-            ++ [ ( "card", cardView searchText homeModel results homeModel.entry |> Html.map HomeMsg ) ]
-            ++ [ ( "addButton", addButton searchText ) ]
-        )
-
-
-resultCountView : Time.Posix -> Maybe String -> Dictionary -> HomeModel -> Html HomeMsg
-resultCountView startTime searchText results homeModel =
-    let
-        resultCount =
-            results |> Array.length
-
-        ( isFiltered, isClickable ) =
-            searchText
-                |> Maybe.map (\_ -> ( True, resultCount > 0 ))
-                |> Maybe.withDefault ( False, False )
-
-        prefix =
-            if isClickable then
-                ""
-
-            else
-                "Alle "
-
-        extraBtnClasses =
-            [ "px-4", "py-2", "ml-px" ]
-    in
-    ul
-        [ Help.classNames
-            [ "list-reset"
-            , "text-sm"
-            , "my-2"
-            , "absolute"
-            , "pin-r"
-            , "pin-t"
-            , "flex"
-            ]
-        ]
-        ([ li []
-            [ button
-                [ Help.classNames
-                    (Help.groupedBtnClasses isClickable
-                        (not isClickable)
-                        True
-                        (not isFiltered)
-                        ++ extraBtnClasses
-                    )
-                , onClick ToggleSearchResults
-                ]
-                [ text (prefix ++ (resultCount |> String.fromInt) ++ " Wörter") ]
-            ]
-         ]
-            ++ (if isFiltered then
-                    [ li []
-                        [ button
-                            [ Help.classNames
-                                (Help.groupedBtnClasses True
-                                    False
-                                    (not isClickable)
-                                    True
-                                    ++ extraBtnClasses
-                                )
-                            , onClick ClearSearchText
-                            ]
-                            [ text "X" ]
-                        ]
-                    ]
-
-                else
-                    []
-               )
-        )
-
-
 searchResults : Time.Posix -> Dictionary -> Maybe String -> Array Entry
 searchResults now dict maybeSearchText =
     maybeSearchText
@@ -699,267 +465,6 @@ searchResults now dict maybeSearchText =
                     |> Array.filter (FilterCondition.isMatchedTo now searchText)
             )
         |> Maybe.withDefault dict
-
-
-searchResultView : Dictionary -> String -> Html HomeMsg
-searchResultView results searchText =
-    case Array.length results of
-        0 ->
-            a
-                [ href ("/entries/_new?de=" ++ searchText ++ "&filter=" ++ searchText)
-                , Help.classNames
-                    (Help.btnClasses True False
-                        ++ [ "p-3"
-                           , "w-full"
-                           , "my-2"
-                           , "block"
-                           , "no-underline"
-                           ]
-                    )
-                ]
-                [ text ("\"" ++ searchText ++ "\" hinzufügen") ]
-
-        _ ->
-            ul [ Help.classNames [ "list-reset", "py-3" ] ]
-                (results
-                    |> Array.toList
-                    |> List.sortBy Entry.toComparable
-                    |> List.map (searchResultRow searchText)
-                )
-
-
-searchResultRow searchText entry =
-    li
-        [ Help.classNames
-            [ "p-3"
-            , "text-left"
-            , "rounded"
-            , "cursor-pointer"
-            , "hover:bg-grey-lighter"
-            ]
-        , onClick (ClickSearchResult entry)
-        ]
-        [ div [ Help.classNames [ "inline-block", "mr-2" ] ] (hilighted searchText entry.de)
-        , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] (hilighted searchText entry.ja)
-        ]
-
-
-hilighted searchText str =
-    -- TODO
-    [ span [] [ text str ] ]
-
-
-cardView : Maybe String -> HomeModel -> Dictionary -> Entry -> Html HomeMsg
-cardView searchText model results entry =
-    let
-        textToShow =
-            if model.isTranslated then
-                entry.ja
-
-            else
-                entry.de
-
-        simpleDe =
-            Entry.withoutArticle entry
-
-        hasNext =
-            Array.length results > 1
-    in
-    div []
-        [ div
-            [ Help.classNames
-                [ "rounded"
-                , "bg-white"
-                , "shadow-lg"
-                ]
-            ]
-            ([ div
-                [ Help.classNames
-                    [ "select-none"
-                    , "h-64"
-                    , "text-grey-darkest"
-                    , "relative"
-                    ]
-                , onClick Translate
-                ]
-                [ div
-                    ([ id "text", attribute "data-text" textToShow ]
-                        ++ (case model.textDisposition of
-                                Just ( x, y, scale ) ->
-                                    [ Help.classNames
-                                        [ "absolute"
-                                        , "inline-block"
-                                        ]
-                                    , style "transform" ("scale(" ++ String.fromFloat scale ++ ")")
-                                    , style "left" (String.fromInt x)
-                                    , style "top" (String.fromInt y)
-                                    ]
-
-                                Nothing ->
-                                    [ Help.classNames [ "inline-block text-transparent" ] ]
-                           )
-                    )
-                    [ text textToShow ]
-                , div
-                    [ Help.classNames
-                        [ "absolute"
-                        , "pin-t"
-                        , "pin-l"
-                        , "m-2"
-                        ]
-                    ]
-                    [ button
-                        [ stopPropagationOn "click" (Decode.map (\msg -> ( msg, True )) (Decode.succeed ToggleStar))
-                        , Help.classNames
-                            ([ "text-lg"
-                             , "text-black"
-                             ]
-                                ++ (if entry.starred then
-                                        [ "text-orange" ]
-
-                                    else
-                                        [ "text-grey" ]
-                                   )
-                            )
-                        , if entry.starred then
-                            style "text-shadow" "0 0 .4em rgba(0,0,0,.1)"
-
-                          else
-                            style "" ""
-                        ]
-                        [ text
-                            (if entry.starred then
-                                "★"
-
-                             else
-                                "☆︎"
-                            )
-                        ]
-                    ]
-                , div
-                    [ Help.classNames
-                        [ "absolute"
-                        , "pin-t"
-                        , "pin-r"
-                        , "m-2"
-                        ]
-                    ]
-                    [ a
-                        [ href ("https://de.wiktionary.org/wiki/" ++ simpleDe)
-                        , target "_blank"
-                        , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
-                        ]
-                        [ text "Untersuchen" ]
-                    , a
-                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ simpleDe)
-                        , target "_blank"
-                        , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
-                        ]
-                        [ text "Hören" ]
-                    , a
-                        [ href
-                            ("/entries/"
-                                ++ entry.de
-                                ++ "/_edit"
-                                ++ (searchText
-                                        |> Maybe.map (\st -> "?filter=" ++ st)
-                                        |> Maybe.withDefault ""
-                                   )
-                            )
-                        , Help.classNames [ "text-blue", "no-underline" ]
-                        ]
-                        [ text "Edit" ]
-                    ]
-                ]
-             ]
-                ++ (if model.isTranslated then
-                        [ entryDetailView entry ]
-
-                    else
-                        []
-                   )
-            )
-        , a
-            [ Help.classNames
-                (Help.btnClasses True (not hasNext)
-                    ++ [ "my-5"
-                       , "p-4"
-                       , "text-lg"
-                       , "w-full"
-                       ]
-                )
-            , href
-                ("/entries/_random"
-                    ++ (searchText
-                            |> Maybe.map (\st -> "?filter=" ++ st)
-                            |> Maybe.withDefault ""
-                       )
-                )
-            ]
-            [ text "Nächst" ]
-        ]
-
-
-entryDetailView { de, pos, ja, example } =
-    div
-        [ Help.classNames
-            [ "text-grey-dark"
-            , "px-8"
-            , "py-4"
-            , "leading-normal"
-            , "bg-grey-lighter"
-            , "text-left"
-            ]
-        ]
-        ([ section [ Help.classNames [ "mb-2" ] ]
-            [ h3 [] [ text "Teil" ]
-            , p [] [ text (PartOfSpeech.toString pos) ]
-            ]
-         ]
-            ++ (example
-                    |> Maybe.map
-                        (\ex ->
-                            [ section [ Help.classNames [ "mb-2" ] ]
-                                [ h3 [] [ text "Beispiel" ]
-                                , p [] [ text (Entry.censorExample ex) ]
-                                ]
-                            ]
-                        )
-                    |> Maybe.withDefault []
-               )
-        )
-
-
-addButton searchText =
-    a
-        [ Help.classNames
-            [ "fixed"
-            , "pin-r"
-            , "pin-b"
-            , "rounded-full"
-            , "bg-blue"
-            , "text-white"
-            , "text-xl"
-            , "m-4"
-            , "p-2"
-            , "w-16"
-            , "h-16"
-            , "flex"
-            , "justify-center"
-            , "items-center"
-            , "z-30"
-            , "shadow-lg"
-            , "no-underline"
-            ]
-        , href
-            ("/entries/_new"
-                ++ (searchText
-                        |> Maybe.map (\st -> "?filter=" ++ st)
-                        |> Maybe.withDefault ""
-                   )
-            )
-        ]
-        [ div [ style "margin-top" "-8px" ] [ text "+" ] ]
 
 
 reduceError : List (Result a b) -> Result a (List b)
