@@ -79,7 +79,8 @@ view zone zoneName { entry, originalEntry } =
                         |> List.map (\v -> ( v, v ))
                     )
                 )
-             , inputRowView "Japanisch"
+             , inputRowView "Übersetzung"
+
                 (textInputView Nothing
                     ja
                     False
