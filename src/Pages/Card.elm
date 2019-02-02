@@ -9,6 +9,7 @@ import Html exposing (Html, a, button, div, h3, input, li, p, section, span, tex
 import Html.Attributes exposing (attribute, href, id, style, target, type_, value)
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Html.Keyed
+import Icon exposing (add)
 import Json.Decode as Decode
 import PartOfSpeech
 import Ports
@@ -504,4 +505,5 @@ addButton searchText =
                    )
             )
         ]
-        [ div [ style "margin-top" "-8px" ] [ text "+" ] ]
+        [ Icon.add "width: 1em; height: 1em;"
+        ]

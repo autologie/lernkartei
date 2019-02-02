@@ -80,7 +80,6 @@ view zone zoneName { entry, originalEntry } =
                     )
                 )
              , inputRowView "Übersetzung"
-
                 (textInputView Nothing
                     ja
                     False
@@ -146,7 +145,7 @@ view zone zoneName { entry, originalEntry } =
                             )
                         , disabled hasError
                         ]
-                        [ text "Sparen" ]
+                        [ text "Hinzufügen" ]
                    , button
                         [ onClick DeleteEntry
                         , style "display"
