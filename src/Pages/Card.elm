@@ -489,7 +489,7 @@ entryDetailView { de, pos, ja, example } =
                         (\ex ->
                             [ section [ Help.classNames [ "mb-2" ] ]
                                 [ h3 [] [ text "Beispiel" ]
-                                , p [] [ text (Entry.censorExample ex) ]
+                                , p [ Help.classNames [ "whitespace-pre" ] ] [ text (Entry.censorExample ex) ]
                                 ]
                             ]
                         )
