@@ -8,6 +8,7 @@ import Help
 import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
+import Icon
 import Json.Encode as Encode
 import PartOfSpeech
 import Ports
@@ -169,17 +170,13 @@ view zone zoneName { entry, originalEntry } =
                    , button
                         [ onClick CloseEditor
                         , Help.classNames
-                            ((Help.btnClasses True False |> List.filter (\c -> c /= "bg-blue" && c /= "text-white"))
-                                ++ [ "w-full"
-                                   , "p-3"
-                                   , "text-base"
-                                   , "mb-2"
-                                   , "bg-grey-lighter"
-                                   , "text-grey-darker"
-                                   ]
-                            )
+                            [ "fixed"
+                            , "pin-r"
+                            , "pin-t"
+                            , "m-4"
+                            ]
                         ]
-                        [ text "Abbrechen" ]
+                        [ Icon.close "width: 2em; height: 2em" ]
                    ]
             )
         ]

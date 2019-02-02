@@ -318,11 +318,12 @@ cardView searchText model results entry =
                 , "bg-white"
                 , "shadow-lg"
                 , "relative"
-                , "my-8"
+                , "mt-4"
+                , "mb-8"
                 ]
             ]
-            ([ cardBehindView 1.6 10 -1
-             , cardBehindView -2 5 -2
+            ([ cardBehindView 1.6 5 -1
+             , cardBehindView 2 10 -2
              , div
                 [ Help.classNames
                     [ "select-none"
@@ -456,7 +457,7 @@ cardBehindView rotateValue y zIndex =
             [ "absolute"
             , "w-full"
             , "h-full"
-            , "shadow-lg"
+            , "shadow"
             , "bg-white"
             , "rounded"
             ]
