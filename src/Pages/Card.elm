@@ -317,9 +317,13 @@ cardView searchText model results entry =
                 [ "rounded"
                 , "bg-white"
                 , "shadow-lg"
+                , "relative"
+                , "my-8"
                 ]
             ]
-            ([ div
+            ([ cardBehindView 1.6 10 -1
+             , cardBehindView -2 5 -2
+             , div
                 [ Help.classNames
                     [ "select-none"
                     , "h-64"
@@ -446,6 +450,22 @@ cardView searchText model results entry =
         ]
 
 
+cardBehindView rotateValue y zIndex =
+    div
+        [ Help.classNames
+            [ "absolute"
+            , "w-full"
+            , "h-full"
+            , "shadow-lg"
+            , "bg-white"
+            , "rounded"
+            ]
+        , style "transform" ("rotate(" ++ String.fromFloat rotateValue ++ "deg) translateY(" ++ String.fromFloat y ++ "px)")
+        , style "z-index" (String.fromInt zIndex)
+        ]
+        []
+
+
 entryDetailView { de, pos, ja, example } =
     div
         [ Help.classNames
@@ -455,6 +475,7 @@ entryDetailView { de, pos, ja, example } =
             , "leading-normal"
             , "bg-grey-lighter"
             , "text-left"
+            , "rounded-b"
             ]
         ]
         ([ section [ Help.classNames [ "mb-2" ] ]
