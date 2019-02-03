@@ -97,6 +97,7 @@ routeParser dict =
                     (EditWord
                         { entry = { emptyEntry | de = Maybe.withDefault "" de }
                         , originalEntry = Nothing
+                        , dialog = Nothing
                         }
                     )
                 , filter
@@ -127,6 +128,7 @@ routeParser dict =
                                 (EditWord
                                     { entry = entry
                                     , originalEntry = Just entry
+                                    , dialog = Nothing
                                     }
                                 )
                             , filter
@@ -384,7 +386,6 @@ view model =
     div
         [ Help.classNames
             [ "w-screen"
-            , "p-5"
             , "flex-row"
             , "flex"
             , "text-center"

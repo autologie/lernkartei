@@ -2,6 +2,7 @@ port module Pages.Editor exposing (Model, Msg(..), update, view)
 
 import Array
 import Browser.Navigation exposing (Key)
+import Dialog
 import Dictionary exposing (Dictionary)
 import Entry exposing (Entry)
 import Help
@@ -21,16 +22,19 @@ type Msg
     | SaveAndCloseEditor
     | WordChange Entry
     | DeleteEntry
+    | DoDeleteEntry
+    | CloseDialog
 
 
 type alias Model =
     { entry : Entry
     , originalEntry : Maybe Entry
+    , dialog : Maybe (Dialog.Dialog Msg)
     }
 
 
 view : Zone -> ZoneName -> Model -> Html Msg
-view zone zoneName { entry, originalEntry } =
+view zone zoneName { entry, originalEntry, dialog } =
     let
         hasError =
             not (Entry.isValid entry)
@@ -51,10 +55,11 @@ view zone zoneName { entry, originalEntry } =
             , "items-start"
             ]
         ]
-        [ div
+        ([ div
             [ Help.classNames
                 [ "container"
                 , "max-w-md"
+                , "p-5"
                 ]
             ]
             ([ inputRowView "Deutsch"
@@ -179,7 +184,9 @@ view zone zoneName { entry, originalEntry } =
                         [ Icon.close "width: 2em; height: 2em" ]
                    ]
             )
-        ]
+         ]
+            ++ (dialog |> Maybe.map (\d -> [ Dialog.view d ]) |> Maybe.withDefault [])
+        )
 
 
 update : String -> Time.Posix -> Key -> Model -> Dictionary -> Msg -> (Maybe Entry -> Cmd Msg) -> ( Model, Dictionary, Cmd Msg )
@@ -209,6 +216,18 @@ update userId now navigationKey ({ entry, originalEntry } as model) dict msg nav
                    )
 
         DeleteEntry ->
+            ( { model | dialog = Just (Dialog.YesNoDialog "Sind Sie sich da sicher?" DoDeleteEntry CloseDialog) }
+            , dict
+            , Cmd.none
+            )
+
+        CloseDialog ->
+            ( { model | dialog = Nothing }
+            , dict
+            , Cmd.none
+            )
+
+        DoDeleteEntry ->
             ( model
             , dict |> Array.filter ((/=) entry)
             , Cmd.batch

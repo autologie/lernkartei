@@ -104,6 +104,7 @@ view startTime searchText results model =
         [ Help.classNames
             [ "container"
             , "max-w-md"
+            , "p-5"
             ]
         ]
         ([ ( "dateLinks"
