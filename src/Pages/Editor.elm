@@ -13,6 +13,7 @@ import Icon
 import Json.Encode as Encode
 import PartOfSpeech
 import Ports
+import Session exposing (Session)
 import Task
 import Time exposing (Month(..), Zone, ZoneName(..))
 
@@ -24,18 +25,20 @@ type Msg
     | DeleteEntry
     | DoDeleteEntry
     | CloseDialog
+    | WithModel (Model -> ( Model, Cmd Msg ))
+    | NoOp
 
 
 type alias Model =
     { entry : Entry
     , originalEntry : Maybe Entry
     , dialog : Maybe (Dialog.Dialog Msg)
-    , dict : Dictionary
+    , session : Session
     }
 
 
-view : Zone -> ZoneName -> Model -> Html Msg
-view zone zoneName { entry, originalEntry, dialog } =
+view : Model -> Html Msg
+view { entry, originalEntry, dialog, session } =
     let
         hasError =
             not (Entry.isValid entry)
@@ -115,10 +118,10 @@ view zone zoneName { entry, originalEntry, dialog } =
                     else
                         let
                             addedAtExpr =
-                                describeDate zone zoneName addedAt
+                                describeDate session.zone session.zoneName addedAt
 
                             updatedAtExpr =
-                                describeDate zone zoneName updatedAt
+                                describeDate session.zone session.zoneName updatedAt
                         in
                         [ p
                             [ Help.classNames
@@ -190,32 +193,40 @@ view zone zoneName { entry, originalEntry, dialog } =
         )
 
 
-update : String -> Time.Posix -> Key -> Model -> Msg -> (Maybe Entry -> Cmd Msg) -> ( Model, Cmd Msg )
-update userId now navigationKey ({ entry, originalEntry } as model) msg navigateTo =
+update : Model -> Msg -> (Maybe Entry -> Cmd Msg) -> ( Model, Cmd Msg )
+update model msg navigateTo =
     case msg of
         CloseEditor ->
             ( model
-            , Browser.Navigation.back navigationKey 1
+            , Browser.Navigation.back model.session.navigationKey 1
             )
 
         SaveAndCloseEditor ->
-            { entry
-                | updatedAt = now
-                , addedAt = originalEntry |> Maybe.map (\_ -> entry.addedAt) |> Maybe.withDefault now
-            }
-                |> (\theEntry ->
-                        ( { model
-                            | dict =
-                                originalEntry
-                                    |> Maybe.map (\oe -> model.dict |> Array.map (Help.replaceEntry oe theEntry))
-                                    |> Maybe.withDefault (model.dict |> Array.append (Array.fromList [ theEntry ]))
-                          }
-                        , Cmd.batch
-                            [ Ports.saveEntry ( userId, Entry.encode theEntry )
-                            , navigateTo (Just theEntry)
-                            ]
-                        )
-                   )
+            Help.updateWithCurrentTime model
+                (\now { entry, originalEntry, session } ->
+                    { entry
+                        | updatedAt = now
+                        , addedAt = originalEntry |> Maybe.map (\_ -> entry.addedAt) |> Maybe.withDefault now
+                    }
+                        |> (\theEntry ->
+                                ( { model
+                                    | session =
+                                        model.session
+                                            |> Session.withDict
+                                                (originalEntry
+                                                    |> Maybe.map (\oe -> model.session.dict |> Array.map (Help.replaceEntry oe theEntry))
+                                                    |> Maybe.withDefault (model.session.dict |> Array.append (Array.fromList [ theEntry ]))
+                                                )
+                                  }
+                                , Cmd.batch
+                                    [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
+                                    , navigateTo (Just theEntry)
+                                    ]
+                                )
+                           )
+                )
+                WithModel
+                NoOp
 
         DeleteEntry ->
             ( { model | dialog = Just (Dialog.YesNoDialog "Sind Sie sich da sicher?" DoDeleteEntry CloseDialog) }
@@ -228,9 +239,13 @@ update userId now navigationKey ({ entry, originalEntry } as model) msg navigate
             )
 
         DoDeleteEntry ->
-            ( { model | dict = model.dict |> Array.filter ((/=) entry) }
+            ( { model
+                | session =
+                    model.session
+                        |> Session.withDict (model.session.dict |> Array.filter ((/=) model.entry))
+              }
             , Cmd.batch
-                [ Ports.deleteEntry ( userId, entry.de )
+                [ Ports.deleteEntry ( model.session.userId, model.entry.de ) -- TODO entry -> originalEntry
                 , navigateTo Nothing
                 ]
             )
@@ -239,6 +254,12 @@ update userId now navigationKey ({ entry, originalEntry } as model) msg navigate
             ( { model | entry = updatedEntry }
             , Cmd.none
             )
+
+        WithModel withModel ->
+            withModel model
+
+        NoOp ->
+            ( model, Cmd.none )
 
 
 inputRowView : String -> (List String -> Html msg) -> Html msg

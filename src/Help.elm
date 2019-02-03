@@ -1,7 +1,9 @@
-module Help exposing (btnClasses, classNames, groupedBtnClasses, replaceEntry)
+module Help exposing (btnClasses, classNames, groupedBtnClasses, replaceEntry, updateWithCurrentTime)
 
 import Entry exposing (Entry)
 import Html.Attributes exposing (classList)
+import Task
+import Time
 
 
 classNames names =
@@ -39,3 +41,17 @@ replaceEntry from to e =
 
     else
         e
+
+
+updateWithCurrentTime : a -> (Time.Posix -> a -> ( a, Cmd b )) -> ((a -> ( a, Cmd b )) -> b) -> b -> ( a, Cmd b )
+updateWithCurrentTime model theUpdate onSuccessfulTime onFailedTime =
+    ( model
+    , Time.now
+        |> Task.attempt
+            (Result.map
+                (\now ->
+                    onSuccessfulTime (theUpdate now)
+                )
+                >> Result.withDefault onFailedTime
+            )
+    )

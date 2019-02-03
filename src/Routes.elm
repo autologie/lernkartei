@@ -1,85 +1,86 @@
-module Routes exposing (Route(..), parse)
+module Routes exposing (Route(..), RoutingAction(..), resolve)
 
+import Browser.Navigation exposing (Key)
 import Dictionary exposing (Dictionary)
 import Entry
 import Pages.Card
 import Pages.Editor
+import Session exposing (AccumulatingSession, Session)
 import Url exposing (Protocol(..), Url)
-import Url.Parser exposing ((</>), (<?>))
-import Url.Parser.Query
+import Url.Parser exposing ((</>), (<?>), s, string)
+import Url.Parser.Query as Query
 
 
 type Route
-    = Initializing (Maybe Url) Dictionary
+    = Initializing (Maybe Url) AccumulatingSession
     | ShowCard Pages.Card.Model
     | EditWord Pages.Editor.Model
+    | NotFound Key
 
 
-parse : Dictionary -> Url.Parser.Parser (( Result () Route, Maybe String ) -> a) a
-parse dict =
+type RoutingAction
+    = AwaitInitialization
+    | RedirectToRandom (Maybe String)
+    | Show Route (Maybe String)
+
+
+resolve : Maybe Session -> Url.Parser.Parser (RoutingAction -> a) a
+resolve maybeSession =
     let
         emptyEntry =
             Entry.empty
     in
     Url.Parser.oneOf
         [ Url.Parser.map
-            (\filter -> ( Err (), filter ))
-            (Url.Parser.s "entries"
-                </> Url.Parser.s "_random"
-                <?> Url.Parser.Query.string "filter"
-            )
+            (\filter -> RedirectToRandom filter)
+            (s "entries" </> s "_random" <?> Query.string "filter")
         , Url.Parser.map
-            (\filter -> ( Err (), filter ))
-            (Url.Parser.top
-                <?> Url.Parser.Query.string "filter"
-            )
+            (\filter -> RedirectToRandom filter)
+            (Url.Parser.top <?> Query.string "filter")
         , Url.Parser.map
             (\de filter ->
-                ( Ok
-                    (EditWord
-                        { entry = { emptyEntry | de = Maybe.withDefault "" de }
-                        , originalEntry = Nothing
-                        , dialog = Nothing
-                        , dict = dict
-                        }
-                    )
-                , filter
-                )
-            )
-            (Url.Parser.s "entries"
-                </> Url.Parser.s "_new"
-                <?> Url.Parser.Query.string "de"
-                <?> Url.Parser.Query.string "filter"
-            )
-        , Url.Parser.map
-            (\de filter ->
-                ( Ok (ShowCard (Pages.Card.initialModel (Dictionary.get de dict) dict))
-                , filter
-                )
-            )
-            (Url.Parser.s "entries"
-                </> Url.Parser.string
-                <?> Url.Parser.Query.string "filter"
-            )
-        , Url.Parser.map
-            (\de filter ->
-                Dictionary.get de dict
-                    |> (\entry ->
-                            ( Ok
+                maybeSession
+                    |> Maybe.map
+                        (\session ->
+                            Show
                                 (EditWord
-                                    { entry = entry
-                                    , originalEntry = Just entry
+                                    { entry = { emptyEntry | de = Maybe.withDefault "" de }
+                                    , originalEntry = Nothing
                                     , dialog = Nothing
-                                    , dict = dict
+                                    , session = session
                                     }
                                 )
-                            , filter
-                            )
-                       )
+                                filter
+                        )
+                    |> Maybe.withDefault AwaitInitialization
             )
-            (Url.Parser.s "entries"
-                </> Url.Parser.string
-                </> Url.Parser.s "_edit"
-                <?> Url.Parser.Query.string "filter"
+            (s "entries" </> s "_new" <?> Query.string "de" <?> Query.string "filter")
+        , Url.Parser.map
+            (\de filter ->
+                maybeSession
+                    |> Maybe.map (\session -> Show (ShowCard (Pages.Card.initialModel session de)) filter)
+                    |> Maybe.withDefault AwaitInitialization
             )
+            (s "entries" </> string <?> Query.string "filter")
+        , Url.Parser.map
+            (\de filter ->
+                maybeSession
+                    |> Maybe.map
+                        (\session ->
+                            Dictionary.get de session.dict
+                                |> (\entry ->
+                                        Show
+                                            (EditWord
+                                                { entry = entry
+                                                , originalEntry = Just entry
+                                                , dialog = Nothing
+                                                , session = session
+                                                }
+                                            )
+                                            filter
+                                   )
+                        )
+                    |> Maybe.withDefault AwaitInitialization
+            )
+            (s "entries" </> string </> s "_edit" <?> Query.string "filter")
         ]

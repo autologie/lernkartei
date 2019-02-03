@@ -21,7 +21,8 @@ import PartOfSpeech exposing (PartOfSpeech(..))
 import Ports
 import Process
 import Random
-import Routes exposing (Route(..))
+import Routes exposing (Route(..), RoutingAction(..))
+import Session exposing (AccumulatingSession, Session)
 import Task
 import Time exposing (Month(..), Zone, ZoneName(..))
 import Url exposing (Protocol(..), Url)
@@ -31,21 +32,8 @@ import Url.Parser
 main : Program Int Model Msg
 main =
     Browser.application
-        { init =
-            \startTimeMillis url key ->
-                initialModel startTimeMillis url key startTimeMillis
-        , subscriptions =
-            \_ ->
-                Sub.batch
-                    [ Ports.textDisposition (TextDispositionChange >> CardMsg)
-                    , Ports.signInDone SignInDone
-                    , Ports.syncEntryDone SyncEntryDone
-                    , Ports.dictionaryLoaded
-                        (List.map (Decode.decodeValue Entry.decode)
-                            >> reduceError
-                            >> ReceiveDict
-                        )
-                    ]
+        { init = init
+        , subscriptions = subscriptions
         , update = update
         , view = \model -> { title = "Wortkarten", body = [ Html.Lazy.lazy view model ] }
         , onUrlRequest = NewUrlRequested
@@ -56,25 +44,39 @@ main =
 type alias Model =
     { seed : Random.Seed
     , route : Route
-    , userId : Maybe String
     , notification : ( Bool, String )
     , key : Key
-    , zone : Zone
-    , zoneName : ZoneName
     , searchText : Maybe String
     , startTime : Time.Posix
     }
 
 
-initialModel : Int -> Url -> Key -> Int -> ( Model, Cmd Msg )
-initialModel startTimeMillis url key randomSeed =
-    ( { seed = Random.initialSeed randomSeed
-      , route = Initializing (Just url) Dictionary.empty
-      , userId = Nothing
+subscriptions _ =
+    Sub.batch
+        [ Ports.textDisposition (TextDispositionChange >> CardMsg)
+        , Ports.signInDone SignInDone
+        , Ports.syncEntryDone SyncEntryDone
+        , Ports.dictionaryLoaded
+            (List.map (Decode.decodeValue Entry.decode)
+                >> reduceError
+                >> ReceiveDict
+            )
+        ]
+
+
+init : Int -> Url -> Key -> ( Model, Cmd Msg )
+init startTimeMillis url key =
+    ( { seed = Random.initialSeed startTimeMillis
+      , route =
+            Initializing (Just url)
+                { navigationKey = key
+                , userId = Nothing
+                , dict = Nothing
+                , zone = Nothing
+                , zoneName = Nothing
+                }
       , notification = ( False, "" )
       , key = key
-      , zone = Time.utc
-      , zoneName = Offset 0
       , searchText = Nothing
       , startTime = startTimeMillis |> Time.millisToPosix
       }
@@ -93,7 +95,6 @@ type Msg
     | SyncEntryDone ()
     | CloseNotification
     | RouteChanged Url
-    | WithModel (Model -> ( Model, Cmd Msg ))
     | ZoneResolved (Result String Zone)
     | ZoneNameResolved (Result String ZoneName)
     | NewUrlRequested UrlRequest
@@ -111,14 +112,9 @@ update msg model =
 
         ReceiveDict (Ok dict) ->
             case model.route of
-                Initializing url _ ->
-                    ( { model | route = Initializing url (Array.fromList dict) }
-                    , Browser.Navigation.pushUrl model.key
-                        (url
-                            |> Maybe.map Url.toString
-                            |> Maybe.withDefault "/entries/_random"
-                        )
-                    )
+                Initializing url session ->
+                    ( { model | route = Initializing url { session | dict = Just (Array.fromList dict) } }, Cmd.none )
+                        |> testSessionAndRouteIfPossible url
 
                 _ ->
                     ( model, Cmd.none )
@@ -135,25 +131,40 @@ update msg model =
             ( { model | notification = ( False, model.notification |> Tuple.second ) }, Cmd.none )
 
         SignInDone uid ->
-            ( { model | userId = Just uid }, Cmd.none )
+            case model.route of
+                Initializing url session ->
+                    ( { model | route = Initializing url { session | userId = Just uid } }, Cmd.none )
+                        |> testSessionAndRouteIfPossible url
+
+                _ ->
+                    ( model, Cmd.none )
 
         RouteChanged url ->
             dispatchRoute model url
 
         ZoneResolved (Ok zone) ->
-            ( { model | zone = zone }, Cmd.none )
+            case model.route of
+                Initializing url session ->
+                    ( { model | route = Initializing url { session | zone = Just zone } }, Cmd.none )
+                        |> testSessionAndRouteIfPossible url
+
+                _ ->
+                    ( model, Cmd.none )
 
         ZoneResolved (Err errorMessage) ->
             ( { model | notification = ( True, errorMessage ) }, Cmd.none )
 
         ZoneNameResolved (Ok zoneName) ->
-            ( { model | zoneName = zoneName }, Cmd.none )
+            case model.route of
+                Initializing url session ->
+                    ( { model | route = Initializing url { session | zoneName = Just zoneName } }, Cmd.none )
+                        |> testSessionAndRouteIfPossible url
+
+                _ ->
+                    ( model, Cmd.none )
 
         ZoneNameResolved (Err errorMessage) ->
             ( { model | notification = ( True, errorMessage ) }, Cmd.none )
-
-        WithModel withModel ->
-            withModel model
 
         NewUrlRequested urlRequest ->
             case urlRequest of
@@ -174,18 +185,13 @@ update msg model =
 cardStep model msg =
     case model.route of
         ShowCard pageModel ->
-            model.userId
-                |> Maybe.map
-                    (\userId ->
-                        let
-                            ( updatedPageModel, pageCmd ) =
-                                Pages.Card.update model.key userId pageModel msg
-                        in
-                        ( { model | route = ShowCard updatedPageModel }
-                        , pageCmd |> Cmd.map CardMsg
-                        )
-                    )
-                |> Maybe.withDefault ( model, Cmd.none )
+            let
+                ( updatedPageModel, pageCmd ) =
+                    Pages.Card.update pageModel msg
+            in
+            ( { model | route = ShowCard updatedPageModel }
+            , pageCmd |> Cmd.map CardMsg
+            )
 
         _ ->
             ( model, Cmd.none )
@@ -194,21 +200,13 @@ cardStep model msg =
 editorStep model msg =
     case model.route of
         EditWord pageModel ->
-            updateWithCurrentTime model
-                (\now theModel ->
-                    model.userId
-                        |> Maybe.map
-                            (\userId ->
-                                let
-                                    ( updatedPageModel, cmd ) =
-                                        Pages.Editor.update userId now model.key pageModel msg (navigateTo model)
-                                in
-                                ( { theModel | route = EditWord updatedPageModel }
-                                , cmd |> Cmd.map EditorMsg
-                                )
-                            )
-                        |> Maybe.withDefault ( theModel, Cmd.none )
-                )
+            let
+                ( updatedPageModel, cmd ) =
+                    Pages.Editor.update pageModel msg (navigateTo model)
+            in
+            ( { model | route = EditWord updatedPageModel }
+            , cmd |> Cmd.map EditorMsg
+            )
 
         _ ->
             ( model, Cmd.none )
@@ -217,11 +215,11 @@ editorStep model msg =
 dispatchRoute : Model -> Url -> ( Model, Cmd Msg )
 dispatchRoute model url =
     let
-        dict =
-            extractDict model.route
+        maybeSession =
+            extractSession model.route
     in
-    case Url.Parser.parse (Routes.parse (extractDict model.route)) url of
-        Just ( Ok r, filter ) ->
+    case Url.Parser.parse (Routes.resolve maybeSession) url of
+        Just (Show r filter) ->
             ( { model | route = r, searchText = filter }
             , case r of
                 EditWord _ ->
@@ -231,24 +229,26 @@ dispatchRoute model url =
                     Cmd.none
             )
 
-        Just ( Err (), filter ) ->
+        Just (RedirectToRandom filter) ->
             let
                 ( maybeEntry, updatedSeed ) =
                     randomEntry
                         model.seed
                         (searchResults model.startTime
                             (case model.route of
-                                ShowCard { entry } ->
-                                    dict |> Dictionary.without entry
+                                ShowCard { entry, session } ->
+                                    session.dict |> Dictionary.without entry
 
                                 route ->
-                                    dict
+                                    extractSession route
+                                        |> Maybe.map .dict
+                                        |> Maybe.withDefault Dictionary.empty
                             )
                             filter
                         )
             in
             ( { model
-                | route = Initializing (Just url) dict
+                | route = Initializing (Just url) (extractAccumulatingSession model.route)
                 , searchText = filter
                 , seed = updatedSeed
               }
@@ -265,8 +265,13 @@ dispatchRoute model url =
                 )
             )
 
+        Just AwaitInitialization ->
+            ( model
+            , Cmd.none
+            )
+
         Nothing ->
-            ( { model | route = Initializing Nothing Dictionary.empty, searchText = Nothing }
+            ( { model | route = NotFound model.key }
             , Cmd.none
             )
 
@@ -297,26 +302,40 @@ view model =
         ]
         [ case model.route of
             Initializing _ _ ->
-                text "Initializing..."
+                showText "Initializing..."
 
-            ShowCard entry ->
+            NotFound _ ->
+                showText "Not found."
+
+            ShowCard pageModel ->
                 Html.Lazy.lazy4
                     Pages.Card.view
                     model.startTime
                     model.searchText
-                    (searchResults model.startTime (extractDict model.route) model.searchText)
-                    entry
+                    (searchResults model.startTime pageModel.session.dict model.searchText)
+                    pageModel
                     |> Html.map CardMsg
 
             EditWord pageModel ->
-                Html.Lazy.lazy3
+                Html.Lazy.lazy
                     Pages.Editor.view
-                    model.zone
-                    model.zoneName
                     pageModel
                     |> Html.map EditorMsg
         , notificationView model.notification
         ]
+
+
+showText message =
+    div
+        [ Help.classNames
+            [ "w-full"
+            , "h-full"
+            , "flex"
+            , "justify-center"
+            , "items-center"
+            ]
+        ]
+        [ div [] [ text message ] ]
 
 
 notificationView ( isShown, message ) =
@@ -399,31 +418,66 @@ navigateTo model maybeEntry =
         )
 
 
-updateWithCurrentTime :
-    Model
-    -> (Time.Posix -> Model -> ( Model, Cmd Msg ))
-    -> ( Model, Cmd Msg )
-updateWithCurrentTime model theUpdate =
-    ( model
-    , Time.now
-        |> Task.attempt
-            (Result.map
-                (\now ->
-                    WithModel (theUpdate now)
-                )
-                >> Result.withDefault NoOp
-            )
-    )
-
-
-extractDict : Route -> Dictionary
-extractDict routes =
+extractAccumulatingSession : Route -> AccumulatingSession
+extractAccumulatingSession routes =
     case routes of
-        Initializing _ dict ->
-            dict
+        Initializing _ accSession ->
+            accSession
+
+        ShowCard { session } ->
+            Session.toAccumulatingSession session
+
+        EditWord { session } ->
+            Session.toAccumulatingSession session
+
+        NotFound navigationKey ->
+            { navigationKey = navigationKey
+            , userId = Nothing
+            , dict = Nothing
+            , zone = Nothing
+            , zoneName = Nothing
+            }
+
+
+extractSession : Route -> Maybe Session
+extractSession routes =
+    case routes of
+        Initializing _ accSession ->
+            Maybe.map2
+                (\userId dict ->
+                    { navigationKey = accSession.navigationKey
+                    , userId = userId
+                    , dict = dict
+                    , zone = Time.utc
+                    , zoneName = Offset 0
+                    }
+                )
+                accSession.userId
+                accSession.dict
 
         ShowCard pageModel ->
-            pageModel.dict
+            Just pageModel.session
 
         EditWord pageModel ->
-            pageModel.dict
+            Just pageModel.session
+
+        NotFound _ ->
+            Nothing
+
+
+testSessionAndRouteIfPossible maybeUrl ( model, cmd ) =
+    extractSession model.route
+        |> Maybe.map
+            (\_ ->
+                ( model
+                , Cmd.batch
+                    [ cmd
+                    , Browser.Navigation.pushUrl model.key
+                        (maybeUrl
+                            |> Maybe.map Url.toString
+                            |> Maybe.withDefault "/entries/_random"
+                        )
+                    ]
+                )
+            )
+        |> Maybe.withDefault ( model, cmd )

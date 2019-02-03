@@ -1,7 +1,7 @@
 module Pages.Card exposing (Model, Msg(..), initialModel, update, view)
 
 import Array
-import Browser.Navigation exposing (Key)
+import Browser.Navigation
 import Dictionary exposing (Dictionary)
 import Entry exposing (Entry)
 import Help
@@ -13,6 +13,7 @@ import Icon exposing (add)
 import Json.Decode as Decode
 import PartOfSpeech
 import Ports
+import Session exposing (Session)
 import Time
 
 
@@ -21,7 +22,7 @@ type alias Model =
     , entry : Entry
     , textDisposition : Maybe ( Int, Int, Float )
     , expandSearchResults : Bool
-    , dict : Dictionary
+    , session : Session
     }
 
 
@@ -34,18 +35,18 @@ type Msg
     | ToggleStar
 
 
-initialModel : Entry -> Dictionary -> Model
-initialModel entry dict =
+initialModel : Session -> String -> Model
+initialModel session entryDe =
     { isTranslated = False
-    , entry = entry
+    , entry = Dictionary.get entryDe session.dict
     , textDisposition = Nothing
     , expandSearchResults = False
-    , dict = dict
+    , session = session
     }
 
 
-update : Key -> String -> Model -> Msg -> ( Model, Cmd Msg )
-update navigationKey userId model msg =
+update : Model -> Msg -> ( Model, Cmd Msg )
+update model msg =
     case msg of
         Translate ->
             ( { model
@@ -64,7 +65,7 @@ update navigationKey userId model msg =
 
         SearchInput text ->
             ( model
-            , Browser.Navigation.pushUrl navigationKey
+            , Browser.Navigation.pushUrl model.session.navigationKey
                 ("/entries/" ++ model.entry.de ++ "?filter=" ++ text)
             )
 
@@ -78,7 +79,7 @@ update navigationKey userId model msg =
 
         ClearSearchText ->
             ( model
-            , Browser.Navigation.pushUrl navigationKey ("/entries/" ++ model.entry.de)
+            , Browser.Navigation.pushUrl model.session.navigationKey ("/entries/" ++ model.entry.de)
             )
 
         ToggleStar ->
@@ -91,9 +92,9 @@ update navigationKey userId model msg =
             in
             ( { model
                 | entry = updatedEntry
-                , dict = model.dict |> Array.map (Help.replaceEntry entry updatedEntry)
+                , session = model.session |> Session.withDict (model.session.dict |> Array.map (Help.replaceEntry entry updatedEntry))
               }
-            , Ports.saveEntry ( userId, Entry.encode updatedEntry )
+            , Ports.saveEntry ( model.session.userId, Entry.encode updatedEntry )
             )
 
 
