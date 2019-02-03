@@ -1,4 +1,4 @@
-module Dictionary exposing (Dictionary, without)
+module Dictionary exposing (Dictionary, empty, without)
 
 import Array exposing (Array)
 import Entry exposing (Entry)
@@ -10,3 +10,7 @@ type alias Dictionary =
 
 without entry =
     Array.filter ((/=) entry)
+
+
+empty =
+    Array.empty

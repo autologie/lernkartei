@@ -54,8 +54,7 @@ main =
 
 
 type alias Model =
-    { dict : Dictionary
-    , seed : Random.Seed
+    { seed : Random.Seed
     , route : Route
     , userId : Maybe String
     , notification : ( Bool, String )
@@ -68,7 +67,7 @@ type alias Model =
 
 
 type Route
-    = Initializing (Maybe Url)
+    = Initializing (Maybe Url) Dictionary
     | ShowCard Pages.Card.Model
     | EditWord Pages.Editor.Model
 
@@ -98,6 +97,7 @@ routeParser dict =
                         { entry = { emptyEntry | de = Maybe.withDefault "" de }
                         , originalEntry = Nothing
                         , dialog = Nothing
+                        , dict = dict
                         }
                     )
                 , filter
@@ -110,11 +110,9 @@ routeParser dict =
             )
         , Url.Parser.map
             (\de filter ->
-                let
-                    homeModel =
-                        Pages.Card.initialModel (entryOf dict de)
-                in
-                ( Ok (ShowCard homeModel), filter )
+                ( Ok (ShowCard (Pages.Card.initialModel (entryOf dict de) dict))
+                , filter
+                )
             )
             (Url.Parser.s "entries"
                 </> Url.Parser.string
@@ -129,6 +127,7 @@ routeParser dict =
                                     { entry = entry
                                     , originalEntry = Just entry
                                     , dialog = Nothing
+                                    , dict = dict
                                     }
                                 )
                             , filter
@@ -161,9 +160,8 @@ entryOf dict de =
 
 initialModel : Int -> Url -> Key -> Int -> ( Model, Cmd Msg )
 initialModel startTimeMillis url key randomSeed =
-    ( { dict = Array.empty
-      , seed = Random.initialSeed randomSeed
-      , route = Initializing (Just url)
+    ( { seed = Random.initialSeed randomSeed
+      , route = Initializing (Just url) Dictionary.empty
       , userId = Nothing
       , notification = ( False, "" )
       , key = key
@@ -202,13 +200,10 @@ update msg model =
                 |> Maybe.map
                     (\userId ->
                         let
-                            ( updatedPageModel, updatedDict, pageCmd ) =
-                                Pages.Card.update model.key userId model.dict pageModel pageMsg
+                            ( updatedPageModel, pageCmd ) =
+                                Pages.Card.update model.key userId pageModel pageMsg
                         in
-                        ( { model
-                            | route = ShowCard updatedPageModel
-                            , dict = updatedDict
-                          }
+                        ( { model | route = ShowCard updatedPageModel }
                         , pageCmd |> Cmd.map CardMsg
                         )
                     )
@@ -221,13 +216,10 @@ update msg model =
                         |> Maybe.map
                             (\userId ->
                                 let
-                                    ( updatedPageModel, updatedDict, cmd ) =
-                                        Pages.Editor.update userId now model.key pageModel model.dict editorMsg (navigateTo model)
+                                    ( updatedPageModel, cmd ) =
+                                        Pages.Editor.update userId now model.key pageModel editorMsg (navigateTo model)
                                 in
-                                ( { theModel
-                                    | dict = updatedDict
-                                    , route = EditWord updatedPageModel
-                                  }
+                                ( { theModel | route = EditWord updatedPageModel }
                                 , cmd |> Cmd.map EditorMsg
                                 )
                             )
@@ -238,35 +230,33 @@ update msg model =
             let
                 newDict =
                     Array.fromList dict
-
-                modelWithNewDict =
-                    { model | dict = newDict }
             in
             case model.route of
                 ShowCard { entry } ->
                     entry.de
                         |> entryOf newDict
-                        |> Pages.Card.initialModel
-                        |> (\homeModel -> ( { modelWithNewDict | route = ShowCard homeModel }, Cmd.none ))
+                        |> (\e -> Pages.Card.initialModel e newDict)
+                        |> (\homeModel -> ( { model | route = ShowCard homeModel }, Cmd.none ))
 
                 EditWord pageModel ->
                     pageModel.entry.de
                         |> entryOf newDict
                         |> (\e ->
-                                ( { modelWithNewDict
+                                ( { model
                                     | route =
                                         EditWord
                                             { pageModel
                                                 | entry = e
                                                 , originalEntry = pageModel.originalEntry |> Maybe.map (\_ -> e)
+                                                , dict = newDict
                                             }
                                   }
                                 , Cmd.none
                                 )
                            )
 
-                Initializing url ->
-                    ( modelWithNewDict
+                Initializing url _ ->
+                    ( { model | route = Initializing url newDict }
                     , Browser.Navigation.pushUrl model.key
                         (url
                             |> Maybe.map Url.toString
@@ -289,7 +279,11 @@ update msg model =
             ( { model | userId = Just uid }, Cmd.none )
 
         ( _, RouteChanged url ) ->
-            case Url.Parser.parse (routeParser model.dict) url of
+            let
+                dict =
+                    extractDict model.route
+            in
+            case Url.Parser.parse (routeParser (extractDict model.route)) url of
                 Just ( Ok r, filter ) ->
                     ( { model | route = r, searchText = filter }
                     , case r of
@@ -308,16 +302,16 @@ update msg model =
                                 (searchResults model.startTime
                                     (case model.route of
                                         ShowCard { entry } ->
-                                            model.dict |> Dictionary.without entry
+                                            dict |> Dictionary.without entry
 
-                                        _ ->
-                                            model.dict
+                                        route ->
+                                            dict
                                     )
                                     filter
                                 )
                     in
                     ( { model
-                        | route = Initializing (Just url)
+                        | route = Initializing (Just url) dict
                         , searchText = filter
                         , seed = updatedSeed
                       }
@@ -335,7 +329,7 @@ update msg model =
                     )
 
                 Nothing ->
-                    ( { model | route = Initializing Nothing, searchText = Nothing }
+                    ( { model | route = Initializing Nothing Dictionary.empty, searchText = Nothing }
                     , Cmd.none
                     )
 
@@ -382,6 +376,7 @@ randomEntry seed entries =
     )
 
 
+view : Model -> Html Msg
 view model =
     div
         [ Help.classNames
@@ -394,7 +389,7 @@ view model =
             ]
         ]
         [ case model.route of
-            Initializing _ ->
+            Initializing _ _ ->
                 text "Initializing..."
 
             ShowCard entry ->
@@ -402,7 +397,7 @@ view model =
                     Pages.Card.view
                     model.startTime
                     model.searchText
-                    (searchResults model.startTime model.dict model.searchText)
+                    (searchResults model.startTime (extractDict model.route) model.searchText)
                     entry
                     |> Html.map CardMsg
 
@@ -512,3 +507,16 @@ updateWithCurrentTime model theUpdate =
                 >> Result.withDefault NoOp
             )
     )
+
+
+extractDict : Route -> Dictionary
+extractDict routes =
+    case routes of
+        Initializing _ dict ->
+            dict
+
+        ShowCard pageModel ->
+            pageModel.dict
+
+        EditWord pageModel ->
+            pageModel.dict

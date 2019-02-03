@@ -30,6 +30,7 @@ type alias Model =
     { entry : Entry
     , originalEntry : Maybe Entry
     , dialog : Maybe (Dialog.Dialog Msg)
+    , dict : Dictionary
     }
 
 
@@ -189,12 +190,11 @@ view zone zoneName { entry, originalEntry, dialog } =
         )
 
 
-update : String -> Time.Posix -> Key -> Model -> Dictionary -> Msg -> (Maybe Entry -> Cmd Msg) -> ( Model, Dictionary, Cmd Msg )
-update userId now navigationKey ({ entry, originalEntry } as model) dict msg navigateTo =
+update : String -> Time.Posix -> Key -> Model -> Msg -> (Maybe Entry -> Cmd Msg) -> ( Model, Cmd Msg )
+update userId now navigationKey ({ entry, originalEntry } as model) msg navigateTo =
     case msg of
         CloseEditor ->
             ( model
-            , dict
             , Browser.Navigation.back navigationKey 1
             )
 
@@ -204,10 +204,12 @@ update userId now navigationKey ({ entry, originalEntry } as model) dict msg nav
                 , addedAt = originalEntry |> Maybe.map (\_ -> entry.addedAt) |> Maybe.withDefault now
             }
                 |> (\theEntry ->
-                        ( model
-                        , originalEntry
-                            |> Maybe.map (\oe -> dict |> Array.map (Help.replaceEntry oe theEntry))
-                            |> Maybe.withDefault (dict |> Array.append (Array.fromList [ theEntry ]))
+                        ( { model
+                            | dict =
+                                originalEntry
+                                    |> Maybe.map (\oe -> model.dict |> Array.map (Help.replaceEntry oe theEntry))
+                                    |> Maybe.withDefault (model.dict |> Array.append (Array.fromList [ theEntry ]))
+                          }
                         , Cmd.batch
                             [ Ports.saveEntry ( userId, Entry.encode theEntry )
                             , navigateTo (Just theEntry)
@@ -217,19 +219,16 @@ update userId now navigationKey ({ entry, originalEntry } as model) dict msg nav
 
         DeleteEntry ->
             ( { model | dialog = Just (Dialog.YesNoDialog "Sind Sie sich da sicher?" DoDeleteEntry CloseDialog) }
-            , dict
             , Cmd.none
             )
 
         CloseDialog ->
             ( { model | dialog = Nothing }
-            , dict
             , Cmd.none
             )
 
         DoDeleteEntry ->
-            ( model
-            , dict |> Array.filter ((/=) entry)
+            ( { model | dict = model.dict |> Array.filter ((/=) entry) }
             , Cmd.batch
                 [ Ports.deleteEntry ( userId, entry.de )
                 , navigateTo Nothing
@@ -238,7 +237,6 @@ update userId now navigationKey ({ entry, originalEntry } as model) dict msg nav
 
         WordChange updatedEntry ->
             ( { model | entry = updatedEntry }
-            , dict
             , Cmd.none
             )
 

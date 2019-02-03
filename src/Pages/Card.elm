@@ -21,6 +21,7 @@ type alias Model =
     , entry : Entry
     , textDisposition : Maybe ( Int, Int, Float )
     , expandSearchResults : Bool
+    , dict : Dictionary
     }
 
 
@@ -33,24 +34,24 @@ type Msg
     | ToggleStar
 
 
-initialModel : Entry -> Model
-initialModel entry =
+initialModel : Entry -> Dictionary -> Model
+initialModel entry dict =
     { isTranslated = False
     , entry = entry
     , textDisposition = Nothing
     , expandSearchResults = False
+    , dict = dict
     }
 
 
-update : Key -> String -> Dictionary -> Model -> Msg -> ( Model, Dictionary, Cmd Msg )
-update navigationKey userId dict model msg =
+update : Key -> String -> Model -> Msg -> ( Model, Cmd Msg )
+update navigationKey userId model msg =
     case msg of
         Translate ->
             ( { model
                 | isTranslated = not model.isTranslated
                 , textDisposition = Nothing
               }
-            , dict
             , Cmd.none
             )
 
@@ -58,13 +59,11 @@ update navigationKey userId dict model msg =
             ( { model
                 | textDisposition = Just value
               }
-            , dict
             , Cmd.none
             )
 
         SearchInput text ->
             ( model
-            , dict
             , Browser.Navigation.pushUrl navigationKey
                 ("/entries/" ++ model.entry.de ++ "?filter=" ++ text)
             )
@@ -74,13 +73,11 @@ update navigationKey userId dict model msg =
                 | expandSearchResults =
                     not model.expandSearchResults
               }
-            , dict
             , Cmd.none
             )
 
         ClearSearchText ->
             ( model
-            , dict
             , Browser.Navigation.pushUrl navigationKey ("/entries/" ++ model.entry.de)
             )
 
@@ -92,8 +89,10 @@ update navigationKey userId dict model msg =
                 updatedEntry =
                     { entry | starred = not entry.starred }
             in
-            ( { model | entry = updatedEntry }
-            , dict |> Array.map (Help.replaceEntry entry updatedEntry)
+            ( { model
+                | entry = updatedEntry
+                , dict = model.dict |> Array.map (Help.replaceEntry entry updatedEntry)
+              }
             , Ports.saveEntry ( userId, Entry.encode updatedEntry )
             )
 
