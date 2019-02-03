@@ -1,4 +1,4 @@
-module Notification exposing (Model, initialModel, view)
+module Components.Notification exposing (Model, initialModel, view)
 
 import Help
 import Html exposing (Html, button, div, text)

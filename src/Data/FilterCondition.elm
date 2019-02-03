@@ -1,7 +1,7 @@
-module FilterCondition exposing (FilterCondition(..), isMatchedTo)
+module Data.FilterCondition exposing (FilterCondition(..), isMatchedTo)
 
-import Entry exposing (Entry)
-import PartOfSpeech exposing (PartOfSpeech(..))
+import Data.Entry exposing (Entry)
+import Data.PartOfSpeech exposing (PartOfSpeech(..))
 import Regex
 import Time
 

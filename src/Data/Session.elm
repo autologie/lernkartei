@@ -1,7 +1,7 @@
-module Session exposing (AccumulatingSession, Session, toAccumulatingSession, toSession, withDict)
+module Data.Session exposing (AccumulatingSession, Session, toAccumulatingSession, toSession, withDict)
 
 import Browser.Navigation exposing (Key)
-import Dictionary exposing (Dictionary)
+import Data.Dictionary exposing (Dictionary)
 import Time exposing (Month(..), Zone, ZoneName(..))
 
 

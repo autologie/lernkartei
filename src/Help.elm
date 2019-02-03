@@ -1,6 +1,6 @@
 module Help exposing (btnClasses, classNames, groupedBtnClasses, replaceEntry, showText, updateWithCurrentTime)
 
-import Entry exposing (Entry)
+import Data.Entry exposing (Entry)
 import Html exposing (div, text)
 import Html.Attributes exposing (classList)
 import Task

@@ -1,7 +1,7 @@
-module Dictionary exposing (Dictionary, empty, get, without)
+module Data.Dictionary exposing (Dictionary, empty, get, without)
 
 import Array exposing (Array)
-import Entry exposing (Entry)
+import Data.Entry as Entry exposing (Entry)
 import Url
 
 

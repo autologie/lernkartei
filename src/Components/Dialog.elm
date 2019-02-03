@@ -1,4 +1,4 @@
-module Dialog exposing (Dialog(..), view)
+module Components.Dialog exposing (Dialog(..), view)
 
 import Help
 import Html exposing (Html, button, div, p, text)

@@ -2,18 +2,18 @@ module Pages.Card exposing (Model, Msg(..), initialModel, update, view)
 
 import Array
 import Browser.Navigation
-import Dictionary exposing (Dictionary)
-import Entry exposing (Entry)
+import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.Entry as Entry exposing (Entry)
+import Data.PartOfSpeech as PartOfSpeech
+import Data.Session as Session exposing (Session)
 import Help
 import Html exposing (Html, a, button, div, h3, input, li, p, section, span, text, ul)
 import Html.Attributes exposing (attribute, href, id, style, target, type_, value)
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Html.Keyed
-import Icon exposing (add)
+import Components.Icon as Icon exposing (add)
 import Json.Decode as Decode
-import PartOfSpeech
 import Ports
-import Session exposing (Session)
 import Time
 
 

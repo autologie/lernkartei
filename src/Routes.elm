@@ -1,12 +1,12 @@
 module Routes exposing (Route(..), RoutingAction(..), extractSession, resolve)
 
 import Browser.Navigation exposing (Key)
-import Dictionary exposing (Dictionary)
-import Entry
+import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.Entry as Entry
+import Data.Session as Session exposing (AccumulatingSession, Session)
 import Pages.Card
 import Pages.Editor
 import Pages.Initialize
-import Session exposing (AccumulatingSession, Session)
 import Url exposing (Protocol(..), Url)
 import Url.Parser exposing ((</>), (<?>), s, string)
 import Url.Parser.Query as Query

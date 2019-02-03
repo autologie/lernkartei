@@ -4,9 +4,12 @@ import Array exposing (Array)
 import Browser exposing (UrlRequest(..))
 import Browser.Dom as Dom
 import Browser.Navigation exposing (Key)
-import Dictionary exposing (Dictionary)
-import Entry exposing (Entry)
-import FilterCondition
+import Components.Notification as Notification
+import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.Entry as Entry exposing (Entry)
+import Data.FilterCondition as FilterCondition
+import Data.PartOfSpeech as PartOfSpeech exposing (PartOfSpeech(..))
+import Data.Session as Session exposing (AccumulatingSession, Session)
 import Help
 import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
 import Html.Attributes exposing (..)
@@ -15,16 +18,13 @@ import Html.Keyed
 import Html.Lazy
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Notification
 import Pages.Card exposing (Msg(..))
 import Pages.Editor
 import Pages.Initialize
-import PartOfSpeech exposing (PartOfSpeech(..))
 import Ports
 import Process
 import Random
 import Routes exposing (Route(..), RoutingAction(..))
-import Session exposing (AccumulatingSession, Session)
 import Task
 import Time exposing (Month(..), Zone, ZoneName(..))
 import Url exposing (Protocol(..), Url)

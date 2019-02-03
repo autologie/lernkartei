@@ -2,14 +2,14 @@ module Pages.Initialize exposing (Model, Msg, init, subscriptions, update, view)
 
 import Array
 import Browser.Navigation exposing (Key)
-import Dictionary exposing (Dictionary)
-import Entry exposing (Entry)
+import Components.Notification as Notification
+import Data.Dictionary exposing (Dictionary)
+import Data.Entry as Entry exposing (Entry)
+import Data.Session as Session exposing (AccumulatingSession)
 import Help
 import Html exposing (Html, div)
 import Json.Decode as Decode
-import Notification
 import Ports
-import Session exposing (AccumulatingSession)
 import Task
 import Time exposing (Month(..), Zone, ZoneName(..))
 import Url exposing (Url)

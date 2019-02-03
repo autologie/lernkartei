@@ -1,8 +1,8 @@
-module Entry exposing (Entry, censorExample, decode, empty, encode, isValid, toComparable, withoutArticle)
+module Data.Entry exposing (Entry, censorExample, decode, empty, encode, isValid, toComparable, withoutArticle)
 
+import Data.PartOfSpeech as PartOfSpeech exposing (PartOfSpeech(..))
 import Json.Decode as Decode
 import Json.Encode as Encode
-import PartOfSpeech exposing (PartOfSpeech(..))
 import Regex exposing (Regex)
 import Time
 

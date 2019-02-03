@@ -1,4 +1,4 @@
-module Icon exposing (add, close)
+module Components.Icon exposing (add, close)
 
 import Svg exposing (Svg, path, svg)
 import Svg.Attributes exposing (d, fill, height, stroke, strokeWidth, style, viewBox, width)

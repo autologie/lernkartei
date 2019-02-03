@@ -1,4 +1,4 @@
-module PartOfSpeech exposing (PartOfSpeech(..), decode, encode, fromString, items, toString)
+module Data.PartOfSpeech exposing (PartOfSpeech(..), decode, encode, fromString, items, toString)
 
 import Json.Decode as Decode
 import Json.Encode as Encode

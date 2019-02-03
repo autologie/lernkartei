@@ -2,18 +2,18 @@ port module Pages.Editor exposing (Model, Msg(..), update, view)
 
 import Array
 import Browser.Navigation exposing (Key)
-import Dialog
-import Dictionary exposing (Dictionary)
-import Entry exposing (Entry)
+import Components.Dialog as Dialog
+import Components.Icon as Icon
+import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.Entry as Entry exposing (Entry)
+import Data.PartOfSpeech as PartOfSpeech
+import Data.Session as Session exposing (Session)
 import Help
 import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
-import Icon
 import Json.Encode as Encode
-import PartOfSpeech
 import Ports
-import Session exposing (Session)
 import Task
 import Time exposing (Month(..), Zone, ZoneName(..))
 
