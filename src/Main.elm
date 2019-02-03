@@ -1,4 +1,4 @@
-port module Main exposing (main)
+module Main exposing (main)
 
 import Array exposing (Array)
 import Browser exposing (UrlRequest(..))
@@ -21,11 +21,11 @@ import PartOfSpeech exposing (PartOfSpeech(..))
 import Ports
 import Process
 import Random
+import Routes exposing (Route(..))
 import Task
 import Time exposing (Month(..), Zone, ZoneName(..))
 import Url exposing (Protocol(..), Url)
-import Url.Parser exposing ((</>), (<?>))
-import Url.Parser.Query
+import Url.Parser
 
 
 main : Program Int Model Msg
@@ -66,98 +66,6 @@ type alias Model =
     }
 
 
-type Route
-    = Initializing (Maybe Url) Dictionary
-    | ShowCard Pages.Card.Model
-    | EditWord Pages.Editor.Model
-
-
-routeParser : Dictionary -> Url.Parser.Parser (( Result () Route, Maybe String ) -> a) a
-routeParser dict =
-    let
-        emptyEntry =
-            Entry.empty
-    in
-    Url.Parser.oneOf
-        [ Url.Parser.map
-            (\filter -> ( Err (), filter ))
-            (Url.Parser.s "entries"
-                </> Url.Parser.s "_random"
-                <?> Url.Parser.Query.string "filter"
-            )
-        , Url.Parser.map
-            (\filter -> ( Err (), filter ))
-            (Url.Parser.top
-                <?> Url.Parser.Query.string "filter"
-            )
-        , Url.Parser.map
-            (\de filter ->
-                ( Ok
-                    (EditWord
-                        { entry = { emptyEntry | de = Maybe.withDefault "" de }
-                        , originalEntry = Nothing
-                        , dialog = Nothing
-                        , dict = dict
-                        }
-                    )
-                , filter
-                )
-            )
-            (Url.Parser.s "entries"
-                </> Url.Parser.s "_new"
-                <?> Url.Parser.Query.string "de"
-                <?> Url.Parser.Query.string "filter"
-            )
-        , Url.Parser.map
-            (\de filter ->
-                ( Ok (ShowCard (Pages.Card.initialModel (entryOf dict de) dict))
-                , filter
-                )
-            )
-            (Url.Parser.s "entries"
-                </> Url.Parser.string
-                <?> Url.Parser.Query.string "filter"
-            )
-        , Url.Parser.map
-            (\de filter ->
-                entryOf dict de
-                    |> (\entry ->
-                            ( Ok
-                                (EditWord
-                                    { entry = entry
-                                    , originalEntry = Just entry
-                                    , dialog = Nothing
-                                    , dict = dict
-                                    }
-                                )
-                            , filter
-                            )
-                       )
-            )
-            (Url.Parser.s "entries"
-                </> Url.Parser.string
-                </> Url.Parser.s "_edit"
-                <?> Url.Parser.Query.string "filter"
-            )
-        ]
-
-
-entryOf : Dictionary -> String -> Entry
-entryOf dict de =
-    let
-        emptyEntry =
-            Entry.empty
-
-        decoded =
-            Url.percentDecode de |> Maybe.withDefault de
-    in
-    dict
-        |> Array.filter (\e -> e.de == decoded)
-        |> Array.toList
-        |> List.head
-        |> Maybe.withDefault { emptyEntry | de = decoded }
-
-
 initialModel : Int -> Url -> Key -> Int -> ( Model, Cmd Msg )
 initialModel startTimeMillis url key randomSeed =
     ( { seed = Random.initialSeed randomSeed
@@ -194,69 +102,17 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case ( model.route, msg ) of
-        ( ShowCard pageModel, CardMsg pageMsg ) ->
-            model.userId
-                |> Maybe.map
-                    (\userId ->
-                        let
-                            ( updatedPageModel, pageCmd ) =
-                                Pages.Card.update model.key userId pageModel pageMsg
-                        in
-                        ( { model | route = ShowCard updatedPageModel }
-                        , pageCmd |> Cmd.map CardMsg
-                        )
-                    )
-                |> Maybe.withDefault ( model, Cmd.none )
+    case msg of
+        CardMsg pageMsg ->
+            cardStep model pageMsg
 
-        ( EditWord pageModel, EditorMsg editorMsg ) ->
-            updateWithCurrentTime model
-                (\now theModel ->
-                    model.userId
-                        |> Maybe.map
-                            (\userId ->
-                                let
-                                    ( updatedPageModel, cmd ) =
-                                        Pages.Editor.update userId now model.key pageModel editorMsg (navigateTo model)
-                                in
-                                ( { theModel | route = EditWord updatedPageModel }
-                                , cmd |> Cmd.map EditorMsg
-                                )
-                            )
-                        |> Maybe.withDefault ( theModel, Cmd.none )
-                )
+        EditorMsg pageMsg ->
+            editorStep model pageMsg
 
-        ( _, ReceiveDict (Ok dict) ) ->
-            let
-                newDict =
-                    Array.fromList dict
-            in
+        ReceiveDict (Ok dict) ->
             case model.route of
-                ShowCard { entry } ->
-                    entry.de
-                        |> entryOf newDict
-                        |> (\e -> Pages.Card.initialModel e newDict)
-                        |> (\homeModel -> ( { model | route = ShowCard homeModel }, Cmd.none ))
-
-                EditWord pageModel ->
-                    pageModel.entry.de
-                        |> entryOf newDict
-                        |> (\e ->
-                                ( { model
-                                    | route =
-                                        EditWord
-                                            { pageModel
-                                                | entry = e
-                                                , originalEntry = pageModel.originalEntry |> Maybe.map (\_ -> e)
-                                                , dict = newDict
-                                            }
-                                  }
-                                , Cmd.none
-                                )
-                           )
-
                 Initializing url _ ->
-                    ( { model | route = Initializing url newDict }
+                    ( { model | route = Initializing url (Array.fromList dict) }
                     , Browser.Navigation.pushUrl model.key
                         (url
                             |> Maybe.map Url.toString
@@ -264,91 +120,42 @@ update msg model =
                         )
                     )
 
-        ( _, ReceiveDict (Err _) ) ->
+                _ ->
+                    ( model, Cmd.none )
+
+        ReceiveDict (Err _) ->
             ( { model | notification = ( True, "Failed to load the dictionary." ) }, Cmd.none )
 
-        ( _, SyncEntryDone _ ) ->
+        SyncEntryDone _ ->
             ( { model | notification = ( True, "Changes were synchronized." ) }
             , Process.sleep 2000 |> Task.attempt (\_ -> CloseNotification)
             )
 
-        ( _, CloseNotification ) ->
+        CloseNotification ->
             ( { model | notification = ( False, model.notification |> Tuple.second ) }, Cmd.none )
 
-        ( _, SignInDone uid ) ->
+        SignInDone uid ->
             ( { model | userId = Just uid }, Cmd.none )
 
-        ( _, RouteChanged url ) ->
-            let
-                dict =
-                    extractDict model.route
-            in
-            case Url.Parser.parse (routeParser (extractDict model.route)) url of
-                Just ( Ok r, filter ) ->
-                    ( { model | route = r, searchText = filter }
-                    , case r of
-                        EditWord _ ->
-                            Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+        RouteChanged url ->
+            dispatchRoute model url
 
-                        _ ->
-                            Cmd.none
-                    )
-
-                Just ( Err (), filter ) ->
-                    let
-                        ( maybeEntry, updatedSeed ) =
-                            randomEntry
-                                model.seed
-                                (searchResults model.startTime
-                                    (case model.route of
-                                        ShowCard { entry } ->
-                                            dict |> Dictionary.without entry
-
-                                        route ->
-                                            dict
-                                    )
-                                    filter
-                                )
-                    in
-                    ( { model
-                        | route = Initializing (Just url) dict
-                        , searchText = filter
-                        , seed = updatedSeed
-                      }
-                    , Browser.Navigation.replaceUrl model.key
-                        ("/entries/"
-                            ++ (maybeEntry
-                                    |> Maybe.map (\e -> e.de)
-                                    |> Maybe.withDefault "_new"
-                               )
-                            ++ (filter
-                                    |> Maybe.map (\st -> "?filter=" ++ st)
-                                    |> Maybe.withDefault ""
-                               )
-                        )
-                    )
-
-                Nothing ->
-                    ( { model | route = Initializing Nothing Dictionary.empty, searchText = Nothing }
-                    , Cmd.none
-                    )
-
-        ( _, ZoneResolved (Ok zone) ) ->
+        ZoneResolved (Ok zone) ->
             ( { model | zone = zone }, Cmd.none )
 
-        ( _, ZoneResolved (Err errorMessage) ) ->
+        ZoneResolved (Err errorMessage) ->
             ( { model | notification = ( True, errorMessage ) }, Cmd.none )
 
-        ( _, ZoneNameResolved (Ok zoneName) ) ->
+        ZoneNameResolved (Ok zoneName) ->
             ( { model | zoneName = zoneName }, Cmd.none )
 
-        ( _, ZoneNameResolved (Err errorMessage) ) ->
+        ZoneNameResolved (Err errorMessage) ->
             ( { model | notification = ( True, errorMessage ) }, Cmd.none )
 
-        ( _, WithModel withModel ) ->
+        WithModel withModel ->
             withModel model
 
-        ( _, NewUrlRequested urlRequest ) ->
+        NewUrlRequested urlRequest ->
             case urlRequest of
                 Internal url ->
                     ( model
@@ -360,8 +167,108 @@ update msg model =
                     , Browser.Navigation.load url
                     )
 
-        ( _, _ ) ->
+        NoOp ->
             ( model, Cmd.none )
+
+
+cardStep model msg =
+    case model.route of
+        ShowCard pageModel ->
+            model.userId
+                |> Maybe.map
+                    (\userId ->
+                        let
+                            ( updatedPageModel, pageCmd ) =
+                                Pages.Card.update model.key userId pageModel msg
+                        in
+                        ( { model | route = ShowCard updatedPageModel }
+                        , pageCmd |> Cmd.map CardMsg
+                        )
+                    )
+                |> Maybe.withDefault ( model, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+editorStep model msg =
+    case model.route of
+        EditWord pageModel ->
+            updateWithCurrentTime model
+                (\now theModel ->
+                    model.userId
+                        |> Maybe.map
+                            (\userId ->
+                                let
+                                    ( updatedPageModel, cmd ) =
+                                        Pages.Editor.update userId now model.key pageModel msg (navigateTo model)
+                                in
+                                ( { theModel | route = EditWord updatedPageModel }
+                                , cmd |> Cmd.map EditorMsg
+                                )
+                            )
+                        |> Maybe.withDefault ( theModel, Cmd.none )
+                )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+dispatchRoute : Model -> Url -> ( Model, Cmd Msg )
+dispatchRoute model url =
+    let
+        dict =
+            extractDict model.route
+    in
+    case Url.Parser.parse (Routes.parse (extractDict model.route)) url of
+        Just ( Ok r, filter ) ->
+            ( { model | route = r, searchText = filter }
+            , case r of
+                EditWord _ ->
+                    Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+
+                _ ->
+                    Cmd.none
+            )
+
+        Just ( Err (), filter ) ->
+            let
+                ( maybeEntry, updatedSeed ) =
+                    randomEntry
+                        model.seed
+                        (searchResults model.startTime
+                            (case model.route of
+                                ShowCard { entry } ->
+                                    dict |> Dictionary.without entry
+
+                                route ->
+                                    dict
+                            )
+                            filter
+                        )
+            in
+            ( { model
+                | route = Initializing (Just url) dict
+                , searchText = filter
+                , seed = updatedSeed
+              }
+            , Browser.Navigation.replaceUrl model.key
+                ("/entries/"
+                    ++ (maybeEntry
+                            |> Maybe.map (\e -> e.de)
+                            |> Maybe.withDefault "_new"
+                       )
+                    ++ (filter
+                            |> Maybe.map (\st -> "?filter=" ++ st)
+                            |> Maybe.withDefault ""
+                       )
+                )
+            )
+
+        Nothing ->
+            ( { model | route = Initializing Nothing Dictionary.empty, searchText = Nothing }
+            , Cmd.none
+            )
 
 
 randomEntry seed entries =
