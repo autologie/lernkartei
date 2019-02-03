@@ -1,10 +1,11 @@
-module Routes exposing (Route(..), RoutingAction(..), resolve)
+module Routes exposing (Route(..), RoutingAction(..), extractSession, resolve)
 
 import Browser.Navigation exposing (Key)
 import Dictionary exposing (Dictionary)
 import Entry
 import Pages.Card
 import Pages.Editor
+import Pages.Initialize
 import Session exposing (AccumulatingSession, Session)
 import Url exposing (Protocol(..), Url)
 import Url.Parser exposing ((</>), (<?>), s, string)
@@ -12,7 +13,7 @@ import Url.Parser.Query as Query
 
 
 type Route
-    = Initializing (Maybe Url) AccumulatingSession
+    = Initializing Pages.Initialize.Model
     | ShowCard Pages.Card.Model
     | EditWord Pages.Editor.Model
     | NotFound Key
@@ -84,3 +85,19 @@ resolve maybeSession =
             )
             (s "entries" </> string </> s "_edit" <?> Query.string "filter")
         ]
+
+
+extractSession : Route -> Maybe Session
+extractSession routes =
+    case routes of
+        Initializing { session } ->
+            Session.toSession session
+
+        ShowCard pageModel ->
+            Just pageModel.session
+
+        EditWord pageModel ->
+            Just pageModel.session
+
+        NotFound _ ->
+            Nothing

@@ -1,4 +1,4 @@
-module Session exposing (AccumulatingSession, Session, toAccumulatingSession, withDict)
+module Session exposing (AccumulatingSession, Session, toAccumulatingSession, toSession, withDict)
 
 import Browser.Navigation exposing (Key)
 import Dictionary exposing (Dictionary)
@@ -36,3 +36,18 @@ toAccumulatingSession { navigationKey, userId, dict, zone, zoneName } =
     , zone = Just zone
     , zoneName = Just zoneName
     }
+
+
+toSession : AccumulatingSession -> Maybe Session
+toSession session =
+    Maybe.map2
+        (\userId dict ->
+            { navigationKey = session.navigationKey
+            , userId = userId
+            , dict = dict
+            , zone = Time.utc
+            , zoneName = Offset 0
+            }
+        )
+        session.userId
+        session.dict

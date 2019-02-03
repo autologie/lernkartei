@@ -1,6 +1,7 @@
-module Help exposing (btnClasses, classNames, groupedBtnClasses, replaceEntry, updateWithCurrentTime)
+module Help exposing (btnClasses, classNames, groupedBtnClasses, replaceEntry, showText, updateWithCurrentTime)
 
 import Entry exposing (Entry)
+import Html exposing (div, text)
 import Html.Attributes exposing (classList)
 import Task
 import Time
@@ -55,3 +56,16 @@ updateWithCurrentTime model theUpdate onSuccessfulTime onFailedTime =
                 >> Result.withDefault onFailedTime
             )
     )
+
+
+showText message =
+    div
+        [ classNames
+            [ "w-full"
+            , "h-full"
+            , "flex"
+            , "justify-center"
+            , "items-center"
+            ]
+        ]
+        [ div [] [ text message ] ]

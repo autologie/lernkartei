@@ -204,26 +204,27 @@ update model msg navigateTo =
         SaveAndCloseEditor ->
             Help.updateWithCurrentTime model
                 (\now { entry, originalEntry, session } ->
-                    { entry
-                        | updatedAt = now
-                        , addedAt = originalEntry |> Maybe.map (\_ -> entry.addedAt) |> Maybe.withDefault now
-                    }
-                        |> (\theEntry ->
-                                ( { model
-                                    | session =
-                                        model.session
-                                            |> Session.withDict
-                                                (originalEntry
-                                                    |> Maybe.map (\oe -> model.session.dict |> Array.map (Help.replaceEntry oe theEntry))
-                                                    |> Maybe.withDefault (model.session.dict |> Array.append (Array.fromList [ theEntry ]))
-                                                )
-                                  }
-                                , Cmd.batch
-                                    [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
-                                    , navigateTo (Just theEntry)
-                                    ]
-                                )
-                           )
+                    let
+                        theEntry =
+                            { entry
+                                | updatedAt = now
+                                , addedAt = originalEntry |> Maybe.map (\_ -> entry.addedAt) |> Maybe.withDefault now
+                            }
+
+                        theSession =
+                            model.session
+                                |> Session.withDict
+                                    (originalEntry
+                                        |> Maybe.map (\oe -> model.session.dict |> Array.map (Help.replaceEntry oe theEntry))
+                                        |> Maybe.withDefault (model.session.dict |> Array.append (Array.fromList [ theEntry ]))
+                                    )
+                    in
+                    ( { model | session = theSession }
+                    , Cmd.batch
+                        [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
+                        , navigateTo (Just theEntry)
+                        ]
+                    )
                 )
                 WithModel
                 NoOp
