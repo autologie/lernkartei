@@ -14,7 +14,6 @@ import Help
 import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
-import Html.Keyed
 import Html.Lazy
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -47,7 +46,7 @@ type alias Model =
     { seed : Random.Seed
     , route : Route
     , notification : Notification.Model
-    , key : Key
+    , navigationKey : Key
     , searchText : Maybe String
     , startTime : Time.Posix
     }
@@ -58,7 +57,10 @@ subscriptions model =
     let
         globalSubscription =
             Sub.batch
-                [ Ports.textDisposition (TextDispositionChange >> CardMsg >> PageMsg)
+                [ -- NOTE:
+                  -- This subscription cannot be move to the `Pages.Card.elm` .
+                  -- If I do so, no text shows up on the card when page is loaded
+                  Ports.textDisposition (TextDispositionChange >> CardMsg >> PageMsg)
                 , Ports.syncEntryDone SyncEntryDone
                 ]
     in
@@ -74,16 +76,15 @@ subscriptions model =
 
 
 init : Int -> Url -> Key -> ( Model, Cmd Msg )
-init startTimeMillis url key =
+init startTimeMillis url navigationKey =
     let
         ( pageModel, pageCmd ) =
-            Pages.Initialize.init url key
+            Pages.Initialize.init url navigationKey
     in
     ( { seed = Random.initialSeed startTimeMillis
-      , route =
-            Initializing pageModel
+      , route = Initializing pageModel
       , notification = Notification.initialModel
-      , key = key
+      , navigationKey = navigationKey
       , searchText = Nothing
       , startTime = startTimeMillis |> Time.millisToPosix
       }
@@ -110,19 +111,15 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         PageMsg pageMsg_ ->
-            let
-                navigate =
-                    navigateTo model
-            in
             case ( model.route, pageMsg_ ) of
                 ( Initializing pageModel, InitializeMsg pageMsg ) ->
                     pageStep Initializing InitializeMsg (Pages.Initialize.update pageModel pageMsg) model
 
-                ( EditWord pageModel, EditorMsg pageMsg ) ->
-                    pageStep EditWord EditorMsg (Pages.Editor.update pageModel pageMsg navigate) model
+                ( Editor pageModel, EditorMsg pageMsg ) ->
+                    pageStep Editor EditorMsg (Pages.Editor.update pageModel pageMsg (navigateTo model)) model
 
-                ( ShowCard pageModel, CardMsg pageMsg ) ->
-                    pageStep ShowCard CardMsg (Pages.Card.update pageModel pageMsg) model
+                ( Card pageModel, CardMsg pageMsg ) ->
+                    pageStep Card CardMsg (Pages.Card.update pageModel pageMsg) model
 
                 _ ->
                     ( model, Cmd.none )
@@ -142,7 +139,7 @@ update msg model =
             case urlRequest of
                 Internal url ->
                     ( model
-                    , Browser.Navigation.pushUrl model.key (Url.toString url)
+                    , Browser.Navigation.pushUrl model.navigationKey (Url.toString url)
                     )
 
                 External url ->
@@ -171,7 +168,7 @@ dispatchRoute model url =
         Just (Show r filter) ->
             ( { model | route = r, searchText = filter }
             , case r of
-                EditWord _ ->
+                Editor _ ->
                     Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
 
                 _ ->
@@ -181,11 +178,11 @@ dispatchRoute model url =
         Just (RedirectToRandom filter) ->
             let
                 ( maybeEntry, updatedSeed ) =
-                    randomEntry
+                    Dictionary.randomEntry
                         model.seed
-                        (searchResults model.startTime
+                        (FilterCondition.applied model.startTime
                             (case model.route of
-                                ShowCard { entry, session } ->
+                                Card { entry, session } ->
                                     session.dict |> Dictionary.without entry
 
                                 route ->
@@ -200,13 +197,13 @@ dispatchRoute model url =
                 | route =
                     Initializing
                         { url = Just url
-                        , session = extractAccumulatingSession model.route
+                        , session = Routes.extractAccumulatingSession model.route
                         , notification = Notification.initialModel
                         }
                 , searchText = filter
                 , seed = updatedSeed
               }
-            , Browser.Navigation.replaceUrl model.key
+            , Browser.Navigation.replaceUrl model.navigationKey
                 ("/entries/"
                     ++ (maybeEntry
                             |> Maybe.map (\e -> e.de)
@@ -225,21 +222,9 @@ dispatchRoute model url =
             )
 
         Nothing ->
-            ( { model | route = NotFound model.key }
+            ( { model | route = NotFound model.navigationKey }
             , Cmd.none
             )
-
-
-randomEntry seed entries =
-    let
-        ( index, nextSeed ) =
-            Random.step
-                (Random.int 0 (Array.length entries - 1))
-                seed
-    in
-    ( entries |> Array.get index
-    , nextSeed
-    )
 
 
 view : Model -> Html Msg
@@ -261,16 +246,16 @@ view model =
             NotFound _ ->
                 Help.showText "Not found."
 
-            ShowCard pageModel ->
+            Card pageModel ->
                 Html.Lazy.lazy4
                     Pages.Card.view
                     model.startTime
                     model.searchText
-                    (searchResults model.startTime pageModel.session.dict model.searchText)
+                    (FilterCondition.applied model.startTime pageModel.session.dict model.searchText)
                     pageModel
                     |> Html.map (CardMsg >> PageMsg)
 
-            EditWord pageModel ->
+            Editor pageModel ->
                 Html.Lazy.lazy
                     Pages.Editor.view
                     pageModel
@@ -279,19 +264,8 @@ view model =
         ]
 
 
-searchResults : Time.Posix -> Dictionary -> Maybe String -> Array Entry
-searchResults now dict maybeSearchText =
-    maybeSearchText
-        |> Maybe.map
-            (\searchText ->
-                dict
-                    |> Array.filter (FilterCondition.isMatchedTo now searchText)
-            )
-        |> Maybe.withDefault dict
-
-
 navigateTo model maybeEntry =
-    Browser.Navigation.pushUrl model.key
+    Browser.Navigation.pushUrl model.navigationKey
         ("/"
             ++ (maybeEntry |> Maybe.map (\{ de } -> "entries/" ++ de ++ "/") |> Maybe.withDefault "")
             ++ (model.searchText
@@ -299,24 +273,3 @@ navigateTo model maybeEntry =
                     |> Maybe.withDefault ""
                )
         )
-
-
-extractAccumulatingSession : Route -> AccumulatingSession
-extractAccumulatingSession routes =
-    case routes of
-        Initializing { session } ->
-            session
-
-        ShowCard { session } ->
-            Session.toAccumulatingSession session
-
-        EditWord { session } ->
-            Session.toAccumulatingSession session
-
-        NotFound navigationKey ->
-            { navigationKey = navigationKey
-            , userId = Nothing
-            , dict = Nothing
-            , zone = Nothing
-            , zoneName = Nothing
-            }

@@ -1,7 +1,8 @@
-module Data.Dictionary exposing (Dictionary, empty, get, without)
+module Data.Dictionary exposing (Dictionary, empty, get, randomEntry, without)
 
 import Array exposing (Array)
 import Data.Entry as Entry exposing (Entry)
+import Random exposing (Seed)
 import Url
 
 
@@ -31,3 +32,16 @@ get de dict =
         |> Array.toList
         |> List.head
         |> Maybe.withDefault { emptyEntry | de = decoded }
+
+
+randomEntry : Seed -> Dictionary -> ( Maybe Entry, Seed )
+randomEntry seed entries =
+    let
+        ( index, nextSeed ) =
+            Random.step
+                (Random.int 0 (Array.length entries - 1))
+                seed
+    in
+    ( entries |> Array.get index
+    , nextSeed
+    )

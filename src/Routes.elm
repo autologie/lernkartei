@@ -1,4 +1,4 @@
-module Routes exposing (Route(..), RoutingAction(..), extractSession, resolve)
+module Routes exposing (Route(..), RoutingAction(..), extractAccumulatingSession, extractSession, resolve)
 
 import Browser.Navigation exposing (Key)
 import Data.Dictionary as Dictionary exposing (Dictionary)
@@ -14,8 +14,8 @@ import Url.Parser.Query as Query
 
 type Route
     = Initializing Pages.Initialize.Model
-    | ShowCard Pages.Card.Model
-    | EditWord Pages.Editor.Model
+    | Card Pages.Card.Model
+    | Editor Pages.Editor.Model
     | NotFound Key
 
 
@@ -44,7 +44,7 @@ resolve maybeSession =
                     |> Maybe.map
                         (\session ->
                             Show
-                                (EditWord
+                                (Editor
                                     { entry = { emptyEntry | de = Maybe.withDefault "" de }
                                     , originalEntry = Nothing
                                     , dialog = Nothing
@@ -59,7 +59,7 @@ resolve maybeSession =
         , Url.Parser.map
             (\de filter ->
                 maybeSession
-                    |> Maybe.map (\session -> Show (ShowCard (Pages.Card.initialModel session de)) filter)
+                    |> Maybe.map (\session -> Show (Card (Pages.Card.initialModel session de)) filter)
                     |> Maybe.withDefault AwaitInitialization
             )
             (s "entries" </> string <?> Query.string "filter")
@@ -71,7 +71,7 @@ resolve maybeSession =
                             Dictionary.get de session.dict
                                 |> (\entry ->
                                         Show
-                                            (EditWord
+                                            (Editor
                                                 { entry = entry
                                                 , originalEntry = Just entry
                                                 , dialog = Nothing
@@ -93,11 +93,32 @@ extractSession routes =
         Initializing { session } ->
             Session.toSession session
 
-        ShowCard pageModel ->
+        Card pageModel ->
             Just pageModel.session
 
-        EditWord pageModel ->
+        Editor pageModel ->
             Just pageModel.session
 
         NotFound _ ->
             Nothing
+
+
+extractAccumulatingSession : Route -> AccumulatingSession
+extractAccumulatingSession routes =
+    case routes of
+        Initializing { session } ->
+            session
+
+        Card { session } ->
+            Session.toAccumulatingSession session
+
+        Editor { session } ->
+            Session.toAccumulatingSession session
+
+        NotFound navigationKey ->
+            { navigationKey = navigationKey
+            , userId = Nothing
+            , dict = Nothing
+            , zone = Nothing
+            , zoneName = Nothing
+            }

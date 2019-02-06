@@ -1,7 +1,8 @@
-module Pages.Card exposing (Model, Msg(..), initialModel, update, view)
+module Pages.Card exposing (Model, Msg(..), initialModel, subscriptions, update, view)
 
 import Array
 import Browser.Navigation
+import Components.Icon as Icon exposing (add)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.PartOfSpeech as PartOfSpeech
@@ -11,7 +12,6 @@ import Html exposing (Html, a, button, div, h3, input, li, p, section, span, tex
 import Html.Attributes exposing (attribute, href, id, style, target, type_, value)
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Html.Keyed
-import Components.Icon as Icon exposing (add)
 import Json.Decode as Decode
 import Ports
 import Time
@@ -43,6 +43,10 @@ initialModel session entryDe =
     , expandSearchResults = False
     , session = session
     }
+
+
+subscriptions _ =
+    Sub.batch []
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )
@@ -528,5 +532,5 @@ addButton searchText =
                    )
             )
         ]
-        [ Icon.add "width: 1em; height: 1em;"
+        [ Icon.add "width: .6em; height: .6em;"
         ]

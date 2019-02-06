@@ -1,5 +1,7 @@
-module Data.FilterCondition exposing (FilterCondition(..), isMatchedTo)
+module Data.FilterCondition exposing (FilterCondition(..), applied, isMatchedTo)
 
+import Array
+import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry exposing (Entry)
 import Data.PartOfSpeech exposing (PartOfSpeech(..))
 import Regex
@@ -139,3 +141,14 @@ isMatchedToHelp now { de, pos, ja, starred, addedAt } filter =
 
         NeverMatch _ ->
             False
+
+
+applied : Time.Posix -> Dictionary -> Maybe String -> Dictionary
+applied now dict maybeSearchText =
+    maybeSearchText
+        |> Maybe.map
+            (\searchText ->
+                dict
+                    |> Array.filter (isMatchedTo now searchText)
+            )
+        |> Maybe.withDefault dict

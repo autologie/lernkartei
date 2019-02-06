@@ -66,7 +66,7 @@ view { entry, originalEntry, dialog, session } =
                 , "p-5"
                 ]
             ]
-            ([ inputRowView "Deutsch"
+            ([ inputRowView "Das Wort"
                 (textInputView (Just "editor-input-de")
                     de
                     False
