@@ -1,4 +1,4 @@
-module Data.Entry exposing (Entry, censorExample, decode, empty, encode, isValid, toComparable, withoutArticle)
+module Data.Entry exposing (Entry, EntryValidationError(..), censorExample, decode, empty, encode, findFirstError, toComparable, withoutArticle)
 
 import Data.PartOfSpeech as PartOfSpeech exposing (PartOfSpeech(..))
 import Json.Decode as Decode
@@ -16,6 +16,11 @@ type alias Entry =
     , updatedAt : Time.Posix
     , starred : Bool
     }
+
+
+type EntryValidationError
+    = WordIsEmpty
+    | TranslationIsEmpty
 
 
 encode : Entry -> Encode.Value
@@ -108,6 +113,13 @@ empty =
     }
 
 
-isValid : Entry -> Bool
-isValid { de, ja, example } =
-    (de /= "") && (ja /= "")
+findFirstError : Entry -> Maybe EntryValidationError
+findFirstError { de, ja, example } =
+    if de == "" then
+        Just WordIsEmpty
+
+    else if ja == "" then
+        Just TranslationIsEmpty
+
+    else
+        Nothing

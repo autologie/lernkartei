@@ -4,8 +4,8 @@ import Array
 import Browser.Navigation exposing (Key)
 import Components.Dialog as Dialog
 import Components.Icon as Icon
-import Data.Dictionary as Dictionary exposing (Dictionary)
-import Data.Entry as Entry exposing (Entry)
+import Data.Dictionary as Dictionary exposing (DictValidationError(..), Dictionary)
+import Data.Entry as Entry exposing (Entry, EntryValidationError(..))
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
@@ -40,16 +40,30 @@ type alias Model =
 view : Model -> Html Msg
 view { entry, originalEntry, dialog, session } =
     let
-        hasError =
-            not (Entry.isValid entry)
-
-        { de, pos, ja, example, updatedAt, addedAt } =
-            entry
-
-        isNew =
+        ( isNew, dictToBe ) =
             originalEntry
-                |> Maybe.map (\_ -> False)
-                |> Maybe.withDefault True
+                |> Maybe.map (\oe -> ( False, session.dict |> Dictionary.replacedWith oe entry ))
+                |> Maybe.withDefault ( True, Dictionary.added entry session.dict )
+
+        ( deError, jaError ) =
+            case Dictionary.findFirstError dictToBe of
+                Just (Duplicate de) ->
+                    ( Just ("\"" ++ de ++ "\" ist shon registriert sein."), Nothing )
+
+                Just (InvalidEntry _ WordIsEmpty) ->
+                    ( Just "Enter a word.", Nothing )
+
+                Just (InvalidEntry _ TranslationIsEmpty) ->
+                    ( Nothing, Just "Enter the translation." )
+
+                _ ->
+                    ( Nothing, Nothing )
+
+        hasError =
+            deError |> Maybe.map (\_ -> True) |> Maybe.withDefault False
+
+        { pos, ja, example, updatedAt, addedAt } =
+            entry
     in
     div
         [ Help.classNames
@@ -68,10 +82,11 @@ view { entry, originalEntry, dialog, session } =
             ]
             ([ inputRowView "Das Wort"
                 (textInputView (Just "editor-input-de")
-                    de
+                    entry.de
                     False
                     (\value -> WordChange { entry | de = value })
                 )
+                deError
              , inputRowView "Teil"
                 (selectInputView
                     (pos |> PartOfSpeech.toString)
@@ -89,12 +104,14 @@ view { entry, originalEntry, dialog, session } =
                         |> List.map (\v -> ( v, v ))
                     )
                 )
+                Nothing
              , inputRowView "Übersetzung"
                 (textInputView Nothing
                     ja
                     False
                     (\value -> WordChange { entry | ja = value })
                 )
+                jaError
              , inputRowView "Beispiel"
                 (textInputView Nothing
                     (example |> Maybe.withDefault "")
@@ -111,6 +128,7 @@ view { entry, originalEntry, dialog, session } =
                             }
                     )
                 )
+                Nothing
              ]
                 ++ (if isNew then
                         []
@@ -250,16 +268,21 @@ update model msg navigateTo =
             )
 
         DoDeleteEntry ->
-            ( { model
-                | session =
-                    model.session
-                        |> Session.withDict (model.session.dict |> Array.filter ((/=) model.entry))
-              }
-            , Cmd.batch
-                [ Ports.deleteEntry ( model.session.userId, model.entry.de ) -- TODO entry -> originalEntry
-                , navigateTo Nothing
-                ]
-            )
+            model.originalEntry
+                |> Maybe.map
+                    (\oe ->
+                        ( { model
+                            | session =
+                                model.session
+                                    |> Session.withDict (model.session.dict |> Dictionary.without oe)
+                          }
+                        , Cmd.batch
+                            [ Ports.deleteEntry ( model.session.userId, oe.de )
+                            , navigateTo Nothing
+                            ]
+                        )
+                    )
+                |> Maybe.withDefault ( model, Cmd.none )
 
         WordChange updatedEntry ->
             ( { model | entry = updatedEntry }
@@ -273,10 +296,10 @@ update model msg navigateTo =
             ( model, Cmd.none )
 
 
-inputRowView : String -> (List String -> Html msg) -> Html msg
-inputRowView fieldName inputView =
+inputRowView : String -> (List String -> Html msg) -> Maybe String -> Html msg
+inputRowView fieldName inputView maybeError =
     div [ Help.classNames [ "mb-6", "w-full" ] ]
-        [ label [ Help.classNames [ "w-full" ] ]
+        ([ label [ Help.classNames [ "w-full" ] ]
             [ div
                 [ Help.classNames
                     [ "mr-2"
@@ -296,7 +319,22 @@ inputRowView fieldName inputView =
                 , "w-full"
                 ]
             ]
-        ]
+         ]
+            ++ (maybeError
+                    |> Maybe.map
+                        (\e ->
+                            [ p
+                                [ Help.classNames
+                                    [ "my-2"
+                                    , "text-red"
+                                    ]
+                                ]
+                                [ text e ]
+                            ]
+                        )
+                    |> Maybe.withDefault []
+               )
+        )
 
 
 textInputView maybeInputId inputValue multiline handleInput formClasses =
