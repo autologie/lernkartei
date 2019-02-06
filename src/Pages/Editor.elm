@@ -222,6 +222,16 @@ update model msg navigateTo =
                     ( { model | session = theSession }
                     , Cmd.batch
                         [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
+                        , model.originalEntry
+                            |> Maybe.map
+                                (\oe ->
+                                    if oe.de == model.entry.de then
+                                        Cmd.none
+
+                                    else
+                                        Ports.deleteEntry ( model.session.userId, oe.de )
+                                )
+                            |> Maybe.withDefault Cmd.none
                         , navigateTo (Just theEntry)
                         ]
                     )
