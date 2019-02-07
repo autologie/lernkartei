@@ -1,5 +1,6 @@
 module Pages.Initialize exposing (Model, Msg, init, subscriptions, update, view)
 
+import AppUrl
 import Array
 import Browser.Navigation exposing (Key)
 import Components.Notification as Notification
@@ -150,7 +151,7 @@ testSessionAndRouteIfPossible ( { session, url } as model, cmd ) =
                     , Browser.Navigation.pushUrl session.navigationKey
                         (url
                             |> Maybe.map Url.toString
-                            |> Maybe.withDefault "/entries/_random"
+                            |> Maybe.withDefault (AppUrl.randomCard AppUrl.emptyParams |> AppUrl.toString)
                         )
                     ]
                 )

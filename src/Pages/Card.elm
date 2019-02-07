@@ -1,5 +1,6 @@
 module Pages.Card exposing (Model, Msg(..), initialModel, subscriptions, update, view)
 
+import AppUrl exposing (GlobalQueryParams)
 import Array
 import Browser.Navigation
 import Components.Icon as Icon exposing (add)
@@ -70,7 +71,10 @@ update model msg =
         SearchInput text ->
             ( model
             , Browser.Navigation.pushUrl model.session.navigationKey
-                ("/entries/" ++ model.entry.de ++ "?filter=" ++ text)
+                (AppUrl.card model.entry.de AppUrl.emptyParams
+                    |> AppUrl.withFilters text
+                    |> AppUrl.toString
+                )
             )
 
         ToggleSearchResults ->
@@ -83,7 +87,11 @@ update model msg =
 
         ClearSearchText ->
             ( model
-            , Browser.Navigation.pushUrl model.session.navigationKey ("/entries/" ++ model.entry.de)
+            , Browser.Navigation.pushUrl model.session.navigationKey
+                (AppUrl.card model.entry.de AppUrl.emptyParams
+                    |> AppUrl.withoutFilters
+                    |> AppUrl.toString
+                )
             )
 
         ToggleStar ->
@@ -131,7 +139,11 @@ view startTime searchText results model =
                             li
                                 []
                                 [ a
-                                    [ href ("/entries/_random?filter=t:" ++ String.fromInt -n ++ "d+1d")
+                                    [ href
+                                        (AppUrl.randomCard AppUrl.emptyParams
+                                            |> AppUrl.withFilters ("t:" ++ String.fromInt -n ++ "d+1d")
+                                            |> AppUrl.toString
+                                        )
                                     , Help.classNames
                                         [ "no-underline"
                                         , "block"
@@ -252,7 +264,11 @@ searchResultView results searchText =
     case Array.length results of
         0 ->
             a
-                [ href ("/entries/_new?de=" ++ searchText ++ "&filter=" ++ searchText)
+                [ href
+                    (AppUrl.newEntry Nothing AppUrl.emptyParams
+                        |> AppUrl.withFilters searchText
+                        |> AppUrl.toString
+                    )
                 , Help.classNames
                     (Help.btnClasses True False
                         ++ [ "p-3"
@@ -287,7 +303,11 @@ searchResultRow searchText entry =
                 , "text-black"
                 , "hover:bg-grey-lighter"
                 ]
-            , href ("/entries/" ++ entry.de ++ ("?filter=" ++ searchText))
+            , href
+                (AppUrl.card entry.de AppUrl.emptyParams
+                    |> AppUrl.withFilters searchText
+                    |> AppUrl.toString
+                )
             ]
             [ div [ Help.classNames [ "inline-block", "mr-2" ] ] (hilighted searchText entry.de)
             , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] (hilighted searchText entry.ja)
@@ -414,13 +434,9 @@ cardView searchText model results entry =
                         [ text "Hören" ]
                     , a
                         [ href
-                            ("/entries/"
-                                ++ entry.de
-                                ++ "/_edit"
-                                ++ (searchText
-                                        |> Maybe.map (\st -> "?filter=" ++ st)
-                                        |> Maybe.withDefault ""
-                                   )
+                            (AppUrl.editorFor entry.de AppUrl.emptyParams
+                                |> (searchText |> Maybe.map AppUrl.withFilters |> Maybe.withDefault AppUrl.withoutFilters)
+                                |> AppUrl.toString
                             )
                         , Help.classNames [ "text-blue", "no-underline" ]
                         ]
@@ -445,11 +461,9 @@ cardView searchText model results entry =
                        ]
                 )
             , href
-                ("/entries/_random"
-                    ++ (searchText
-                            |> Maybe.map (\st -> "?filter=" ++ st)
-                            |> Maybe.withDefault ""
-                       )
+                (AppUrl.randomCard AppUrl.emptyParams
+                    |> (searchText |> Maybe.map AppUrl.withFilters |> Maybe.withDefault AppUrl.withoutFilters)
+                    |> AppUrl.toString
                 )
             ]
             [ text "Nächst" ]
@@ -525,11 +539,9 @@ addButton searchText =
             , "no-underline"
             ]
         , href
-            ("/entries/_new"
-                ++ (searchText
-                        |> Maybe.map (\st -> "?filter=" ++ st)
-                        |> Maybe.withDefault ""
-                   )
+            (AppUrl.newEntry Nothing AppUrl.emptyParams
+                |> (searchText |> Maybe.map AppUrl.withFilters |> Maybe.withDefault AppUrl.withoutFilters)
+                |> AppUrl.toString
             )
         ]
         [ Icon.add "width: .6em; height: .6em;"

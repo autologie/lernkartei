@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import AppUrl exposing (GlobalQueryParams)
 import Array exposing (Array)
 import Browser exposing (UrlRequest(..))
 import Browser.Dom as Dom
@@ -47,7 +48,7 @@ type alias Model =
     , route : Route
     , notification : Notification.Model
     , navigationKey : Key
-    , searchText : Maybe String
+    , params : GlobalQueryParams
     , startTime : Time.Posix
     }
 
@@ -85,7 +86,7 @@ init startTimeMillis url navigationKey =
       , route = Initializing pageModel
       , notification = Notification.initialModel
       , navigationKey = navigationKey
-      , searchText = Nothing
+      , params = AppUrl.emptyParams
       , startTime = startTimeMillis |> Time.millisToPosix
       }
     , pageCmd |> Cmd.map (InitializeMsg >> PageMsg)
@@ -165,8 +166,8 @@ dispatchRoute model url =
             Routes.extractSession model.route
     in
     case Url.Parser.parse (Routes.resolve maybeSession) url of
-        Just (Show r filter) ->
-            ( { model | route = r, searchText = filter }
+        Just (Show r params) ->
+            ( { model | route = r, params = params }
             , case r of
                 Editor _ ->
                     Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
@@ -175,7 +176,7 @@ dispatchRoute model url =
                     Cmd.none
             )
 
-        Just (RedirectToRandom filter) ->
+        Just (RedirectToRandom params) ->
             let
                 ( maybeEntry, updatedSeed ) =
                     Dictionary.randomEntry
@@ -190,7 +191,7 @@ dispatchRoute model url =
                                         |> Maybe.map .dict
                                         |> Maybe.withDefault Dictionary.empty
                             )
-                            filter
+                            params.filters
                         )
             in
             ( { model
@@ -200,7 +201,7 @@ dispatchRoute model url =
                         , session = Routes.extractAccumulatingSession model.route
                         , notification = Notification.initialModel
                         }
-                , searchText = filter
+                , params = params
                 , seed = updatedSeed
               }
             , Browser.Navigation.replaceUrl model.navigationKey
@@ -209,7 +210,7 @@ dispatchRoute model url =
                             |> Maybe.map (\e -> e.de)
                             |> Maybe.withDefault "_new"
                        )
-                    ++ (filter
+                    ++ (params.filters
                             |> Maybe.map (\st -> "?filter=" ++ st)
                             |> Maybe.withDefault ""
                        )
@@ -250,8 +251,8 @@ view model =
                 Html.Lazy.lazy4
                     Pages.Card.view
                     model.startTime
-                    model.searchText
-                    (FilterCondition.applied model.startTime pageModel.session.dict model.searchText)
+                    model.params.filters
+                    (FilterCondition.applied model.startTime pageModel.session.dict model.params.filters)
                     pageModel
                     |> Html.map (CardMsg >> PageMsg)
 
@@ -266,10 +267,8 @@ view model =
 
 navigateTo model maybeEntry =
     Browser.Navigation.pushUrl model.navigationKey
-        ("/"
-            ++ (maybeEntry |> Maybe.map (\{ de } -> "entries/" ++ de ++ "/") |> Maybe.withDefault "")
-            ++ (model.searchText
-                    |> Maybe.map (\st -> "?filter=" ++ st)
-                    |> Maybe.withDefault ""
-               )
+        (maybeEntry
+            |> Maybe.map (\{ de } -> AppUrl.card de model.params)
+            |> Maybe.withDefault (AppUrl.top model.params)
+            |> AppUrl.toString
         )

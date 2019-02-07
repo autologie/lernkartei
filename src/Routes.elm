@@ -1,5 +1,6 @@
 module Routes exposing (Route(..), RoutingAction(..), extractAccumulatingSession, extractSession, resolve)
 
+import AppUrl exposing (GlobalQueryParams)
 import Browser.Navigation exposing (Key)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry
@@ -21,8 +22,8 @@ type Route
 
 type RoutingAction
     = AwaitInitialization
-    | RedirectToRandom (Maybe String)
-    | Show Route (Maybe String)
+    | RedirectToRandom GlobalQueryParams
+    | Show Route GlobalQueryParams
 
 
 resolve : Maybe Session -> Url.Parser.Parser (RoutingAction -> a) a
@@ -30,16 +31,25 @@ resolve maybeSession =
     let
         emptyEntry =
             Entry.empty
+
+        buildQueryParams : Maybe String -> Maybe Int -> GlobalQueryParams
+        buildQueryParams filters shuffle =
+            { filters = filters
+            , shuffle =
+                shuffle
+                    |> Maybe.map (\n -> n == 1)
+                    |> Maybe.withDefault False
+            }
     in
     Url.Parser.oneOf
         [ Url.Parser.map
-            (\filter -> RedirectToRandom filter)
-            (s "entries" </> s "_random" <?> Query.string "filter")
+            (\a b -> buildQueryParams a b |> RedirectToRandom)
+            (s "entries" </> s "_random" <?> Query.string "filter" <?> Query.int "shuffle")
         , Url.Parser.map
-            (\filter -> RedirectToRandom filter)
-            (Url.Parser.top <?> Query.string "filter")
+            (\a b -> buildQueryParams a b |> RedirectToRandom)
+            (Url.Parser.top <?> Query.string "filter" <?> Query.int "shuffle")
         , Url.Parser.map
-            (\de filter ->
+            (\de filter shuffle ->
                 maybeSession
                     |> Maybe.map
                         (\session ->
@@ -51,20 +61,24 @@ resolve maybeSession =
                                     , session = session
                                     }
                                 )
-                                filter
+                                (buildQueryParams filter shuffle)
                         )
                     |> Maybe.withDefault AwaitInitialization
             )
-            (s "entries" </> s "_new" <?> Query.string "de" <?> Query.string "filter")
+            (s "entries" </> s "_new" <?> Query.string "de" <?> Query.string "filter" <?> Query.int "shuffle")
         , Url.Parser.map
-            (\de filter ->
+            (\de filter shuffle ->
                 maybeSession
-                    |> Maybe.map (\session -> Show (Card (Pages.Card.initialModel session de)) filter)
+                    |> Maybe.map
+                        (\session ->
+                            Show (Card (Pages.Card.initialModel session de))
+                                (buildQueryParams filter shuffle)
+                        )
                     |> Maybe.withDefault AwaitInitialization
             )
-            (s "entries" </> string <?> Query.string "filter")
+            (s "entries" </> string <?> Query.string "filter" <?> Query.int "shuffle")
         , Url.Parser.map
-            (\de filter ->
+            (\de filter shuffle ->
                 maybeSession
                     |> Maybe.map
                         (\session ->
@@ -78,12 +92,12 @@ resolve maybeSession =
                                                 , session = session
                                                 }
                                             )
-                                            filter
+                                            (buildQueryParams filter shuffle)
                                    )
                         )
                     |> Maybe.withDefault AwaitInitialization
             )
-            (s "entries" </> string </> s "_edit" <?> Query.string "filter")
+            (s "entries" </> string </> s "_edit" <?> Query.string "filter" <?> Query.int "shuffle")
         ]
 
 
