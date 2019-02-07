@@ -12,7 +12,7 @@ import Html exposing (Html, div)
 import Json.Decode as Decode
 import Ports
 import Task
-import Time exposing (Month(..), Zone, ZoneName(..))
+import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 import Url exposing (Url)
 
 
@@ -32,14 +32,15 @@ type Msg
     | ShowNotification String
 
 
-init : Url -> Key -> ( Model, Cmd Msg )
-init url navigationKey =
+init : Posix -> Url -> Key -> ( Model, Cmd Msg )
+init startTime url navigationKey =
     ( { session =
             { navigationKey = navigationKey
             , userId = Nothing
             , dict = Nothing
             , zone = Nothing
             , zoneName = Nothing
+            , startTime = startTime
             }
       , url = Just url
       , notification = Notification.initialModel

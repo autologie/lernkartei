@@ -8,6 +8,7 @@ import Data.Session as Session exposing (AccumulatingSession, Session)
 import Pages.Card
 import Pages.Editor
 import Pages.Initialize
+import Time
 import Url exposing (Protocol(..), Url)
 import Url.Parser exposing ((</>), (<?>), s, string)
 import Url.Parser.Query as Query
@@ -23,24 +24,11 @@ type Route
 type RoutingAction
     = AwaitInitialization
     | RedirectToRandom GlobalQueryParams
-    | Show Route GlobalQueryParams
+    | Show Route
 
 
 resolve : Maybe Session -> Url.Parser.Parser (RoutingAction -> a) a
 resolve maybeSession =
-    let
-        emptyEntry =
-            Entry.empty
-
-        buildQueryParams : Maybe String -> Maybe Int -> GlobalQueryParams
-        buildQueryParams filters shuffle =
-            { filters = filters
-            , shuffle =
-                shuffle
-                    |> Maybe.map (\n -> n == 1)
-                    |> Maybe.withDefault False
-            }
-    in
     Url.Parser.oneOf
         [ Url.Parser.map
             (\a b -> buildQueryParams a b |> RedirectToRandom)
@@ -49,56 +37,82 @@ resolve maybeSession =
             (\a b -> buildQueryParams a b |> RedirectToRandom)
             (Url.Parser.top <?> Query.string "filter" <?> Query.int "shuffle")
         , Url.Parser.map
-            (\de filter shuffle ->
-                maybeSession
-                    |> Maybe.map
-                        (\session ->
-                            Show
-                                (Editor
-                                    { entry = { emptyEntry | de = Maybe.withDefault "" de }
-                                    , originalEntry = Nothing
-                                    , dialog = Nothing
-                                    , session = session
-                                    }
-                                )
-                                (buildQueryParams filter shuffle)
-                        )
-                    |> Maybe.withDefault AwaitInitialization
-            )
+            (dispatchNewEntry maybeSession)
             (s "entries" </> s "_new" <?> Query.string "de" <?> Query.string "filter" <?> Query.int "shuffle")
         , Url.Parser.map
-            (\de filter shuffle ->
-                maybeSession
-                    |> Maybe.map
-                        (\session ->
-                            Show (Card (Pages.Card.initialModel session de))
-                                (buildQueryParams filter shuffle)
-                        )
-                    |> Maybe.withDefault AwaitInitialization
-            )
+            (dispatchCard maybeSession)
             (s "entries" </> string <?> Query.string "filter" <?> Query.int "shuffle")
         , Url.Parser.map
-            (\de filter shuffle ->
-                maybeSession
-                    |> Maybe.map
-                        (\session ->
-                            Dictionary.get de session.dict
-                                |> (\entry ->
-                                        Show
-                                            (Editor
-                                                { entry = entry
-                                                , originalEntry = Just entry
-                                                , dialog = Nothing
-                                                , session = session
-                                                }
-                                            )
-                                            (buildQueryParams filter shuffle)
-                                   )
-                        )
-                    |> Maybe.withDefault AwaitInitialization
-            )
+            (dispatchEditor maybeSession)
             (s "entries" </> string </> s "_edit" <?> Query.string "filter" <?> Query.int "shuffle")
         ]
+
+
+dispatchCard maybeSession de filter shuffle =
+    let
+        withSession session =
+            Show
+                (Card
+                    (Pages.Card.initialModel
+                        { session | globalParams = buildQueryParams filter shuffle }
+                        de
+                    )
+                )
+    in
+    maybeSession
+        |> Maybe.map withSession
+        |> Maybe.withDefault AwaitInitialization
+
+
+dispatchNewEntry maybeSession de filter shuffle =
+    let
+        emptyEntry =
+            Entry.empty
+
+        withSession session =
+            Show
+                (Editor
+                    { entry = { emptyEntry | de = Maybe.withDefault "" de }
+                    , originalEntry = Nothing
+                    , dialog = Nothing
+                    , session = { session | globalParams = buildQueryParams filter shuffle }
+                    }
+                )
+    in
+    maybeSession
+        |> Maybe.map withSession
+        |> Maybe.withDefault AwaitInitialization
+
+
+dispatchEditor maybeSession de filter shuffle =
+    let
+        withSession session =
+            let
+                entry =
+                    Dictionary.get de session.dict
+            in
+            Show
+                (Editor
+                    { entry = entry
+                    , originalEntry = Just entry
+                    , dialog = Nothing
+                    , session = { session | globalParams = buildQueryParams filter shuffle }
+                    }
+                )
+    in
+    maybeSession
+        |> Maybe.map withSession
+        |> Maybe.withDefault AwaitInitialization
+
+
+buildQueryParams : Maybe String -> Maybe Int -> GlobalQueryParams
+buildQueryParams filters shuffle =
+    { filters = filters
+    , shuffle =
+        shuffle
+            |> Maybe.map (\n -> n == 1)
+            |> Maybe.withDefault False
+    }
 
 
 extractSession : Route -> Maybe Session
@@ -135,4 +149,5 @@ extractAccumulatingSession routes =
             , dict = Nothing
             , zone = Nothing
             , zoneName = Nothing
+            , startTime = Time.millisToPosix 0
             }

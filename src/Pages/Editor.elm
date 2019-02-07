@@ -1,5 +1,6 @@
 port module Pages.Editor exposing (Model, Msg(..), update, view)
 
+import AppUrl exposing (GlobalQueryParams)
 import Array
 import Browser.Navigation exposing (Key)
 import Components.Dialog as Dialog
@@ -211,8 +212,8 @@ view { entry, originalEntry, dialog, session } =
         )
 
 
-update : Model -> Msg -> (Maybe Entry -> Cmd Msg) -> ( Model, Cmd Msg )
-update model msg navigateTo =
+update : Model -> Msg -> ( Model, Cmd Msg )
+update model msg =
     case msg of
         CloseEditor ->
             ( model
@@ -250,7 +251,7 @@ update model msg navigateTo =
                                         Ports.deleteEntry ( model.session.userId, oe.de )
                                 )
                             |> Maybe.withDefault Cmd.none
-                        , navigateTo (Just theEntry)
+                        , navigateTo model.session (Just theEntry)
                         ]
                     )
                 )
@@ -278,7 +279,7 @@ update model msg navigateTo =
                           }
                         , Cmd.batch
                             [ Ports.deleteEntry ( model.session.userId, oe.de )
-                            , navigateTo Nothing
+                            , navigateTo model.session Nothing
                             ]
                         )
                     )
@@ -444,3 +445,12 @@ describeDate zone zoneName posix =
         , ")"
         ]
             |> String.join ""
+
+
+navigateTo { navigationKey, globalParams } maybeEntry =
+    Browser.Navigation.pushUrl navigationKey
+        (maybeEntry
+            |> Maybe.map (\{ de } -> AppUrl.card de globalParams)
+            |> Maybe.withDefault (AppUrl.top globalParams)
+            |> AppUrl.toString
+        )

@@ -1,8 +1,9 @@
 module Data.Session exposing (AccumulatingSession, Session, toAccumulatingSession, toSession, withDict)
 
+import AppUrl exposing (GlobalQueryParams)
 import Browser.Navigation exposing (Key)
 import Data.Dictionary exposing (Dictionary)
-import Time exposing (Month(..), Zone, ZoneName(..))
+import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 
 
 type alias Session =
@@ -11,6 +12,8 @@ type alias Session =
     , dict : Dictionary
     , zone : Zone
     , zoneName : ZoneName
+    , globalParams : GlobalQueryParams
+    , startTime : Posix
     }
 
 
@@ -20,6 +23,7 @@ type alias AccumulatingSession =
     , dict : Maybe Dictionary
     , zone : Maybe Zone
     , zoneName : Maybe ZoneName
+    , startTime : Posix
     }
 
 
@@ -29,12 +33,13 @@ withDict dict session =
 
 
 toAccumulatingSession : Session -> AccumulatingSession
-toAccumulatingSession { navigationKey, userId, dict, zone, zoneName } =
+toAccumulatingSession { navigationKey, userId, dict, zone, zoneName, globalParams, startTime } =
     { navigationKey = navigationKey
     , userId = Just userId
     , dict = Just dict
     , zone = Just zone
     , zoneName = Just zoneName
+    , startTime = startTime
     }
 
 
@@ -47,6 +52,8 @@ toSession session =
             , dict = dict
             , zone = Time.utc
             , zoneName = Offset 0
+            , globalParams = AppUrl.emptyParams
+            , startTime = session.startTime
             }
         )
         session.userId

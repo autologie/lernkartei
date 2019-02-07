@@ -1,6 +1,6 @@
 module Main exposing (main)
 
-import AppUrl exposing (GlobalQueryParams)
+import AppUrl
 import Array exposing (Array)
 import Browser exposing (UrlRequest(..))
 import Browser.Dom as Dom
@@ -48,7 +48,6 @@ type alias Model =
     , route : Route
     , notification : Notification.Model
     , navigationKey : Key
-    , params : GlobalQueryParams
     , startTime : Time.Posix
     }
 
@@ -80,13 +79,12 @@ init : Int -> Url -> Key -> ( Model, Cmd Msg )
 init startTimeMillis url navigationKey =
     let
         ( pageModel, pageCmd ) =
-            Pages.Initialize.init url navigationKey
+            Pages.Initialize.init (startTimeMillis |> Time.millisToPosix) url navigationKey
     in
     ( { seed = Random.initialSeed startTimeMillis
       , route = Initializing pageModel
       , notification = Notification.initialModel
       , navigationKey = navigationKey
-      , params = AppUrl.emptyParams
       , startTime = startTimeMillis |> Time.millisToPosix
       }
     , pageCmd |> Cmd.map (InitializeMsg >> PageMsg)
@@ -117,7 +115,7 @@ update msg model =
                     pageStep Initializing InitializeMsg (Pages.Initialize.update pageModel pageMsg) model
 
                 ( Editor pageModel, EditorMsg pageMsg ) ->
-                    pageStep Editor EditorMsg (Pages.Editor.update pageModel pageMsg (navigateTo model)) model
+                    pageStep Editor EditorMsg (Pages.Editor.update pageModel pageMsg) model
 
                 ( Card pageModel, CardMsg pageMsg ) ->
                     pageStep Card CardMsg (Pages.Card.update pageModel pageMsg) model
@@ -166,8 +164,8 @@ dispatchRoute model url =
             Routes.extractSession model.route
     in
     case Url.Parser.parse (Routes.resolve maybeSession) url of
-        Just (Show r params) ->
-            ( { model | route = r, params = params }
+        Just (Show r) ->
+            ( { model | route = r }
             , case r of
                 Editor _ ->
                     Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
@@ -201,19 +199,13 @@ dispatchRoute model url =
                         , session = Routes.extractAccumulatingSession model.route
                         , notification = Notification.initialModel
                         }
-                , params = params
                 , seed = updatedSeed
               }
             , Browser.Navigation.replaceUrl model.navigationKey
-                ("/entries/"
-                    ++ (maybeEntry
-                            |> Maybe.map (\e -> e.de)
-                            |> Maybe.withDefault "_new"
-                       )
-                    ++ (params.filters
-                            |> Maybe.map (\st -> "?filter=" ++ st)
-                            |> Maybe.withDefault ""
-                       )
+                (maybeEntry
+                    |> Maybe.map (\{ de } -> AppUrl.card de params)
+                    |> Maybe.withDefault (AppUrl.newEntry Nothing params)
+                    |> AppUrl.toString
                 )
             )
 
@@ -248,12 +240,7 @@ view model =
                 Help.showText "Not found."
 
             Card pageModel ->
-                Html.Lazy.lazy4
-                    Pages.Card.view
-                    model.startTime
-                    model.params.filters
-                    (FilterCondition.applied model.startTime pageModel.session.dict model.params.filters)
-                    pageModel
+                Html.Lazy.lazy Pages.Card.view pageModel
                     |> Html.map (CardMsg >> PageMsg)
 
             Editor pageModel ->
@@ -263,12 +250,3 @@ view model =
                     |> Html.map (EditorMsg >> PageMsg)
         , Notification.view model.notification CloseNotification
         ]
-
-
-navigateTo model maybeEntry =
-    Browser.Navigation.pushUrl model.navigationKey
-        (maybeEntry
-            |> Maybe.map (\{ de } -> AppUrl.card de model.params)
-            |> Maybe.withDefault (AppUrl.top model.params)
-            |> AppUrl.toString
-        )

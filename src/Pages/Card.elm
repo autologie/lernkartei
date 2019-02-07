@@ -6,6 +6,7 @@ import Browser.Navigation
 import Components.Icon as Icon exposing (add)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
+import Data.FilterCondition as FilterCondition
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
@@ -71,7 +72,7 @@ update model msg =
         SearchInput text ->
             ( model
             , Browser.Navigation.pushUrl model.session.navigationKey
-                (AppUrl.card model.entry.de AppUrl.emptyParams
+                (AppUrl.card model.entry.de model.session.globalParams
                     |> AppUrl.withFilters text
                     |> AppUrl.toString
                 )
@@ -88,7 +89,7 @@ update model msg =
         ClearSearchText ->
             ( model
             , Browser.Navigation.pushUrl model.session.navigationKey
-                (AppUrl.card model.entry.de AppUrl.emptyParams
+                (AppUrl.card model.entry.de model.session.globalParams
                     |> AppUrl.withoutFilters
                     |> AppUrl.toString
                 )
@@ -110,8 +111,12 @@ update model msg =
             )
 
 
-view : Time.Posix -> Maybe String -> Dictionary -> Model -> Html Msg
-view startTime searchText results model =
+view : Model -> Html Msg
+view model =
+    let
+        results =
+            FilterCondition.applied model.session.startTime model.session.dict model.session.globalParams.filters
+    in
     Html.Keyed.node "div"
         [ Help.classNames
             [ "container"
@@ -140,7 +145,7 @@ view startTime searchText results model =
                                 []
                                 [ a
                                     [ href
-                                        (AppUrl.randomCard AppUrl.emptyParams
+                                        (AppUrl.randomCard model.session.globalParams
                                             |> AppUrl.withFilters ("t:" ++ String.fromInt -n ++ "d+1d")
                                             |> AppUrl.toString
                                         )
@@ -172,33 +177,33 @@ view startTime searchText results model =
                         , "text-lg"
                         , "py-2"
                         ]
-                    , value (searchText |> Maybe.withDefault "")
+                    , value (model.session.globalParams.filters |> Maybe.withDefault "")
                     ]
                     []
-                , resultCountView startTime searchText results model
+                , resultCountView model.session.startTime results model
                 ]
            )
          ]
-            ++ (case ( model.expandSearchResults || Array.length results == 0, searchText ) of
+            ++ (case ( model.expandSearchResults || Array.length results == 0, model.session.globalParams.filters ) of
                     ( True, Just text ) ->
-                        [ ( "searchResult", searchResultView results text ) ]
+                        [ ( "searchResult", searchResultView results text model.session.globalParams ) ]
 
                     _ ->
                         []
                )
-            ++ [ ( "card", cardView searchText model results model.entry ) ]
-            ++ [ ( "addButton", addButton searchText ) ]
+            ++ [ ( "card", cardView model results model.entry ) ]
+            ++ [ ( "addButton", addButton model.session.globalParams ) ]
         )
 
 
-resultCountView : Time.Posix -> Maybe String -> Dictionary -> Model -> Html Msg
-resultCountView startTime searchText results model =
+resultCountView : Time.Posix -> Dictionary -> Model -> Html Msg
+resultCountView startTime results model =
     let
         resultCount =
             results |> Array.length
 
         ( isFiltered, isClickable ) =
-            searchText
+            model.session.globalParams.filters
                 |> Maybe.map (\_ -> ( True, resultCount > 0 ))
                 |> Maybe.withDefault ( False, False )
 
@@ -259,16 +264,12 @@ resultCountView startTime searchText results model =
         )
 
 
-searchResultView : Dictionary -> String -> Html Msg
-searchResultView results searchText =
+searchResultView : Dictionary -> String -> GlobalQueryParams -> Html Msg
+searchResultView results searchText globalParams =
     case Array.length results of
         0 ->
             a
-                [ href
-                    (AppUrl.newEntry Nothing AppUrl.emptyParams
-                        |> AppUrl.withFilters searchText
-                        |> AppUrl.toString
-                    )
+                [ href (AppUrl.newEntry (Just searchText) globalParams |> AppUrl.toString)
                 , Help.classNames
                     (Help.btnClasses True False
                         ++ [ "p-3"
@@ -320,8 +321,8 @@ hilighted searchText str =
     [ span [] [ text str ] ]
 
 
-cardView : Maybe String -> Model -> Dictionary -> Entry -> Html Msg
-cardView searchText model results entry =
+cardView : Model -> Dictionary -> Entry -> Html Msg
+cardView model results entry =
     let
         textToShow =
             if model.isTranslated then
@@ -335,6 +336,9 @@ cardView searchText model results entry =
 
         hasNext =
             Array.length results > 1
+
+        searchText =
+            model.session.globalParams.filters
     in
     div []
         [ div
@@ -517,7 +521,7 @@ entryDetailView { de, pos, ja, example } =
         )
 
 
-addButton searchText =
+addButton globalParams =
     a
         [ Help.classNames
             [ "fixed"
@@ -538,11 +542,7 @@ addButton searchText =
             , "shadow-lg"
             , "no-underline"
             ]
-        , href
-            (AppUrl.newEntry Nothing AppUrl.emptyParams
-                |> (searchText |> Maybe.map AppUrl.withFilters |> Maybe.withDefault AppUrl.withoutFilters)
-                |> AppUrl.toString
-            )
+        , href (AppUrl.newEntry Nothing globalParams |> AppUrl.toString)
         ]
         [ Icon.add "width: .6em; height: .6em;"
         ]
