@@ -1,9 +1,9 @@
-module Data.FilterCondition exposing (FilterCondition(..), applied, isMatchedTo)
+module Data.FilterCondition exposing (Duration(..), FilterCondition(..), applied, parse, toString)
 
 import Array
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry exposing (Entry)
-import Data.PartOfSpeech exposing (PartOfSpeech(..))
+import Data.PartOfSpeech as PartOfSpeech exposing (PartOfSpeech(..))
 import Regex
 import Time
 
@@ -23,16 +23,44 @@ type Duration
     = RelativeDays Int Int
 
 
-isMatchedTo : Time.Posix -> String -> Entry -> Bool
-isMatchedTo now str entry =
-    str |> parse |> List.all (isMatchedToHelp now entry)
-
-
 parse : String -> List FilterCondition
 parse str =
     str
         |> String.split " "
         |> List.map fromString
+
+
+toString : List FilterCondition -> String
+toString =
+    List.map toStringHelp >> String.join " "
+
+
+toStringHelp : FilterCondition -> String
+toStringHelp filter =
+    case filter of
+        StartsWith s ->
+            "^" ++ s
+
+        EndsWith s ->
+            s ++ "$"
+
+        Contains s ->
+            s
+
+        PartOfSpeechIs pos ->
+            PartOfSpeech.toString pos
+
+        IsStarred ->
+            ":s"
+
+        IsAddedIn (RelativeDays from numberOfDays) ->
+            "t:-" ++ String.fromInt from ++ "d+" ++ String.fromInt numberOfDays ++ "d"
+
+        HasTag s ->
+            "e:" ++ s
+
+        NeverMatch _ ->
+            ""
 
 
 relativeDaysRegex =
@@ -99,8 +127,8 @@ fromString str =
         Contains (String.toLower str)
 
 
-isMatchedToHelp : Time.Posix -> Entry -> FilterCondition -> Bool
-isMatchedToHelp now { de, pos, ja, starred, addedAt, tags } filter =
+isMatchedTo : Time.Posix -> Entry -> FilterCondition -> Bool
+isMatchedTo now { de, pos, ja, starred, addedAt, tags } filter =
     let
         lowerDe =
             String.toLower de
@@ -150,12 +178,6 @@ isMatchedToHelp now { de, pos, ja, starred, addedAt, tags } filter =
             False
 
 
-applied : Time.Posix -> Dictionary -> Maybe String -> Dictionary
-applied now dict maybeSearchText =
-    maybeSearchText
-        |> Maybe.map
-            (\searchText ->
-                dict
-                    |> Array.filter (isMatchedTo now searchText)
-            )
-        |> Maybe.withDefault dict
+applied : Time.Posix -> Dictionary -> List FilterCondition -> Dictionary
+applied now dict filters =
+    dict |> Array.filter (\e -> List.all (isMatchedTo now e) filters)

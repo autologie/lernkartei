@@ -1,7 +1,7 @@
 module Data.Session exposing (AccumulatingSession, Session, toAccumulatingSession, toSession, withDict)
 
-import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Browser.Navigation exposing (Key)
+import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary exposing (Dictionary)
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 
@@ -53,7 +53,7 @@ toSession session =
             , zone = Time.utc
             , zoneName = Offset 0
             , globalParams =
-                { filters = Nothing
+                { filters = []
                 , shuffle = False
                 , translate = False
                 }

@@ -7,7 +7,8 @@
     "start": "parcel index.html",
     "build": "yarn run deploy:firebase && parcel build index.html",
     "format": "elm-format --yes src/",
-    "deploy:firebase": "firebase deploy --token \"$FIREBASE_TOKEN\" --only firestore"
+    "deploy:firebase": "firebase deploy --token \"$FIREBASE_TOKEN\" --only firestore",
+    "test": "elm-test"
   },
   "devDependencies": {
     "elm-format": "^0.8.1",
@@ -23,6 +24,7 @@
     "@firebase/auth": "^0.9.1",
     "@firebase/firestore": "^0.9.2",
     "babel-polyfill": "^6.26.0",
+    "elm-test": "^0.19.0-rev4",
     "register-service-worker": "^1.5.2"
   },
   "sw-precache": {

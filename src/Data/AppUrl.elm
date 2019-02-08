@@ -13,11 +13,12 @@ module Data.AppUrl exposing
     , withoutFilters
     )
 
+import Data.FilterCondition as FilterCondition exposing (FilterCondition)
 import Url.Builder as Builder exposing (QueryParameter)
 
 
 type alias GlobalQueryParams =
-    { filters : Maybe String
+    { filters : List FilterCondition
     , shuffle : Bool
     , translate : Bool
     }
@@ -43,9 +44,11 @@ toString url =
 
         toStringWithParams path extraParams { filters, shuffle, translate } =
             Builder.relative path
-                ((filters
-                    |> Maybe.map (\f -> [ Builder.string "filter" f ])
-                    |> Maybe.withDefault []
+                ((if List.length filters == 0 then
+                    []
+
+                  else
+                    [ Builder.string "filter" (FilterCondition.toString filters) ]
                  )
                     ++ [ Builder.int "shuffle" (encodeBool shuffle) ]
                     ++ [ Builder.int "translate" (encodeBool translate) ]
@@ -97,14 +100,14 @@ newEntry maybeIndex params =
     NewEntryUrl maybeIndex params
 
 
-withFilters : String -> AppUrl -> AppUrl
+withFilters : List FilterCondition -> AppUrl -> AppUrl
 withFilters filters =
-    withParams (\params -> { params | filters = Just filters })
+    withParams (\params -> { params | filters = filters })
 
 
 withoutFilters : AppUrl -> AppUrl
 withoutFilters =
-    withParams (\params -> { params | filters = Nothing })
+    withParams (\params -> { params | filters = [] })
 
 
 toggleShuffle : AppUrl -> AppUrl

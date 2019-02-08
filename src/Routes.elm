@@ -4,6 +4,7 @@ import Browser.Navigation exposing (Key)
 import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry
+import Data.FilterCondition as FilterCondition
 import Data.Session as Session exposing (AccumulatingSession, Session)
 import Pages.Card
 import Pages.Editor
@@ -30,31 +31,28 @@ type RoutingAction
 resolve : Maybe Session -> Url.Parser.Parser (RoutingAction -> a) a
 resolve maybeSession =
     let
-        translate =
-            Query.int "translate"
-
-        shuffle =
-            Query.int "shuffle"
-
-        filter =
-            Query.string "filter"
+        globalParams path =
+            path
+                <?> Query.string "filter"
+                <?> Query.int "translate"
+                <?> Query.int "shuffle"
     in
     Url.Parser.oneOf
         [ Url.Parser.map
             (\a b c -> buildQueryParams a b c |> RedirectToRandom)
-            (s "entries" </> s "_next" <?> filter <?> shuffle <?> translate)
+            (s "entries" </> s "_next" |> globalParams)
         , Url.Parser.map
             (\a b c -> buildQueryParams a b c |> RedirectToRandom)
-            (Url.Parser.top <?> filter <?> shuffle <?> translate)
+            (Url.Parser.top |> globalParams)
         , Url.Parser.map
             (dispatchNewEntry maybeSession)
-            (s "entries" </> s "_new" <?> Query.string "de" <?> filter <?> shuffle <?> translate)
+            (s "entries" </> s "_new" <?> Query.string "de" |> globalParams)
         , Url.Parser.map
             (dispatchCard maybeSession)
-            (s "entries" </> string <?> filter <?> shuffle <?> translate)
+            (s "entries" </> string |> globalParams)
         , Url.Parser.map
             (dispatchEditor maybeSession)
-            (s "entries" </> string </> s "_edit" <?> filter <?> shuffle <?> translate)
+            (s "entries" </> string </> s "_edit" |> globalParams)
         ]
 
 
@@ -116,12 +114,15 @@ dispatchEditor maybeSession de filter shuffle translate =
 
 
 buildQueryParams : Maybe String -> Maybe Int -> Maybe Int -> GlobalQueryParams
-buildQueryParams filters shuffle translate =
+buildQueryParams maybeFilters shuffle translate =
     let
         parseBool =
             Maybe.map ((==) 1) >> Maybe.withDefault False
     in
-    { filters = filters
+    { filters =
+        maybeFilters
+            |> Maybe.map FilterCondition.parse
+            |> Maybe.withDefault []
     , shuffle = parseBool shuffle
     , translate = parseBool translate
     }
