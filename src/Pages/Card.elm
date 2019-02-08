@@ -568,7 +568,7 @@ addButton entry globalParams =
                 , "shadow-lg"
                 , "no-underline"
                 ]
-            , href (AppUrl.nextCard globalParams |> AppUrl.toString)
+            , href (AppUrl.newEntry Nothing globalParams |> AppUrl.toString)
             ]
             [ Icon.add "width: .6em; height: .6em;" ]
         ]
