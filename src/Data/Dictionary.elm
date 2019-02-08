@@ -26,10 +26,12 @@ type DictValidationError
     | InvalidEntry Entry EntryValidationError
 
 
+without : Entry -> Dictionary -> Dictionary
 without entry =
     Array.filter ((/=) entry)
 
 
+empty : Dictionary
 empty =
     Array.empty
 
@@ -58,7 +60,7 @@ nextEntry index dict =
 
         numberForIndex =
             numberedDict
-                |> Array.filter (\( n, entry ) -> entry.de == index)
+                |> Array.filter (\( _, entry ) -> entry.de == index)
                 |> Array.map (\( n, _ ) -> n)
                 |> Array.get 0
     in

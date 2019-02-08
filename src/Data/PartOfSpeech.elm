@@ -14,6 +14,7 @@ type PartOfSpeech
     | Modalpartikel
 
 
+items : List PartOfSpeech
 items =
     [ Verb
     , Substantiv

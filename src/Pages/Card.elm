@@ -6,7 +6,7 @@ import Components.Icon as Icon exposing (add)
 import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
-import Data.FilterCondition as FilterCondition exposing (Duration(..), FilterCondition(..))
+import Data.Filter as Filter exposing (Duration(..), Filter(..))
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
@@ -16,7 +16,6 @@ import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Html.Keyed
 import Json.Decode as Decode
 import Ports
-import Time
 
 
 type alias Model =
@@ -44,10 +43,11 @@ initialModel session entryDe =
     , expandSearchResults = False
     , session = session
     , searchInputBuffer =
-        session.globalParams.filters |> FilterCondition.toString
+        session.globalParams.filters |> Filter.toString
     }
 
 
+subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch []
 
@@ -80,7 +80,7 @@ update model msg =
                     ( model
                     , Browser.Navigation.pushUrl model.session.navigationKey
                         (AppUrl.card model.entry.de model.session.globalParams
-                            |> AppUrl.withFilters (FilterCondition.parse text)
+                            |> AppUrl.withFilters (Filter.parse text)
                             |> AppUrl.toString
                         )
                     )
@@ -122,7 +122,7 @@ view : Model -> Html Msg
 view model =
     let
         results =
-            FilterCondition.applied model.session.startTime model.session.dict model.session.globalParams.filters
+            Filter.applied model.session.startTime model.session.dict model.session.globalParams.filters
     in
     Html.Keyed.node "div"
         [ Help.classNames
@@ -174,7 +174,7 @@ view model =
            )
          , ( "search"
            , div [ Help.classNames [ "relative", "mb-5" ] ]
-                ([ input
+                (input
                     [ type_ "text"
                     , onInput SearchInput
                     , Help.classNames
@@ -188,8 +188,7 @@ view model =
                     , value model.searchInputBuffer
                     ]
                     []
-                 ]
-                    ++ (errorInFilterText model.searchInputBuffer
+                    :: (errorInFilterText model.searchInputBuffer
                             |> Maybe.map
                                 (\errorMessage ->
                                     [ p
@@ -203,7 +202,7 @@ view model =
                                 )
                             |> Maybe.withDefault []
                        )
-                    ++ [ resultCountView model.session.startTime results model ]
+                    ++ [ resultCountView results model ]
                 )
            )
          ]
@@ -220,13 +219,14 @@ view model =
                             |> Maybe.map (\el -> [ ( "searchResult", el ) ])
                             |> Maybe.withDefault []
                )
-            ++ [ ( "card", cardView model results model.entry ) ]
-            ++ [ ( "addButton", addButton model.entry model.session.globalParams ) ]
+            ++ [ ( "card", cardView model results model.entry )
+               , ( "addButton", addButton model.entry model.session.globalParams )
+               ]
         )
 
 
-resultCountView : Time.Posix -> Dictionary -> Model -> Html Msg
-resultCountView startTime results model =
+resultCountView : Dictionary -> Model -> Html Msg
+resultCountView results model =
     let
         resultCount =
             results |> Array.length
@@ -330,6 +330,7 @@ searchResultView results globalParams =
                 )
 
 
+searchResultRow : GlobalQueryParams -> Entry -> Html Msg
 searchResultRow globalParams entry =
     li
         []
@@ -345,15 +346,10 @@ searchResultRow globalParams entry =
                 ]
             , href (AppUrl.card entry.de globalParams |> AppUrl.toString)
             ]
-            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] (hilighted globalParams.filters entry.de)
-            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] (hilighted globalParams.filters entry.ja)
+            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] [ span [] [ text entry.de ] ]
+            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] [ span [] [ text entry.ja ] ]
             ]
         ]
-
-
-hilighted searchText str =
-    -- TODO
-    [ span [] [ text str ] ]
 
 
 cardView : Model -> Dictionary -> Entry -> Html Msg
@@ -499,6 +495,7 @@ cardView model results entry =
         ]
 
 
+cardBehindView : Float -> Float -> Int -> Html Msg
 cardBehindView rotateValue y zIndex =
     div
         [ Help.classNames
@@ -515,7 +512,8 @@ cardBehindView rotateValue y zIndex =
         []
 
 
-entryDetailView { de, pos, ja, example, tags } =
+entryDetailView : Entry -> Html Msg
+entryDetailView { pos, example, tags } =
     div
         [ Help.classNames
             [ "text-grey-dark"
@@ -557,6 +555,7 @@ entryDetailView { de, pos, ja, example, tags } =
         )
 
 
+addButton : Entry -> GlobalQueryParams -> Html Msg
 addButton entry globalParams =
     div
         [ Help.classNames
@@ -620,7 +619,7 @@ addButton entry globalParams =
 errorInFilterText : String -> Maybe String
 errorInFilterText filterText =
     filterText
-        |> FilterCondition.parse
+        |> Filter.parse
         |> List.foldl
             (\filter passed ->
                 case ( passed, filter ) of

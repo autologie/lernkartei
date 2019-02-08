@@ -1,22 +1,20 @@
-port module Pages.Editor exposing (Model, Msg(..), update, view)
+module Pages.Editor exposing (Model, Msg(..), update, view)
 
 import Array
-import Browser.Navigation exposing (Key)
+import Browser.Navigation
 import Components.Dialog as Dialog
 import Components.Icon as Icon
-import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
-import Data.Dictionary as Dictionary exposing (DictValidationError(..), Dictionary)
+import Data.AppUrl as AppUrl
+import Data.Dictionary as Dictionary exposing (DictValidationError(..))
 import Data.Entry as Entry exposing (Entry, EntryValidationError(..))
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
-import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput, stopPropagationOn)
-import Json.Encode as Encode
+import Html exposing (Html, button, div, input, label, option, p, select, text, textarea)
+import Html.Attributes exposing (disabled, id, rows, selected, style, type_, value)
+import Html.Events exposing (onClick, onInput)
 import Ports
-import Task
-import Time exposing (Month(..), Zone, ZoneName(..))
+import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 
 
 type Msg
@@ -356,6 +354,7 @@ inputRowView fieldName inputView maybeError =
         )
 
 
+textInputView : Maybe String -> String -> Bool -> (String -> Msg) -> List String -> Html Msg
 textInputView maybeInputId inputValue multiline handleInput formClasses =
     if multiline then
         textarea
@@ -406,6 +405,7 @@ selectInputView inputValue handleInput options formClasses =
         )
 
 
+describeDate : Zone -> ZoneName -> Posix -> String
 describeDate zone zoneName posix =
     if Time.posixToMillis posix == 0 then
         "(Unknown)"
@@ -465,6 +465,7 @@ describeDate zone zoneName posix =
             |> String.join ""
 
 
+navigateTo : Session -> Maybe Entry -> Cmd Msg
 navigateTo { navigationKey, globalParams } maybeEntry =
     Browser.Navigation.pushUrl navigationKey
         (maybeEntry

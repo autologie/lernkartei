@@ -1,22 +1,25 @@
 module Help exposing (btnClasses, classNames, groupedBtnClasses, isJust, replaceEntry, showText, updateWithCurrentTime)
 
 import Data.Entry exposing (Entry)
-import Html exposing (div, text)
+import Html exposing (Attribute, Html, div, text)
 import Html.Attributes exposing (classList)
 import Task
 import Time
 
 
+classNames : List String -> Attribute a
 classNames names =
     names
         |> List.map (\className -> ( className, True ))
         |> classList
 
 
+btnClasses : Bool -> Bool -> List String
 btnClasses selected disabled =
     groupedBtnClasses selected disabled True True
 
 
+groupedBtnClasses : Bool -> Bool -> Bool -> Bool -> List String
 groupedBtnClasses selected disabled isFirst isLast =
     [ ( "rounded-l", isFirst )
     , ( "rounded-r", isLast )
@@ -58,6 +61,7 @@ updateWithCurrentTime model theUpdate onSuccessfulTime onFailedTime =
     )
 
 
+showText : String -> Html a
 showText message =
     div
         [ classNames
@@ -71,5 +75,6 @@ showText message =
         [ div [] [ text message ] ]
 
 
+isJust : Maybe a -> Bool
 isJust =
     Maybe.map (\_ -> True) >> Maybe.withDefault False

@@ -1,16 +1,15 @@
 module Routes exposing (Route(..), RoutingAction(..), extractAccumulatingSession, extractSession, resolve)
 
 import Browser.Navigation exposing (Key)
-import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
-import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.AppUrl exposing (GlobalQueryParams)
+import Data.Dictionary as Dictionary
 import Data.Entry as Entry
-import Data.FilterCondition as FilterCondition
+import Data.Filter as Filter
 import Data.Session as Session exposing (AccumulatingSession, Session)
 import Pages.Card
 import Pages.Editor
 import Pages.Initialize
 import Time
-import Url exposing (Protocol(..), Url)
 import Url.Parser exposing ((</>), (<?>), s, string)
 import Url.Parser.Query as Query
 
@@ -45,18 +44,19 @@ resolve maybeSession =
             (\a b c -> buildQueryParams a b c |> RedirectToRandom)
             (Url.Parser.top |> globalParams)
         , Url.Parser.map
-            (dispatchNewEntry maybeSession)
+            (resolveNewEntry maybeSession)
             (s "entries" </> s "_new" <?> Query.string "de" |> globalParams)
         , Url.Parser.map
-            (dispatchCard maybeSession)
+            (resolveCard maybeSession)
             (s "entries" </> string |> globalParams)
         , Url.Parser.map
-            (dispatchEditor maybeSession)
+            (resolveEditor maybeSession)
             (s "entries" </> string </> s "_edit" |> globalParams)
         ]
 
 
-dispatchCard maybeSession de filter shuffle translate =
+resolveCard : Maybe Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveCard maybeSession de filter shuffle translate =
     let
         withSession session =
             Show
@@ -72,7 +72,8 @@ dispatchCard maybeSession de filter shuffle translate =
         |> Maybe.withDefault AwaitInitialization
 
 
-dispatchNewEntry maybeSession de filter shuffle translate =
+resolveNewEntry : Maybe Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveNewEntry maybeSession de filter shuffle translate =
     let
         emptyEntry =
             Entry.empty
@@ -92,7 +93,8 @@ dispatchNewEntry maybeSession de filter shuffle translate =
         |> Maybe.withDefault AwaitInitialization
 
 
-dispatchEditor maybeSession de filter shuffle translate =
+resolveEditor : Maybe Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveEditor maybeSession de filter shuffle translate =
     let
         withSession session =
             let
@@ -121,7 +123,7 @@ buildQueryParams maybeFilters shuffle translate =
     in
     { filters =
         maybeFilters
-            |> Maybe.map FilterCondition.parse
+            |> Maybe.map Filter.parse
             |> Maybe.withDefault []
     , shuffle = parseBool shuffle
     , translate = parseBool translate

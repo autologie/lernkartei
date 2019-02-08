@@ -1,13 +1,13 @@
-module FilterConditionSpec exposing (suite)
+module FilterSpec exposing (suite)
 
-import Data.FilterCondition as FilterCondition exposing (..)
+import Data.Filter as Filter exposing (..)
 import Expect exposing (Expectation)
 import Test exposing (..)
 
 
 suite : Test
 suite =
-    describe "FilterCondition"
+    describe "Filter"
         [ describe "parse and stringify valid expressions"
             ([ "t:-3d+2d"
              , "^auf"
@@ -23,8 +23,8 @@ suite =
                         test ("parse and stringify '" ++ exp ++ "'") <|
                             \_ ->
                                 exp
-                                    |> FilterCondition.parse
-                                    |> FilterCondition.toString
+                                    |> Filter.parse
+                                    |> Filter.toString
                                     |> Expect.equal exp
                     )
             )

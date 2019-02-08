@@ -43,6 +43,7 @@ view dialog =
                 ]
 
 
+btnClasses : List String
 btnClasses =
     Help.btnClasses True False
         ++ [ "px-4"

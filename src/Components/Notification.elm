@@ -12,6 +12,7 @@ type alias Model =
     }
 
 
+initialModel : Model
 initialModel =
     { message = ""
     , isShown = False

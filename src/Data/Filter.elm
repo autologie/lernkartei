@@ -1,14 +1,14 @@
-module Data.FilterCondition exposing (Duration(..), FilterCondition(..), applied, parse, toString)
+module Data.Filter exposing (Duration(..), Filter(..), applied, parse, toString)
 
 import Array
-import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.Dictionary exposing (Dictionary)
 import Data.Entry exposing (Entry)
-import Data.PartOfSpeech as PartOfSpeech exposing (PartOfSpeech(..))
-import Regex
+import Data.PartOfSpeech exposing (PartOfSpeech(..))
+import Regex exposing (Regex)
 import Time
 
 
-type FilterCondition
+type Filter
     = StartsWith String
     | EndsWith String
     | Contains String
@@ -23,19 +23,19 @@ type Duration
     = RelativeDays Int Int
 
 
-parse : String -> List FilterCondition
+parse : String -> List Filter
 parse str =
     str
         |> String.split " "
         |> List.map fromString
 
 
-toString : List FilterCondition -> String
+toString : List Filter -> String
 toString =
     List.map toStringHelp >> String.join " "
 
 
-toStringHelp : FilterCondition -> String
+toStringHelp : Filter -> String
 toStringHelp filter =
     case filter of
         StartsWith s ->
@@ -81,11 +81,12 @@ toStringHelp filter =
             ""
 
 
+relativeDaysRegex : Regex
 relativeDaysRegex =
     Regex.fromString "^-([\\d]+)d\\+([\\d]+)d$" |> Maybe.withDefault Regex.never
 
 
-fromString : String -> FilterCondition
+fromString : String -> Filter
 fromString str =
     if String.startsWith "e:" str then
         HasTag (String.dropLeft 2 str)
@@ -145,7 +146,7 @@ fromString str =
         Contains (String.toLower str)
 
 
-isMatchedTo : Time.Posix -> Entry -> FilterCondition -> Bool
+isMatchedTo : Time.Posix -> Entry -> Filter -> Bool
 isMatchedTo now { de, pos, ja, starred, addedAt, tags } filter =
     let
         lowerDe =
@@ -196,6 +197,6 @@ isMatchedTo now { de, pos, ja, starred, addedAt, tags } filter =
             False
 
 
-applied : Time.Posix -> Dictionary -> List FilterCondition -> Dictionary
+applied : Time.Posix -> Dictionary -> List Filter -> Dictionary
 applied now dict filters =
     dict |> Array.filter (\e -> List.all (isMatchedTo now e) filters)

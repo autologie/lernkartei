@@ -1,23 +1,17 @@
 module Main exposing (main)
 
-import Array exposing (Array)
+import Array
 import Browser exposing (UrlRequest(..))
 import Browser.Dom as Dom
 import Browser.Navigation exposing (Key)
 import Components.Notification as Notification
 import Data.AppUrl as AppUrl
-import Data.Dictionary as Dictionary exposing (Dictionary)
-import Data.Entry as Entry exposing (Entry)
-import Data.FilterCondition as FilterCondition
-import Data.PartOfSpeech as PartOfSpeech exposing (PartOfSpeech(..))
-import Data.Session as Session exposing (AccumulatingSession, Session)
+import Data.Dictionary as Dictionary
+import Data.Filter as Filter
+import Data.PartOfSpeech exposing (PartOfSpeech(..))
 import Help
-import Html exposing (Html, a, button, div, h1, h3, input, label, li, option, p, section, select, span, text, textarea, ul)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput, stopPropagationOn)
+import Html exposing (Html, div)
 import Html.Lazy
-import Json.Decode as Decode
-import Json.Encode as Encode
 import Pages.Card exposing (Msg(..))
 import Pages.Editor
 import Pages.Initialize
@@ -26,7 +20,7 @@ import Process
 import Random
 import Routes exposing (Route(..), RoutingAction(..))
 import Task
-import Time exposing (Month(..), Zone, ZoneName(..))
+import Time exposing (Month(..), ZoneName(..))
 import Url exposing (Protocol(..), Url)
 import Url.Parser
 
@@ -182,7 +176,7 @@ dispatchRoute model url =
                         |> Maybe.withDefault False
 
                 entries =
-                    FilterCondition.applied model.startTime
+                    Filter.applied model.startTime
                         (case model.route of
                             Card { entry, session } ->
                                 if shuffle then

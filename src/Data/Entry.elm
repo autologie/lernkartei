@@ -3,7 +3,7 @@ module Data.Entry exposing (Entry, EntryValidationError(..), censorExample, deco
 import Data.PartOfSpeech as PartOfSpeech exposing (PartOfSpeech(..))
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Regex exposing (Regex)
+import Regex
 import Time
 
 
@@ -93,6 +93,7 @@ toComparable entry =
         |> String.replace "ß" "ss"
 
 
+censorExample : String -> String
 censorExample text =
     let
         regex =
@@ -119,7 +120,7 @@ empty =
 
 
 findFirstError : Entry -> Maybe EntryValidationError
-findFirstError { de, ja, example } =
+findFirstError { de, ja } =
     if de == "" then
         Just WordIsEmpty
 

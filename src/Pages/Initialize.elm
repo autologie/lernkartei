@@ -4,7 +4,6 @@ import Array
 import Browser.Navigation exposing (Key)
 import Components.Notification as Notification
 import Data.AppUrl as AppUrl
-import Data.Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.Session as Session exposing (AccumulatingSession)
 import Help
@@ -117,6 +116,7 @@ update model msg =
             )
 
 
+view : Model -> Html Msg
 view model =
     div []
         [ Help.showText "Initializing..."
@@ -142,6 +142,7 @@ reduceError results =
             (Ok [])
 
 
+testSessionAndRouteIfPossible : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 testSessionAndRouteIfPossible ( { session, url } as model, cmd ) =
     Session.toSession session
         |> Maybe.map
