@@ -17,16 +17,16 @@ add theStyle =
         ]
 
 
-close : String -> Svg a
-close theStyle =
+close : String -> String -> Svg a
+close theStyle color =
     svg
         [ width "120"
         , height "120"
         , viewBox "0 0 120 120"
         , style theStyle
         ]
-        [ path [ d "M30,30 L90,90", stroke "#3d4852", fill "transparent", strokeWidth "12" ] []
-        , path [ d "M30,90 L90,30", stroke "#3d4852", fill "transparent", strokeWidth "12" ] []
+        [ path [ d "M30,30 L90,90", stroke color, fill "transparent", strokeWidth "12" ] []
+        , path [ d "M30,90 L90,30", stroke color, fill "transparent", strokeWidth "12" ] []
         ]
 
 

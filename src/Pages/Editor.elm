@@ -220,7 +220,7 @@ view { entry, originalEntry, dialog, session } =
                             , "m-4"
                             ]
                         ]
-                        [ Icon.close "width: 2em; height: 2em" ]
+                        [ Icon.close "width: 2em; height: 2em" "#3d4852" ]
                    ]
             )
          ]

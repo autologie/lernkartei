@@ -31,7 +31,7 @@ main =
         { init = init
         , subscriptions = subscriptions
         , update = update
-        , view = \model -> { title = "Wortkarten", body = [ Html.Lazy.lazy view model ] }
+        , view = \model -> { title = "Wortkarten", body = [ view model ] }
         , onUrlRequest = NewUrlRequested
         , onUrlChange = RouteChanged
         }
