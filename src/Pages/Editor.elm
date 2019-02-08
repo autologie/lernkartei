@@ -61,7 +61,9 @@ view { entry, originalEntry, dialog, session } =
                     ( Nothing, Nothing )
 
         hasError =
-            deError |> Maybe.map (\_ -> True) |> Maybe.withDefault False
+            [ deError, jaError ]
+                |> List.map Help.isJust
+                |> List.member True
 
         { pos, ja, example, updatedAt, addedAt } =
             entry

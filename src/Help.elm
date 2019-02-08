@@ -1,4 +1,4 @@
-module Help exposing (btnClasses, classNames, groupedBtnClasses, replaceEntry, showText, updateWithCurrentTime)
+module Help exposing (btnClasses, classNames, groupedBtnClasses, isJust, replaceEntry, showText, updateWithCurrentTime)
 
 import Data.Entry exposing (Entry)
 import Html exposing (div, text)
@@ -69,3 +69,7 @@ showText message =
             ]
         ]
         [ div [] [ text message ] ]
+
+
+isJust =
+    Maybe.map (\_ -> True) >> Maybe.withDefault False
