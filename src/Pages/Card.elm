@@ -72,17 +72,18 @@ update model msg =
             )
 
         SearchInput text ->
-            if String.endsWith ":" text then
-                ( { model | searchInputBuffer = text }, Cmd.none )
+            case errorInFilterText text of
+                Just _ ->
+                    ( { model | searchInputBuffer = text }, Cmd.none )
 
-            else
-                ( model
-                , Browser.Navigation.pushUrl model.session.navigationKey
-                    (AppUrl.card model.entry.de model.session.globalParams
-                        |> AppUrl.withFilters (FilterCondition.parse text)
-                        |> AppUrl.toString
+                _ ->
+                    ( model
+                    , Browser.Navigation.pushUrl model.session.navigationKey
+                        (AppUrl.card model.entry.de model.session.globalParams
+                            |> AppUrl.withFilters (FilterCondition.parse text)
+                            |> AppUrl.toString
+                        )
                     )
-                )
 
         ToggleSearchResults ->
             ( { model
@@ -173,7 +174,7 @@ view model =
            )
          , ( "search"
            , div [ Help.classNames [ "relative", "mb-5" ] ]
-                [ input
+                ([ input
                     [ type_ "text"
                     , onInput SearchInput
                     , Help.classNames
@@ -181,14 +182,29 @@ view model =
                         , "text-grey-darkest"
                         , "bg-transparent"
                         , "w-full"
-                        , "text-lg"
-                        , "py-2"
+                        , "text-sm"
+                        , "py-4"
                         ]
                     , value model.searchInputBuffer
                     ]
                     []
-                , resultCountView model.session.startTime results model
-                ]
+                 ]
+                    ++ (errorInFilterText model.searchInputBuffer
+                            |> Maybe.map
+                                (\errorMessage ->
+                                    [ p
+                                        [ Help.classNames
+                                            [ "text-red"
+                                            , "my-4"
+                                            ]
+                                        ]
+                                        [ text errorMessage ]
+                                    ]
+                                )
+                            |> Maybe.withDefault []
+                       )
+                    ++ [ resultCountView model.session.startTime results model ]
+                )
            )
          ]
             ++ (case ( model.expandSearchResults || Array.length results == 0, model.session.globalParams.filters ) of
@@ -599,3 +615,22 @@ addButton entry globalParams =
             ]
             [ Icon.add "width: .6em; height: .6em;" ]
         ]
+
+
+errorInFilterText : String -> Maybe String
+errorInFilterText filterText =
+    filterText
+        |> FilterCondition.parse
+        |> List.foldl
+            (\filter passed ->
+                case ( passed, filter ) of
+                    ( Just message, _ ) ->
+                        Just message
+
+                    ( _, NeverMatch message ) ->
+                        Just message
+
+                    _ ->
+                        Nothing
+            )
+            Nothing

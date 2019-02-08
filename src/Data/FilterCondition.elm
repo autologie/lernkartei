@@ -47,8 +47,26 @@ toStringHelp filter =
         Contains s ->
             s
 
-        PartOfSpeechIs pos ->
-            PartOfSpeech.toString pos
+        PartOfSpeechIs Verb ->
+            ":v"
+
+        PartOfSpeechIs Substantiv ->
+            ":sub"
+
+        PartOfSpeechIs Adjektiv ->
+            ":adj"
+
+        PartOfSpeechIs Adverb ->
+            ":adv"
+
+        PartOfSpeechIs Konjunktion ->
+            ":k"
+
+        PartOfSpeechIs Praeposition ->
+            ":p"
+
+        PartOfSpeechIs Modalpartikel ->
+            ":m"
 
         IsStarred ->
             ":s"
@@ -86,7 +104,7 @@ fromString str =
                     |> Maybe.withDefault (NeverMatch "Failed to parse number.")
 
             _ ->
-                NeverMatch (str ++ " is unsupported notation of a term.")
+                NeverMatch ("'" ++ str ++ "' is unsupported notation of a term.")
 
     else if String.startsWith ":" str then
         case str of
@@ -115,7 +133,7 @@ fromString str =
                 PartOfSpeechIs Modalpartikel
 
             _ ->
-                NeverMatch (str ++ " is unsupported directive.")
+                NeverMatch ("'" ++ str ++ "' is unsupported directive.")
 
     else if String.startsWith "^" str then
         StartsWith (String.toLower (String.dropLeft 1 str))
