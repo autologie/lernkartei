@@ -483,7 +483,7 @@ cardBehindView rotateValue y zIndex =
         []
 
 
-entryDetailView { de, pos, ja, example } =
+entryDetailView { de, pos, ja, example, tags } =
     div
         [ Help.classNames
             [ "text-grey-dark"
@@ -511,6 +511,19 @@ entryDetailView { de, pos, ja, example } =
                         )
                     |> Maybe.withDefault []
                )
+            ++ [ section [ Help.classNames [ "mb-2" ] ]
+                    [ h3 [] [ text "Etikett" ]
+                    , p []
+                        [ text
+                            (if List.length tags > 0 then
+                                tags |> String.join ", "
+
+                             else
+                                "-"
+                            )
+                        ]
+                    ]
+               ]
         )
 
 

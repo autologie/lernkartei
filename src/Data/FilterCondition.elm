@@ -16,6 +16,7 @@ type FilterCondition
     | IsStarred
     | IsAddedIn Duration
     | NeverMatch String
+    | HasTag String
 
 
 type Duration
@@ -40,7 +41,10 @@ relativeDaysRegex =
 
 fromString : String -> FilterCondition
 fromString str =
-    if String.startsWith "t:" str then
+    if String.startsWith "e:" str then
+        HasTag (String.dropLeft 2 str)
+
+    else if String.startsWith "t:" str then
         case
             String.dropLeft 2 str
                 |> Regex.find relativeDaysRegex
@@ -96,7 +100,7 @@ fromString str =
 
 
 isMatchedToHelp : Time.Posix -> Entry -> FilterCondition -> Bool
-isMatchedToHelp now { de, pos, ja, starred, addedAt } filter =
+isMatchedToHelp now { de, pos, ja, starred, addedAt, tags } filter =
     let
         lowerDe =
             String.toLower de
@@ -108,6 +112,9 @@ isMatchedToHelp now { de, pos, ja, starred, addedAt } filter =
             [ lowerDe, lowerJa ]
     in
     case filter of
+        HasTag tag ->
+            List.member tag tags
+
         StartsWith head ->
             targets |> List.any (String.startsWith head)
 

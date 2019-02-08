@@ -15,6 +15,7 @@ type alias Entry =
     , addedAt : Time.Posix
     , updatedAt : Time.Posix
     , starred : Bool
+    , tags : List String
     }
 
 
@@ -24,7 +25,7 @@ type EntryValidationError
 
 
 encode : Entry -> Encode.Value
-encode { de, pos, ja, example, addedAt, updatedAt, starred } =
+encode { de, pos, ja, example, addedAt, updatedAt, starred, tags } =
     Encode.object
         ([ ( "id", Encode.string de )
          , ( "partOfSpeech", PartOfSpeech.encode pos )
@@ -32,6 +33,7 @@ encode { de, pos, ja, example, addedAt, updatedAt, starred } =
          , ( "addedAt", Encode.int (Time.posixToMillis addedAt) )
          , ( "updatedAt", Encode.int (Time.posixToMillis updatedAt) )
          , ( "starred", Encode.bool starred )
+         , ( "tags", Encode.list Encode.string tags )
          ]
             ++ (example
                     |> Maybe.map
@@ -43,8 +45,8 @@ encode { de, pos, ja, example, addedAt, updatedAt, starred } =
 
 decode : Decode.Decoder Entry
 decode =
-    Decode.map7
-        (\de pos ja example addedAt updatedAt starred ->
+    Decode.map8
+        (\de pos ja example addedAt updatedAt starred tags ->
             { de = de
             , pos = pos |> Maybe.withDefault Verb
             , ja = ja
@@ -57,6 +59,7 @@ decode =
             , addedAt = Time.millisToPosix (addedAt |> Maybe.withDefault 0)
             , updatedAt = Time.millisToPosix (updatedAt |> Maybe.withDefault 0)
             , starred = starred |> Maybe.withDefault False
+            , tags = tags |> Maybe.withDefault []
             }
         )
         (Decode.field "id" Decode.string)
@@ -66,6 +69,7 @@ decode =
         (Decode.maybe (Decode.field "addedAt" Decode.int))
         (Decode.maybe (Decode.field "updatedAt" Decode.int))
         (Decode.maybe (Decode.field "starred" Decode.bool))
+        (Decode.maybe (Decode.field "tags" (Decode.list Decode.string)))
 
 
 withoutArticle : Entry -> String
@@ -110,6 +114,7 @@ empty =
     , addedAt = Time.millisToPosix 0
     , updatedAt = Time.millisToPosix 0
     , starred = False
+    , tags = []
     }
 
 

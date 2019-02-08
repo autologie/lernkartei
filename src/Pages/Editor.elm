@@ -65,7 +65,7 @@ view { entry, originalEntry, dialog, session } =
                 |> List.map Help.isJust
                 |> List.member True
 
-        { pos, ja, example, updatedAt, addedAt } =
+        { pos, ja, example, updatedAt, addedAt, tags } =
             entry
     in
     div
@@ -128,6 +128,22 @@ view { entry, originalEntry, dialog, session } =
 
                                     else
                                         Just value
+                            }
+                    )
+                )
+                Nothing
+             , inputRowView "Etikett"
+                (textInputView Nothing
+                    (tags |> String.join "\n")
+                    True
+                    (\value ->
+                        WordChange
+                            { entry
+                                | tags =
+                                    value
+                                        |> String.split "\n"
+                                        |> List.map String.trim
+                                        |> List.filter ((/=) "")
                             }
                     )
                 )
