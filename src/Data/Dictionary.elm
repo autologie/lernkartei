@@ -1,4 +1,15 @@
-module Data.Dictionary exposing (DictValidationError(..), Dictionary, added, empty, findFirstError, get, randomEntry, replacedWith, without)
+module Data.Dictionary exposing
+    ( DictValidationError(..)
+    , Dictionary
+    , added
+    , empty
+    , findFirstError
+    , get
+    , nextEntry
+    , randomEntry
+    , replacedWith
+    , without
+    )
 
 import Array exposing (Array)
 import Data.Entry as Entry exposing (Entry, EntryValidationError)
@@ -37,6 +48,27 @@ get de dict =
         |> Array.toList
         |> List.head
         |> Maybe.withDefault { emptyEntry | de = decoded }
+
+
+nextEntry : String -> Dictionary -> Maybe Entry
+nextEntry index dict =
+    let
+        numberedDict =
+            Array.indexedMap (\n entry -> ( n, entry )) dict
+
+        numberForIndex =
+            numberedDict
+                |> Array.filter (\( n, entry ) -> entry.de == index)
+                |> Array.map (\( n, _ ) -> n)
+                |> Array.get 0
+    in
+    numberForIndex
+        |> Maybe.andThen
+            (\nfi ->
+                Array.get
+                    (modBy (Array.length dict) (nfi + 1))
+                    dict
+            )
 
 
 randomEntry : Seed -> Dictionary -> ( Maybe Entry, Seed )

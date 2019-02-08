@@ -52,7 +52,10 @@ toSession session =
             , dict = dict
             , zone = Time.utc
             , zoneName = Offset 0
-            , globalParams = AppUrl.emptyParams
+            , globalParams =
+                { filters = Nothing
+                , shuffle = False
+                }
             , startTime = session.startTime
             }
         )

@@ -3,13 +3,11 @@ module AppUrl exposing
     , GlobalQueryParams
     , card
     , editorFor
-    , emptyParams
     , newEntry
-    , randomCard
-    , shuffled
+    , nextCard
     , toString
+    , toggleShuffle
     , top
-    , unshuffled
     , withFilters
     , withoutFilters
     )
@@ -26,16 +24,9 @@ type alias GlobalQueryParams =
 type AppUrl
     = TopUrl GlobalQueryParams
     | CardUrl String GlobalQueryParams
-    | RandomCardUrl GlobalQueryParams
+    | NextCardUrl GlobalQueryParams
     | EditorUrl String GlobalQueryParams
     | NewEntryUrl (Maybe String) GlobalQueryParams
-
-
-emptyParams : GlobalQueryParams
-emptyParams =
-    { filters = Nothing
-    , shuffle = False
-    }
 
 
 toString : AppUrl -> String
@@ -62,8 +53,8 @@ toString url =
         TopUrl params ->
             toStringWithParams [ "" ] [] params
 
-        RandomCardUrl params ->
-            toStringWithParams [ "", "entries", "_random" ] [] params
+        NextCardUrl params ->
+            toStringWithParams [ "", "entries", "_next" ] [] params
 
         CardUrl index params ->
             toStringWithParams [ "", "entries", index ] [] params
@@ -88,9 +79,9 @@ card index params =
     CardUrl index params
 
 
-randomCard : GlobalQueryParams -> AppUrl
-randomCard params =
-    RandomCardUrl params
+nextCard : GlobalQueryParams -> AppUrl
+nextCard params =
+    NextCardUrl params
 
 
 editorFor : String -> GlobalQueryParams -> AppUrl
@@ -113,14 +104,9 @@ withoutFilters =
     withParams (\params -> { params | filters = Nothing })
 
 
-shuffled : AppUrl -> AppUrl
-shuffled =
-    withParams (\params -> { params | shuffle = True })
-
-
-unshuffled : AppUrl -> AppUrl
-unshuffled =
-    withParams (\params -> { params | shuffle = False })
+toggleShuffle : AppUrl -> AppUrl
+toggleShuffle =
+    withParams (\params -> { params | shuffle = not params.shuffle })
 
 
 withParams : (GlobalQueryParams -> GlobalQueryParams) -> AppUrl -> AppUrl
@@ -129,8 +115,8 @@ withParams updateParams url =
         TopUrl params ->
             TopUrl (updateParams params)
 
-        RandomCardUrl params ->
-            RandomCardUrl (updateParams params)
+        NextCardUrl params ->
+            NextCardUrl (updateParams params)
 
         CardUrl index params ->
             CardUrl index (updateParams params)

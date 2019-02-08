@@ -176,21 +176,43 @@ dispatchRoute model url =
 
         Just (RedirectToRandom params) ->
             let
-                ( maybeEntry, updatedSeed ) =
-                    Dictionary.randomEntry
-                        model.seed
-                        (FilterCondition.applied model.startTime
-                            (case model.route of
-                                Card { entry, session } ->
+                shuffle =
+                    maybeSession
+                        |> Maybe.map (\session -> session.globalParams.shuffle)
+                        |> Maybe.withDefault False
+
+                entries =
+                    FilterCondition.applied model.startTime
+                        (case model.route of
+                            Card { entry, session } ->
+                                if shuffle then
                                     session.dict |> Dictionary.without entry
 
-                                route ->
-                                    Routes.extractSession route
-                                        |> Maybe.map .dict
-                                        |> Maybe.withDefault Dictionary.empty
-                            )
-                            params.filters
+                                else
+                                    session.dict
+
+                            route ->
+                                Routes.extractSession route
+                                    |> Maybe.map .dict
+                                    |> Maybe.withDefault Dictionary.empty
                         )
+                        params.filters
+
+                currentEntry =
+                    case model.route of
+                        Card { entry } ->
+                            entries |> Array.filter ((==) entry) |> Array.get 0
+
+                        _ ->
+                            Nothing
+
+                ( maybeEntry, updatedSeed ) =
+                    case ( shuffle, currentEntry ) of
+                        ( False, Just { de } ) ->
+                            ( Dictionary.nextEntry de entries, model.seed )
+
+                        _ ->
+                            Dictionary.randomEntry model.seed entries
             in
             ( { model
                 | route =

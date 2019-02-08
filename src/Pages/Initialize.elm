@@ -152,7 +152,13 @@ testSessionAndRouteIfPossible ( { session, url } as model, cmd ) =
                     , Browser.Navigation.pushUrl session.navigationKey
                         (url
                             |> Maybe.map Url.toString
-                            |> Maybe.withDefault (AppUrl.randomCard AppUrl.emptyParams |> AppUrl.toString)
+                            |> Maybe.withDefault
+                                (AppUrl.nextCard
+                                    { shuffle = False
+                                    , filters = Nothing
+                                    }
+                                    |> AppUrl.toString
+                                )
                         )
                     ]
                 )

@@ -32,7 +32,7 @@ resolve maybeSession =
     Url.Parser.oneOf
         [ Url.Parser.map
             (\a b -> buildQueryParams a b |> RedirectToRandom)
-            (s "entries" </> s "_random" <?> Query.string "filter" <?> Query.int "shuffle")
+            (s "entries" </> s "_next" <?> Query.string "filter" <?> Query.int "shuffle")
         , Url.Parser.map
             (\a b -> buildQueryParams a b |> RedirectToRandom)
             (Url.Parser.top <?> Query.string "filter" <?> Query.int "shuffle")

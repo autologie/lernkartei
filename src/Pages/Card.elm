@@ -135,6 +135,7 @@ view model =
                     , "rounded-full"
                     , "overflow-scroll"
                     , "p-2"
+                    , "relative"
                     ]
                 ]
                 ([ 1, 2, 3, 4, 5, 6, 7 ]
@@ -145,7 +146,7 @@ view model =
                                 []
                                 [ a
                                     [ href
-                                        (AppUrl.randomCard model.session.globalParams
+                                        (AppUrl.nextCard model.session.globalParams
                                             |> AppUrl.withFilters ("t:" ++ String.fromInt -n ++ "d+1d")
                                             |> AppUrl.toString
                                         )
@@ -192,7 +193,7 @@ view model =
                         []
                )
             ++ [ ( "card", cardView model results model.entry ) ]
-            ++ [ ( "addButton", addButton model.session.globalParams ) ]
+            ++ [ ( "addButton", addButton model.entry model.session.globalParams ) ]
         )
 
 
@@ -287,11 +288,11 @@ searchResultView results searchText globalParams =
                 (results
                     |> Array.toList
                     |> List.sortBy Entry.toComparable
-                    |> List.map (searchResultRow searchText)
+                    |> List.map (searchResultRow globalParams)
                 )
 
 
-searchResultRow searchText entry =
+searchResultRow globalParams entry =
     li
         []
         [ a
@@ -304,14 +305,10 @@ searchResultRow searchText entry =
                 , "text-black"
                 , "hover:bg-grey-lighter"
                 ]
-            , href
-                (AppUrl.card entry.de AppUrl.emptyParams
-                    |> AppUrl.withFilters searchText
-                    |> AppUrl.toString
-                )
+            , href (AppUrl.card entry.de globalParams |> AppUrl.toString)
             ]
-            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] (hilighted searchText entry.de)
-            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] (hilighted searchText entry.ja)
+            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] (hilighted globalParams.filters entry.de)
+            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] (hilighted globalParams.filters entry.ja)
             ]
         ]
 
@@ -438,7 +435,7 @@ cardView model results entry =
                         [ text "Hören" ]
                     , a
                         [ href
-                            (AppUrl.editorFor entry.de AppUrl.emptyParams
+                            (AppUrl.editorFor entry.de model.session.globalParams
                                 |> (searchText |> Maybe.map AppUrl.withFilters |> Maybe.withDefault AppUrl.withoutFilters)
                                 |> AppUrl.toString
                             )
@@ -464,11 +461,7 @@ cardView model results entry =
                        , "w-full"
                        ]
                 )
-            , href
-                (AppUrl.randomCard AppUrl.emptyParams
-                    |> (searchText |> Maybe.map AppUrl.withFilters |> Maybe.withDefault AppUrl.withoutFilters)
-                    |> AppUrl.toString
-                )
+            , href (AppUrl.nextCard model.session.globalParams |> AppUrl.toString)
             ]
             [ text "Nächst" ]
         ]
@@ -521,28 +514,61 @@ entryDetailView { de, pos, ja, example } =
         )
 
 
-addButton globalParams =
-    a
+addButton entry globalParams =
+    div
         [ Help.classNames
             [ "fixed"
             , "pin-r"
             , "pin-b"
-            , "rounded-full"
-            , "bg-blue"
-            , "text-white"
-            , "text-xl"
             , "m-4"
-            , "p-2"
-            , "w-16"
-            , "h-16"
+            , "z-30"
             , "flex"
             , "justify-center"
             , "items-center"
-            , "z-30"
-            , "shadow-lg"
-            , "no-underline"
+            , "flex-col"
             ]
-        , href (AppUrl.newEntry Nothing globalParams |> AppUrl.toString)
         ]
-        [ Icon.add "width: .6em; height: .6em;"
+        [ a
+            [ Help.classNames
+                [ "rounded-full"
+                , "bg-grey"
+                , "text-xl"
+                , "shadow-md"
+                , "flex"
+                , "w-8"
+                , "h-8"
+                , "justify-center"
+                , "items-center"
+                , "mb-2"
+                ]
+            , href
+                (AppUrl.card entry.de globalParams
+                    |> AppUrl.toggleShuffle
+                    |> AppUrl.toString
+                )
+            ]
+            [ if globalParams.shuffle then
+                Icon.shuffle "width: .4em; height: .4em;"
+
+              else
+                Icon.noShuffle "width: .4em; height: .4em;"
+            ]
+        , a
+            [ Help.classNames
+                [ "rounded-full"
+                , "bg-blue"
+                , "text-white"
+                , "text-xl"
+                , "p-2"
+                , "w-16"
+                , "h-16"
+                , "flex"
+                , "justify-center"
+                , "items-center"
+                , "shadow-lg"
+                , "no-underline"
+                ]
+            , href (AppUrl.nextCard globalParams |> AppUrl.toString)
+            ]
+            [ Icon.add "width: .6em; height: .6em;" ]
         ]
