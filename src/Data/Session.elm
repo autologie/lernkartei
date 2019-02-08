@@ -55,6 +55,7 @@ toSession session =
             , globalParams =
                 { filters = Nothing
                 , shuffle = False
+                , translate = False
                 }
             , startTime = session.startTime
             }

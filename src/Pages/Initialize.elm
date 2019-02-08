@@ -156,6 +156,7 @@ testSessionAndRouteIfPossible ( { session, url } as model, cmd ) =
                                 (AppUrl.nextCard
                                     { shuffle = False
                                     , filters = Nothing
+                                    , translate = False
                                     }
                                     |> AppUrl.toString
                                 )

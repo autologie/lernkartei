@@ -20,8 +20,7 @@ import Time
 
 
 type alias Model =
-    { isTranslated : Bool
-    , entry : Entry
+    { entry : Entry
     , textDisposition : Maybe ( Int, Int, Float )
     , expandSearchResults : Bool
     , session : Session
@@ -39,8 +38,7 @@ type Msg
 
 initialModel : Session -> String -> Model
 initialModel session entryDe =
-    { isTranslated = False
-    , entry = Dictionary.get entryDe session.dict
+    { entry = Dictionary.get entryDe session.dict
     , textDisposition = Nothing
     , expandSearchResults = False
     , session = session
@@ -55,11 +53,12 @@ update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
         Translate ->
-            ( { model
-                | isTranslated = not model.isTranslated
-                , textDisposition = Nothing
-              }
-            , Cmd.none
+            ( model
+            , Browser.Navigation.pushUrl model.session.navigationKey
+                (AppUrl.card model.entry.de model.session.globalParams
+                    |> AppUrl.toggleTranslate
+                    |> AppUrl.toString
+                )
             )
 
         TextDispositionChange value ->
@@ -322,7 +321,7 @@ cardView : Model -> Dictionary -> Entry -> Html Msg
 cardView model results entry =
     let
         textToShow =
-            if model.isTranslated then
+            if model.session.globalParams.translate then
                 entry.ja
 
             else
@@ -348,9 +347,9 @@ cardView model results entry =
                 , "mb-8"
                 ]
             ]
-            ([ cardBehindView 1.6 5 -1
-             , cardBehindView 2 10 -2
-             , div
+            [ cardBehindView 1.6 5 -1
+            , cardBehindView 2 10 -2
+            , div
                 [ Help.classNames
                     [ "select-none"
                     , "h-64"
@@ -444,14 +443,7 @@ cardView model results entry =
                         [ text "Edit" ]
                     ]
                 ]
-             ]
-                ++ (if model.isTranslated then
-                        [ entryDetailView entry ]
-
-                    else
-                        []
-                   )
-            )
+            ]
         , a
             [ Help.classNames
                 (Help.btnClasses True (not hasNext)
@@ -464,6 +456,7 @@ cardView model results entry =
             , href (AppUrl.nextCard model.session.globalParams |> AppUrl.toString)
             ]
             [ text "Nächst" ]
+        , entryDetailView entry
         ]
 
 
@@ -487,10 +480,8 @@ entryDetailView { de, pos, ja, example, tags } =
     div
         [ Help.classNames
             [ "text-grey-dark"
-            , "px-8"
             , "py-4"
             , "leading-normal"
-            , "bg-grey-lighter"
             , "text-left"
             , "rounded-b"
             ]
@@ -505,7 +496,7 @@ entryDetailView { de, pos, ja, example, tags } =
                         (\ex ->
                             [ section [ Help.classNames [ "mb-2" ] ]
                                 [ h3 [] [ text "Beispiel" ]
-                                , p [ Help.classNames [ "whitespace-pre" ] ] [ text (Entry.censorExample ex) ]
+                                , p [ Help.classNames [ "whitespace-prewrap" ] ] [ text (Entry.censorExample ex) ]
                                 ]
                             ]
                         )
@@ -569,7 +560,7 @@ addButton entry globalParams =
         , a
             [ Help.classNames
                 [ "rounded-full"
-                , "bg-blue"
+                , "bg-green"
                 , "text-white"
                 , "text-xl"
                 , "p-2"

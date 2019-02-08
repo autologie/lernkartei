@@ -7,6 +7,7 @@ module AppUrl exposing
     , nextCard
     , toString
     , toggleShuffle
+    , toggleTranslate
     , top
     , withFilters
     , withoutFilters
@@ -18,6 +19,7 @@ import Url.Builder as Builder exposing (QueryParameter)
 type alias GlobalQueryParams =
     { filters : Maybe String
     , shuffle : Bool
+    , translate : Bool
     }
 
 
@@ -32,20 +34,21 @@ type AppUrl
 toString : AppUrl -> String
 toString url =
     let
-        shuffleToString shuffle =
-            if shuffle then
+        encodeBool value =
+            if value then
                 1
 
             else
                 0
 
-        toStringWithParams path extraParams { filters, shuffle } =
+        toStringWithParams path extraParams { filters, shuffle, translate } =
             Builder.relative path
                 ((filters
                     |> Maybe.map (\f -> [ Builder.string "filter" f ])
                     |> Maybe.withDefault []
                  )
-                    ++ [ Builder.int "shuffle" (shuffleToString shuffle) ]
+                    ++ [ Builder.int "shuffle" (encodeBool shuffle) ]
+                    ++ [ Builder.int "translate" (encodeBool translate) ]
                     ++ extraParams
                 )
     in
@@ -107,6 +110,11 @@ withoutFilters =
 toggleShuffle : AppUrl -> AppUrl
 toggleShuffle =
     withParams (\params -> { params | shuffle = not params.shuffle })
+
+
+toggleTranslate : AppUrl -> AppUrl
+toggleTranslate =
+    withParams (\params -> { params | translate = not params.translate })
 
 
 withParams : (GlobalQueryParams -> GlobalQueryParams) -> AppUrl -> AppUrl
