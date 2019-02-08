@@ -1,6 +1,6 @@
 module Data.Session exposing (AccumulatingSession, Session, toAccumulatingSession, toSession, withDict)
 
-import AppUrl exposing (GlobalQueryParams)
+import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Browser.Navigation exposing (Key)
 import Data.Dictionary exposing (Dictionary)
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))

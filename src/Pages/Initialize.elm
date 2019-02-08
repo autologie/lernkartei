@@ -1,9 +1,9 @@
 module Pages.Initialize exposing (Model, Msg, init, subscriptions, update, view)
 
-import AppUrl
 import Array
 import Browser.Navigation exposing (Key)
 import Components.Notification as Notification
+import Data.AppUrl as AppUrl
 import Data.Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.Session as Session exposing (AccumulatingSession)

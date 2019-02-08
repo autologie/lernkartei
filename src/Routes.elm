@@ -1,7 +1,7 @@
 module Routes exposing (Route(..), RoutingAction(..), extractAccumulatingSession, extractSession, resolve)
 
-import AppUrl exposing (GlobalQueryParams)
 import Browser.Navigation exposing (Key)
+import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry
 import Data.Session as Session exposing (AccumulatingSession, Session)

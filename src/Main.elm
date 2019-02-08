@@ -1,11 +1,11 @@
 module Main exposing (main)
 
-import AppUrl
 import Array exposing (Array)
 import Browser exposing (UrlRequest(..))
 import Browser.Dom as Dom
 import Browser.Navigation exposing (Key)
 import Components.Notification as Notification
+import Data.AppUrl as AppUrl
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.FilterCondition as FilterCondition

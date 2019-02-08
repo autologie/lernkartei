@@ -1,6 +1,6 @@
 module Pages.Card exposing (Model, Msg(..), initialModel, subscriptions, update, view)
 
-import AppUrl exposing (GlobalQueryParams)
+import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Array
 import Browser.Navigation
 import Components.Icon as Icon exposing (add)

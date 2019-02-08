@@ -1,4 +1,4 @@
-module AppUrl exposing
+module Data.AppUrl exposing
     ( AppUrl
     , GlobalQueryParams
     , card

@@ -1,10 +1,10 @@
 port module Pages.Editor exposing (Model, Msg(..), update, view)
 
-import AppUrl exposing (GlobalQueryParams)
 import Array
 import Browser.Navigation exposing (Key)
 import Components.Dialog as Dialog
 import Components.Icon as Icon
+import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (DictValidationError(..), Dictionary)
 import Data.Entry as Entry exposing (Entry, EntryValidationError(..))
 import Data.PartOfSpeech as PartOfSpeech
