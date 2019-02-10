@@ -5,11 +5,12 @@ module Data.AppUrl exposing
     , editorFor
     , newEntry
     , nextCard
+    , search
     , toString
-    , toggleShuffle
-    , toggleTranslate
     , top
     , withFilters
+    , withShuffle
+    , withTranslate
     , withoutFilters
     )
 
@@ -29,6 +30,7 @@ type AppUrl
     | CardUrl String GlobalQueryParams
     | NextCardUrl GlobalQueryParams
     | EditorUrl String GlobalQueryParams
+    | SearchUrl GlobalQueryParams
     | NewEntryUrl (Maybe String) GlobalQueryParams
 
 
@@ -44,16 +46,15 @@ toString url =
 
         toStringWithParams path extraParams { filters, shuffle, translate } =
             Builder.relative path
-                ((if List.length filters == 0 then
+                (if List.length filters == 0 then
                     []
 
-                  else
-                    [ Builder.string "filter" (Filter.toString filters) ]
-                 )
-                    ++ [ Builder.int "shuffle" (encodeBool shuffle)
-                       , Builder.int "translate" (encodeBool translate)
-                       ]
-                    ++ extraParams
+                 else
+                    [ Builder.string "filter" (Filter.toString filters)
+                    , Builder.int "shuffle" (encodeBool shuffle)
+                    , Builder.int "translate" (encodeBool translate)
+                    ]
+                        ++ extraParams
                 )
     in
     case url of
@@ -68,6 +69,9 @@ toString url =
 
         EditorUrl index params ->
             toStringWithParams [ "", "entries", index, "_edit" ] [] params
+
+        SearchUrl params ->
+            toStringWithParams [ "", "search" ] [] params
 
         NewEntryUrl Nothing params ->
             toStringWithParams [ "", "entries", "_new" ] [] params
@@ -84,6 +88,11 @@ top params =
 card : String -> GlobalQueryParams -> AppUrl
 card index params =
     CardUrl index params
+
+
+search : GlobalQueryParams -> AppUrl
+search params =
+    SearchUrl params
 
 
 nextCard : GlobalQueryParams -> AppUrl
@@ -111,14 +120,14 @@ withoutFilters =
     withParams (\params -> { params | filters = [] })
 
 
-toggleShuffle : AppUrl -> AppUrl
-toggleShuffle =
-    withParams (\params -> { params | shuffle = not params.shuffle })
+withShuffle : Bool -> AppUrl -> AppUrl
+withShuffle value =
+    withParams (\params -> { params | shuffle = value })
 
 
-toggleTranslate : AppUrl -> AppUrl
-toggleTranslate =
-    withParams (\params -> { params | translate = not params.translate })
+withTranslate : Bool -> AppUrl -> AppUrl
+withTranslate value =
+    withParams (\params -> { params | translate = value })
 
 
 withParams : (GlobalQueryParams -> GlobalQueryParams) -> AppUrl -> AppUrl
@@ -135,6 +144,9 @@ withParams updateParams url =
 
         EditorUrl index params ->
             EditorUrl index (updateParams params)
+
+        SearchUrl params ->
+            SearchUrl (updateParams params)
 
         NewEntryUrl maybeIndex params ->
             NewEntryUrl maybeIndex (updateParams params)

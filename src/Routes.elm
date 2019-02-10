@@ -9,6 +9,7 @@ import Data.Session as Session exposing (AccumulatingSession, Session)
 import Pages.Card
 import Pages.Editor
 import Pages.Initialize
+import Pages.Search
 import Time
 import Url.Parser exposing ((</>), (<?>), s, string)
 import Url.Parser.Query as Query
@@ -18,6 +19,7 @@ type Route
     = Initializing Pages.Initialize.Model
     | Card Pages.Card.Model
     | Editor Pages.Editor.Model
+    | Search Pages.Search.Model
     | NotFound Key
 
 
@@ -38,6 +40,9 @@ resolve maybeSession =
     in
     Url.Parser.oneOf
         [ Url.Parser.map
+            (resolveSearch maybeSession)
+            (s "search" |> globalParams)
+        , Url.Parser.map
             (\a b c -> buildQueryParams a b c |> RedirectToRandom)
             (s "entries" </> s "_next" |> globalParams)
         , Url.Parser.map
@@ -115,6 +120,24 @@ resolveEditor maybeSession de filter shuffle translate =
         |> Maybe.withDefault AwaitInitialization
 
 
+resolveSearch : Maybe Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveSearch maybeSession filter shuffle translate =
+    let
+        withSession session =
+            Show
+                (Search
+                    (Pages.Search.initialModel
+                        { session
+                            | globalParams = buildQueryParams filter shuffle translate
+                        }
+                    )
+                )
+    in
+    maybeSession
+        |> Maybe.map withSession
+        |> Maybe.withDefault AwaitInitialization
+
+
 buildQueryParams : Maybe String -> Maybe Int -> Maybe Int -> GlobalQueryParams
 buildQueryParams maybeFilters shuffle translate =
     let
@@ -142,6 +165,9 @@ extractSession routes =
         Editor pageModel ->
             Just pageModel.session
 
+        Search pageModel ->
+            Just pageModel.session
+
         NotFound _ ->
             Nothing
 
@@ -156,6 +182,9 @@ extractAccumulatingSession routes =
             Session.toAccumulatingSession session
 
         Editor { session } ->
+            Session.toAccumulatingSession session
+
+        Search { session } ->
             Session.toAccumulatingSession session
 
         NotFound navigationKey ->

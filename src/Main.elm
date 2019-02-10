@@ -15,6 +15,7 @@ import Html.Lazy
 import Pages.Card exposing (Msg(..))
 import Pages.Editor
 import Pages.Initialize
+import Pages.Search
 import Ports
 import Process
 import Random
@@ -97,6 +98,7 @@ type Msg
 type PageMsg
     = CardMsg Pages.Card.Msg
     | EditorMsg Pages.Editor.Msg
+    | SearchMsg Pages.Search.Msg
     | InitializeMsg Pages.Initialize.Msg
 
 
@@ -107,6 +109,9 @@ update msg model =
             case ( model.route, pageMsg_ ) of
                 ( Initializing pageModel, InitializeMsg pageMsg ) ->
                     pageStep Initializing InitializeMsg (Pages.Initialize.update pageModel pageMsg) model
+
+                ( Search pageModel, SearchMsg pageMsg ) ->
+                    pageStep Search SearchMsg (Pages.Search.update pageModel pageMsg) model
 
                 ( Editor pageModel, EditorMsg pageMsg ) ->
                     pageStep Editor EditorMsg (Pages.Editor.update pageModel pageMsg) model
@@ -163,6 +168,9 @@ dispatchRoute model url =
             , case r of
                 Editor _ ->
                     Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+
+                Search _ ->
+                    Dom.focus "search-input" |> Task.attempt (\_ -> NoOp)
 
                 _ ->
                     Cmd.none
@@ -258,6 +266,10 @@ view model =
             Card pageModel ->
                 Html.Lazy.lazy Pages.Card.view pageModel
                     |> Html.map (CardMsg >> PageMsg)
+
+            Search pageModel ->
+                Html.Lazy.lazy Pages.Search.view pageModel
+                    |> Html.map (SearchMsg >> PageMsg)
 
             Editor pageModel ->
                 Html.Lazy.lazy

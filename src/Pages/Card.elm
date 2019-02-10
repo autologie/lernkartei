@@ -3,6 +3,7 @@ module Pages.Card exposing (Model, Msg(..), initialModel, subscriptions, update,
 import Array
 import Browser.Navigation
 import Components.Icon as Icon exposing (add)
+import Components.SearchField as SearchField
 import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
@@ -21,29 +22,22 @@ import Ports
 type alias Model =
     { entry : Entry
     , textDisposition : Maybe ( Int, Int, Float )
-    , expandSearchResults : Bool
     , session : Session
-    , searchInputBuffer : String
     }
 
 
 type Msg
     = Translate
     | TextDispositionChange ( Int, Int, Float )
-    | SearchInput String
-    | ToggleSearchResults
-    | ClearSearchText
     | ToggleStar
+    | NavigateTo String
 
 
 initialModel : Session -> String -> Model
 initialModel session entryDe =
     { entry = Dictionary.get entryDe session.dict
     , textDisposition = Nothing
-    , expandSearchResults = False
     , session = session
-    , searchInputBuffer =
-        session.globalParams.filters |> Filter.toString
     }
 
 
@@ -59,7 +53,7 @@ update model msg =
             ( model
             , Browser.Navigation.pushUrl model.session.navigationKey
                 (AppUrl.card model.entry.de model.session.globalParams
-                    |> AppUrl.toggleTranslate
+                    |> AppUrl.withTranslate (not model.session.globalParams.translate)
                     |> AppUrl.toString
                 )
             )
@@ -69,37 +63,6 @@ update model msg =
                 | textDisposition = Just value
               }
             , Cmd.none
-            )
-
-        SearchInput text ->
-            case errorInFilterText text of
-                Just _ ->
-                    ( { model | searchInputBuffer = text }, Cmd.none )
-
-                _ ->
-                    ( model
-                    , Browser.Navigation.pushUrl model.session.navigationKey
-                        (AppUrl.card model.entry.de model.session.globalParams
-                            |> AppUrl.withFilters (Filter.parse text)
-                            |> AppUrl.toString
-                        )
-                    )
-
-        ToggleSearchResults ->
-            ( { model
-                | expandSearchResults =
-                    not model.expandSearchResults
-              }
-            , Cmd.none
-            )
-
-        ClearSearchText ->
-            ( model
-            , Browser.Navigation.pushUrl model.session.navigationKey
-                (AppUrl.card model.entry.de model.session.globalParams
-                    |> AppUrl.withoutFilters
-                    |> AppUrl.toString
-                )
             )
 
         ToggleStar ->
@@ -117,12 +80,21 @@ update model msg =
             , Ports.saveEntry ( model.session.userId, Entry.encode updatedEntry )
             )
 
+        NavigateTo url ->
+            ( model, Browser.Navigation.pushUrl model.session.navigationKey url )
+
 
 view : Model -> Html Msg
 view model =
     let
+        filters =
+            model.session.globalParams.filters
+
         results =
-            Filter.applied model.session.startTime model.session.dict model.session.globalParams.filters
+            Filter.applied
+                model.session.startTime
+                model.session.dict
+                filters
     in
     Html.Keyed.node "div"
         [ Help.classNames
@@ -131,217 +103,14 @@ view model =
             , "p-5"
             ]
         ]
-        ([ ( "dateLinks"
-           , ul
-                [ Help.classNames
-                    [ "list-reset"
-                    , "flex"
-                    , "justify-center"
-                    , "mb-2"
-                    , "bg-grey-light"
-                    , "rounded-full"
-                    , "overflow-scroll"
-                    , "p-2"
-                    , "relative"
-                    ]
-                ]
-                ([ 1, 2, 3, 4, 5, 6, 7 ]
-                    |> List.reverse
-                    |> List.map
-                        (\n ->
-                            li
-                                []
-                                [ a
-                                    [ href
-                                        (AppUrl.nextCard model.session.globalParams
-                                            |> AppUrl.withFilters [ IsAddedIn (RelativeDays n 1) ]
-                                            |> AppUrl.toString
-                                        )
-                                    , Help.classNames
-                                        [ "no-underline"
-                                        , "block"
-                                        , "text-white"
-                                        , "rounded-full"
-                                        , "p-2"
-                                        , "mx-1"
-                                        , "bg-blue"
-                                        ]
-                                    ]
-                                    [ text ("-" ++ String.fromInt n ++ "d") ]
-                                ]
-                        )
-                )
-           )
-         , ( "search"
-           , div [ Help.classNames [ "relative", "mb-5" ] ]
-                (input
-                    [ type_ "text"
-                    , onInput SearchInput
-                    , Help.classNames
-                        [ "border-b"
-                        , "text-grey-darkest"
-                        , "bg-transparent"
-                        , "w-full"
-                        , "text-sm"
-                        , "py-4"
-                        ]
-                    , value model.searchInputBuffer
-                    ]
-                    []
-                    :: (errorInFilterText model.searchInputBuffer
-                            |> Maybe.map
-                                (\errorMessage ->
-                                    [ p
-                                        [ Help.classNames
-                                            [ "text-red"
-                                            , "my-4"
-                                            ]
-                                        ]
-                                        [ text errorMessage ]
-                                    ]
-                                )
-                            |> Maybe.withDefault []
-                       )
-                    ++ [ resultCountView results model ]
-                )
-           )
-         ]
-            ++ (case ( model.expandSearchResults || Array.length results == 0, model.session.globalParams.filters ) of
-                    ( False, _ ) ->
-                        []
-
-                    ( _, [] ) ->
-                        []
-
-                    _ ->
-                        searchResultView results
-                            model.session.globalParams
-                            |> Maybe.map (\el -> [ ( "searchResult", el ) ])
-                            |> Maybe.withDefault []
-               )
-            ++ [ ( "card", cardView model results model.entry )
-               , ( "addButton", addButton model.entry model.session.globalParams )
-               ]
-        )
-
-
-resultCountView : Dictionary -> Model -> Html Msg
-resultCountView results model =
-    let
-        resultCount =
-            results |> Array.length
-
-        isFiltered =
-            List.length model.session.globalParams.filters > 0
-
-        isClickable =
-            isFiltered && resultCount > 0
-
-        prefix =
-            if isClickable then
-                ""
-
-            else
-                "Alle "
-    in
-    ul
-        [ Help.classNames
-            [ "list-reset"
-            , "text-xs"
-            , "my-2"
-            , "absolute"
-            , "pin-r"
-            , "pin-t"
-            , "flex"
-            ]
-        ]
-        ([ button
-            [ Help.classNames
-                (Help.groupedBtnClasses isClickable
-                    (not isClickable)
-                    True
-                    (not isFiltered)
-                    ++ [ "px-4", "py-2", "ml-px" ]
-                )
-            , onClick ToggleSearchResults
-            ]
-            [ text (prefix ++ (resultCount |> String.fromInt) ++ " Wörter") ]
-         ]
-            ++ (if isFiltered then
-                    [ button
-                        [ Help.classNames
-                            (Help.groupedBtnClasses True
-                                False
-                                (not isClickable)
-                                True
-                                ++ [ "px-2", "py-2", "ml-px" ]
-                            )
-                        , onClick ClearSearchText
-                        ]
-                        [ Icon.close "width: 1.2em; height: 1.2em" "white" ]
-                    ]
-
-                else
-                    []
-               )
-        )
-
-
-searchResultView : Dictionary -> GlobalQueryParams -> Maybe (Html Msg)
-searchResultView results globalParams =
-    case Array.length results of
-        0 ->
-            case globalParams.filters of
-                [ Contains index ] ->
-                    Just
-                        (a
-                            [ href (AppUrl.newEntry (Just index) globalParams |> AppUrl.toString)
-                            , Help.classNames
-                                (Help.btnClasses True False
-                                    ++ [ "p-3"
-                                       , "w-full"
-                                       , "my-2"
-                                       , "block"
-                                       , "no-underline"
-                                       ]
-                                )
-                            ]
-                            [ text ("\"" ++ index ++ "\" hinzufügen") ]
-                        )
-
-                _ ->
-                    Nothing
-
-        _ ->
-            Just
-                (ul [ Help.classNames [ "list-reset", "py-3" ] ]
-                    (results
-                        |> Array.toList
-                        |> List.sortBy Entry.toComparable
-                        |> List.map (searchResultRow globalParams)
-                    )
-                )
-
-
-searchResultRow : GlobalQueryParams -> Entry -> Html Msg
-searchResultRow globalParams entry =
-    li
-        []
-        [ a
-            [ Help.classNames
-                [ "p-3"
-                , "block"
-                , "text-left"
-                , "rounded"
-                , "cursor-pointer"
-                , "text-black"
-                , "hover:bg-grey-lighter"
-                ]
-            , href (AppUrl.card entry.de globalParams |> AppUrl.toString)
-            ]
-            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] [ span [] [ text entry.de ] ]
-            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] [ span [] [ text entry.ja ] ]
-            ]
+        [ ( "nav"
+          , SearchField.view results
+                (Filter.toString filters)
+                filters
+                |> Html.map (translateSearchFieldMsg model)
+          )
+        , ( "card", cardView model results model.entry )
+        , ( "buttons", buttons model.entry model.session.globalParams )
         ]
 
 
@@ -516,40 +285,37 @@ entryDetailView { pos, example, tags } =
             , "rounded-b"
             ]
         ]
-        ([ section [ Help.classNames [ "mb-2" ] ]
+        [ section [ Help.classNames [ "mb-6" ] ]
             [ h3 [] [ text "Teil" ]
             , p [] [ text (PartOfSpeech.toString pos) ]
             ]
-         ]
-            ++ (example
-                    |> Maybe.map
-                        (\ex ->
-                            [ section [ Help.classNames [ "mb-2" ] ]
-                                [ h3 [] [ text "Beispiel" ]
-                                , p [ Help.classNames [ "whitespace-prewrap" ] ] [ text (Entry.censorExample ex) ]
-                                ]
-                            ]
-                        )
-                    |> Maybe.withDefault []
-               )
-            ++ [ section [ Help.classNames [ "mb-2" ] ]
-                    [ h3 [] [ text "Etikett" ]
-                    , p []
-                        [ text
-                            (if List.length tags > 0 then
-                                tags |> String.join ", "
+        , section [ Help.classNames [ "mb-6" ] ]
+            [ h3 [] [ text "Beispiel" ]
+            , p [ Help.classNames [ "whitespace-prewrap" ] ]
+                [ text
+                    (example
+                        |> Maybe.map Entry.censorExample
+                        |> Maybe.withDefault "-"
+                    )
+                ]
+            ]
+        , section [ Help.classNames [ "mb-6" ] ]
+            [ h3 [] [ text "Etikett" ]
+            , p []
+                [ text
+                    (if List.length tags > 0 then
+                        tags |> String.join ", "
 
-                             else
-                                "-"
-                            )
-                        ]
-                    ]
-               ]
-        )
+                     else
+                        "-"
+                    )
+                ]
+            ]
+        ]
 
 
-addButton : Entry -> GlobalQueryParams -> Html Msg
-addButton entry globalParams =
+buttons : Entry -> GlobalQueryParams -> Html Msg
+buttons entry globalParams =
     div
         [ Help.classNames
             [ "fixed"
@@ -578,7 +344,8 @@ addButton entry globalParams =
                 ]
             , href
                 (AppUrl.card entry.de globalParams
-                    |> AppUrl.toggleShuffle
+                    |> AppUrl.withShuffle (not globalParams.shuffle)
+                    |> AppUrl.withTranslate globalParams.translate
                     |> AppUrl.toString
                 )
             ]
@@ -609,20 +376,21 @@ addButton entry globalParams =
         ]
 
 
-errorInFilterText : String -> Maybe String
-errorInFilterText filterText =
-    filterText
-        |> Filter.parse
-        |> List.foldl
-            (\filter passed ->
-                case ( passed, filter ) of
-                    ( Just message, _ ) ->
-                        Just message
+translateSearchFieldMsg : Model -> SearchField.Msg -> Msg
+translateSearchFieldMsg model msg =
+    let
+        params =
+            model.session.globalParams
+    in
+    (case msg of
+        SearchField.ClearSearchText ->
+            AppUrl.card model.entry.de { params | filters = [] }
 
-                    ( _, NeverMatch message ) ->
-                        Just message
+        SearchField.SearchInput txt ->
+            AppUrl.search { params | filters = Filter.parse txt }
 
-                    _ ->
-                        Nothing
-            )
-            Nothing
+        SearchField.ToggleSearchResults ->
+            AppUrl.search model.session.globalParams
+    )
+        |> AppUrl.toString
+        |> NavigateTo
