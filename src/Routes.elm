@@ -41,8 +41,8 @@ resolveWithSession session =
         globalParams path =
             path
                 <?> Query.string "filter"
-                <?> Query.int "translate"
                 <?> Query.int "shuffle"
+                <?> Query.int "translate"
     in
     Url.Parser.oneOf
         [ Url.Parser.map
