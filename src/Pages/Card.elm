@@ -214,6 +214,12 @@ cardView model results entry =
                         ]
                     ]
                     [ a
+                        [ href ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch")
+                        , target "_blank"
+                        , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
+                        ]
+                        [ text "Bilder" ]
+                    , a
                         [ href ("https://de.wiktionary.org/wiki/" ++ simpleDe)
                         , target "_blank"
                         , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
