@@ -2,7 +2,6 @@ module Pages.Search exposing (Model, Msg, initialModel, update, view)
 
 import Array
 import Browser.Navigation
-import Components.Icon as Icon
 import Components.SearchField as SearchField
 import Data.AppUrl as AppUrl exposing (AppUrl, GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
@@ -137,16 +136,21 @@ view model =
                         []
                    )
             )
-        , button
-            [ onClick CloseSearch
-            , Help.classNames
+        , div
+            [ Help.classNames
                 [ "fixed"
-                , "pin-r"
-                , "pin-t"
-                , "m-4"
+                , "pin-b"
+                , "p-4"
+                , "text-md"
+                , "w-full"
                 ]
             ]
-            [ Icon.close "width: 2em; height: 2em" "#3d4852" ]
+            [ button
+                [ onClick CloseSearch
+                , Help.classNames ([ "w-full", "p-4", "shadow-md" ] ++ Help.btnClasses True False)
+                ]
+                [ text "Verwerden" ]
+            ]
         ]
 
 
