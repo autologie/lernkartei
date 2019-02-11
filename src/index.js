@@ -38,7 +38,7 @@ import "@firebase/firestore";
         .setPersistence(firebase.auth.Auth.Persistence.SESSION);
       await firebase
         .auth()
-        .signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        .signInWithRedirect(new firebase.auth.GoogleAuthProvider());
     }
   });
 
