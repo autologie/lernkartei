@@ -36,6 +36,91 @@ type alias Model =
     }
 
 
+update : Model -> Msg -> ( Model, Cmd Msg )
+update model msg =
+    case msg of
+        CloseEditor ->
+            ( model
+            , Browser.Navigation.back model.session.navigationKey 1
+            )
+
+        SaveAndCloseEditor ->
+            Help.updateWithCurrentTime model
+                (\now { entry, originalEntry, session } ->
+                    let
+                        theEntry =
+                            { entry
+                                | updatedAt = now
+                                , addedAt = originalEntry |> Maybe.map (\_ -> entry.addedAt) |> Maybe.withDefault now
+                            }
+
+                        theSession =
+                            model.session
+                                |> Session.withDict
+                                    (originalEntry
+                                        |> Maybe.map (\oe -> model.session.dict |> Array.map (Help.replaceEntry oe theEntry))
+                                        |> Maybe.withDefault (model.session.dict |> Array.append (Array.fromList [ theEntry ]))
+                                    )
+                    in
+                    ( { model | session = theSession }
+                    , Cmd.batch
+                        [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
+                        , model.originalEntry
+                            |> Maybe.map
+                                (\oe ->
+                                    if oe.index == model.entry.index then
+                                        Cmd.none
+
+                                    else
+                                        Ports.deleteEntry ( model.session.userId, oe.index )
+                                )
+                            |> Maybe.withDefault Cmd.none
+                        , navigateTo model.session (Just theEntry)
+                        ]
+                    )
+                )
+                WithModel
+                NoOp
+
+        DeleteEntry ->
+            ( { model | dialog = Just (Dialog.YesNoDialog "Sind Sie sich da sicher?" DoDeleteEntry CloseDialog) }
+            , Cmd.none
+            )
+
+        CloseDialog ->
+            ( { model | dialog = Nothing }
+            , Cmd.none
+            )
+
+        DoDeleteEntry ->
+            model.originalEntry
+                |> Maybe.map
+                    (\oe ->
+                        ( { model
+                            | session =
+                                model.session
+                                    |> Session.withDict (model.session.dict |> Dictionary.without oe)
+                          }
+                        , Cmd.batch
+                            [ Ports.deleteEntry ( model.session.userId, oe.index )
+                            , navigateTo model.session Nothing
+                            ]
+                        )
+                    )
+                |> Maybe.withDefault ( model, Cmd.none )
+
+        WordChange updatedEntry ->
+            ( { model | entry = updatedEntry }
+            , Cmd.none
+            )
+
+        WithModel withModel ->
+            withModel model
+
+        NoOp ->
+            ( model, Cmd.none )
+
+
 view : Model -> Html Msg
 view { entry, originalEntry, dialog, session } =
     let
@@ -46,8 +131,8 @@ view { entry, originalEntry, dialog, session } =
 
         ( deError, jaError ) =
             case Dictionary.findFirstError dictToBe of
-                Just (Duplicate de) ->
-                    ( Just ("\"" ++ de ++ "\" ist shon registriert sein."), Nothing )
+                Just (Duplicate index) ->
+                    ( Just ("\"" ++ index ++ "\" ist shon registriert sein."), Nothing )
 
                 Just (InvalidEntry _ WordIsEmpty) ->
                     ( Just "Enter a word.", Nothing )
@@ -63,7 +148,7 @@ view { entry, originalEntry, dialog, session } =
                 |> List.map Help.isJust
                 |> List.member True
 
-        { pos, ja, example, updatedAt, addedAt, tags } =
+        { pos, translation, example, updatedAt, addedAt, tags } =
             entry
     in
     div
@@ -83,9 +168,9 @@ view { entry, originalEntry, dialog, session } =
             ]
             ([ inputRowView "Das Wort"
                 (textInputView (Just "editor-input-de")
-                    entry.de
+                    entry.index
                     False
-                    (\value -> WordChange { entry | de = value })
+                    (\value -> WordChange { entry | index = value })
                 )
                 deError
              , inputRowView "Teil"
@@ -108,9 +193,9 @@ view { entry, originalEntry, dialog, session } =
                 Nothing
              , inputRowView "Übersetzung"
                 (textInputView Nothing
-                    ja
+                    translation
                     False
-                    (\value -> WordChange { entry | ja = value })
+                    (\value -> WordChange { entry | translation = value })
                 )
                 jaError
              , inputRowView "Beispiel"
@@ -228,91 +313,6 @@ view { entry, originalEntry, dialog, session } =
         )
 
 
-update : Model -> Msg -> ( Model, Cmd Msg )
-update model msg =
-    case msg of
-        CloseEditor ->
-            ( model
-            , Browser.Navigation.back model.session.navigationKey 1
-            )
-
-        SaveAndCloseEditor ->
-            Help.updateWithCurrentTime model
-                (\now { entry, originalEntry, session } ->
-                    let
-                        theEntry =
-                            { entry
-                                | updatedAt = now
-                                , addedAt = originalEntry |> Maybe.map (\_ -> entry.addedAt) |> Maybe.withDefault now
-                            }
-
-                        theSession =
-                            model.session
-                                |> Session.withDict
-                                    (originalEntry
-                                        |> Maybe.map (\oe -> model.session.dict |> Array.map (Help.replaceEntry oe theEntry))
-                                        |> Maybe.withDefault (model.session.dict |> Array.append (Array.fromList [ theEntry ]))
-                                    )
-                    in
-                    ( { model | session = theSession }
-                    , Cmd.batch
-                        [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
-                        , model.originalEntry
-                            |> Maybe.map
-                                (\oe ->
-                                    if oe.de == model.entry.de then
-                                        Cmd.none
-
-                                    else
-                                        Ports.deleteEntry ( model.session.userId, oe.de )
-                                )
-                            |> Maybe.withDefault Cmd.none
-                        , navigateTo model.session (Just theEntry)
-                        ]
-                    )
-                )
-                WithModel
-                NoOp
-
-        DeleteEntry ->
-            ( { model | dialog = Just (Dialog.YesNoDialog "Sind Sie sich da sicher?" DoDeleteEntry CloseDialog) }
-            , Cmd.none
-            )
-
-        CloseDialog ->
-            ( { model | dialog = Nothing }
-            , Cmd.none
-            )
-
-        DoDeleteEntry ->
-            model.originalEntry
-                |> Maybe.map
-                    (\oe ->
-                        ( { model
-                            | session =
-                                model.session
-                                    |> Session.withDict (model.session.dict |> Dictionary.without oe)
-                          }
-                        , Cmd.batch
-                            [ Ports.deleteEntry ( model.session.userId, oe.de )
-                            , navigateTo model.session Nothing
-                            ]
-                        )
-                    )
-                |> Maybe.withDefault ( model, Cmd.none )
-
-        WordChange updatedEntry ->
-            ( { model | entry = updatedEntry }
-            , Cmd.none
-            )
-
-        WithModel withModel ->
-            withModel model
-
-        NoOp ->
-            ( model, Cmd.none )
-
-
 inputRowView : String -> (List String -> Html msg) -> Maybe String -> Html msg
 inputRowView fieldName inputView maybeError =
     div [ Help.classNames [ "mb-6", "w-full" ] ]
@@ -413,43 +413,7 @@ describeDate zone zoneName posix =
     else
         [ posix |> Time.toDay zone |> String.fromInt
         , "."
-        , (case posix |> Time.toMonth zone of
-            Jan ->
-                1
-
-            Feb ->
-                2
-
-            Mar ->
-                3
-
-            Apr ->
-                4
-
-            May ->
-                5
-
-            Jun ->
-                6
-
-            Jul ->
-                7
-
-            Aug ->
-                8
-
-            Sep ->
-                9
-
-            Oct ->
-                10
-
-            Nov ->
-                11
-
-            Dec ->
-                12
-          )
+        , Help.monthNumber posix zone
             |> String.fromInt
         , "."
         , posix |> Time.toYear zone |> String.fromInt
@@ -469,7 +433,7 @@ navigateTo : Session -> Maybe Entry -> Cmd Msg
 navigateTo { navigationKey, globalParams } maybeEntry =
     Browser.Navigation.pushUrl navigationKey
         (maybeEntry
-            |> Maybe.map (\{ de } -> AppUrl.card de globalParams)
+            |> Maybe.map (\{ index } -> AppUrl.card index globalParams)
             |> Maybe.withDefault (AppUrl.top globalParams)
             |> AppUrl.toString
         )

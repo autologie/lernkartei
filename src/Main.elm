@@ -210,8 +210,8 @@ dispatchRoute model url =
 
                 ( maybeEntry, updatedSeed ) =
                     case ( shuffle, currentEntry ) of
-                        ( False, Just { de } ) ->
-                            ( Dictionary.nextEntry de entries, model.seed )
+                        ( False, Just { index } ) ->
+                            ( Dictionary.nextEntry index entries, model.seed )
 
                         _ ->
                             Dictionary.randomEntry model.seed entries
@@ -227,7 +227,7 @@ dispatchRoute model url =
               }
             , Browser.Navigation.replaceUrl model.navigationKey
                 (maybeEntry
-                    |> Maybe.map (\{ de } -> AppUrl.card de params)
+                    |> Maybe.map (\{ index } -> AppUrl.card index params)
                     |> Maybe.withDefault (AppUrl.newEntry Nothing params)
                     |> AppUrl.toString
                 )

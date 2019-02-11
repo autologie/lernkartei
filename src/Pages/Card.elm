@@ -110,10 +110,10 @@ cardView model results entry =
     let
         textToShow =
             if model.session.globalParams.translate then
-                entry.ja
+                entry.translation
 
             else
-                entry.de
+                entry.index
 
         simpleDe =
             Entry.withoutArticle entry
@@ -146,7 +146,7 @@ cardView model results entry =
                     ]
                 , onClick
                     (NavigateTo
-                        (AppUrl.card model.entry.de model.session.globalParams
+                        (AppUrl.card model.entry.index model.session.globalParams
                             |> AppUrl.withTranslate (not model.session.globalParams.translate)
                         )
                     )
@@ -220,14 +220,14 @@ cardView model results entry =
                         ]
                         [ text "Untersuchen" ]
                     , a
-                        [ href ("https://translate.google.co.jp/m/translate?hl=ja#view=home&op=translate&sl=de&tl=ja&text=" ++ simpleDe)
+                        [ href ("https://translate.google.co.jp/m/translate?hl=translation#view=home&op=translate&sl=de&tl=translation&text=" ++ simpleDe)
                         , target "_blank"
                         , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
                         ]
                         [ text "Hören" ]
                     , a
                         [ href
-                            (AppUrl.editorFor entry.de model.session.globalParams
+                            (AppUrl.editorFor entry.index model.session.globalParams
                                 |> AppUrl.withFilters searchText
                                 |> AppUrl.toString
                             )
@@ -343,7 +343,7 @@ buttons entry globalParams =
                 , "mb-2"
                 ]
             , href
-                (AppUrl.card entry.de globalParams
+                (AppUrl.card entry.index globalParams
                     |> AppUrl.withShuffle (not globalParams.shuffle)
                     |> AppUrl.toString
                 )
@@ -378,7 +378,7 @@ translateSearchFieldMsg model msg =
     in
     (case msg of
         SearchField.ClearSearchText ->
-            AppUrl.card model.entry.de { params | filters = [] }
+            AppUrl.card model.entry.index { params | filters = [] }
 
         SearchField.Focus ->
             AppUrl.search params

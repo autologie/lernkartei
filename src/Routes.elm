@@ -67,20 +67,20 @@ resolveWithSession session =
 
 
 resolveCard : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
-resolveCard session de filter shuffle translate =
+resolveCard session index filter shuffle translate =
     Pages.Card.initialModel
         { session | globalParams = buildQueryParams filter shuffle translate }
-        de
+        index
         |> (Card >> Show)
 
 
 resolveNewEntry : Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
-resolveNewEntry session de filter shuffle translate =
+resolveNewEntry session index filter shuffle translate =
     let
         emptyEntry =
             Entry.empty
     in
-    { entry = { emptyEntry | de = Maybe.withDefault "" de }
+    { entry = { emptyEntry | index = Maybe.withDefault "" index }
     , originalEntry = Nothing
     , dialog = Nothing
     , session = { session | globalParams = buildQueryParams filter shuffle translate }
@@ -89,10 +89,10 @@ resolveNewEntry session de filter shuffle translate =
 
 
 resolveEditor : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
-resolveEditor session de filter shuffle translate =
+resolveEditor session index filter shuffle translate =
     let
         entry =
-            Dictionary.get de session.dict
+            Dictionary.get index session.dict
     in
     { entry = entry
     , originalEntry = Just entry

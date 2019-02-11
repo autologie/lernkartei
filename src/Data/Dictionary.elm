@@ -37,19 +37,19 @@ empty =
 
 
 get : String -> Dictionary -> Entry
-get de dict =
+get index dict =
     let
         emptyEntry =
             Entry.empty
 
         decoded =
-            Url.percentDecode de |> Maybe.withDefault de
+            Url.percentDecode index |> Maybe.withDefault index
     in
     dict
-        |> Array.filter (\e -> e.de == decoded)
+        |> Array.filter (\e -> e.index == decoded)
         |> Array.toList
         |> List.head
-        |> Maybe.withDefault { emptyEntry | de = decoded }
+        |> Maybe.withDefault { emptyEntry | index = decoded }
 
 
 nextEntry : String -> Dictionary -> Maybe Entry
@@ -60,7 +60,7 @@ nextEntry index dict =
 
         numberForIndex =
             numberedDict
-                |> Array.filter (\( _, entry ) -> entry.de == index)
+                |> Array.filter (\( _, entry ) -> entry.index == index)
                 |> Array.map (\( n, _ ) -> n)
                 |> Array.get 0
     in
@@ -92,8 +92,8 @@ findFirstError dict =
         collectError entry =
             Result.andThen
                 (\uniqueItems ->
-                    if List.member entry.de uniqueItems then
-                        Err (Duplicate entry.de)
+                    if List.member entry.index uniqueItems then
+                        Err (Duplicate entry.index)
 
                     else
                         case Entry.findFirstError entry of
@@ -101,7 +101,7 @@ findFirstError dict =
                                 Err (InvalidEntry entry err)
 
                             Nothing ->
-                                Ok (entry.de :: uniqueItems)
+                                Ok (entry.index :: uniqueItems)
                 )
 
         result =

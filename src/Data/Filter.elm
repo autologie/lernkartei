@@ -148,16 +148,16 @@ fromString str =
 
 
 isMatchedTo : Time.Posix -> Entry -> Filter -> Bool
-isMatchedTo now { de, pos, ja, starred, addedAt, tags } filter =
+isMatchedTo now { index, pos, translation, starred, addedAt, tags } filter =
     let
-        lowerDe =
-            String.toLower de
+        lowerIndex =
+            String.toLower index
 
-        lowerJa =
-            String.toLower ja
+        lowerTranslation =
+            String.toLower translation
 
         targets =
-            [ lowerDe, lowerJa ]
+            [ lowerIndex, lowerTranslation ]
     in
     case filter of
         HasTag tag ->

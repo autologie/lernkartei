@@ -121,78 +121,9 @@ view model =
                 model.searchInputBuffer
                 filters
                 |> Html.map translateSearchFieldMsg
-             , filterSection "Added in"
-                [ ( IsAddedIn (RelativeDays 7 7), "-1w" )
-                , ( IsAddedIn (RelativeDays 14 7), "-2w" )
-                , ( IsAddedIn (RelativeDays 21 7), "-3w" )
-                , ( IsAddedIn (RelativeDays 28 7), "-4w" )
-                , ( IsAddedIn (RelativeDays 1 1), "-1d" )
-                , ( IsAddedIn (RelativeDays 2 1), "-2d" )
-                , ( IsAddedIn (RelativeDays 3 1), "-3d" )
-                , ( IsAddedIn (RelativeDays 4 1), "-4d" )
-                , ( IsAddedIn (RelativeDays 5 1), "-5d" )
-                , ( IsAddedIn (RelativeDays 6 1), "-6d" )
-                , ( IsAddedIn (RelativeDays 7 1), "-7d" )
-                , ( IsAddedIn (RelativeDays 8 1), "-8d" )
-                , ( IsAddedIn (RelativeDays 9 1), "-9d" )
-                , ( IsAddedIn (RelativeDays 10 1), "-10d" )
-                , ( IsAddedIn (RelativeDays 11 1), "-11d" )
-                , ( IsAddedIn (RelativeDays 12 1), "-12d" )
-                , ( IsAddedIn (RelativeDays 13 1), "-13d" )
-                , ( IsAddedIn (RelativeDays 14 1), "-14d" )
-                ]
-                (\filter ->
-                    AppUrl.search model.session.globalParams
-                        |> AppUrl.withFilters
-                            (filters
-                                |> List.filter
-                                    (\f ->
-                                        case f of
-                                            IsAddedIn _ ->
-                                                False
-
-                                            _ ->
-                                                True
-                                    )
-                                |> (\fs -> fs ++ addIfNotExists filter filters)
-                            )
-                )
-                filters
-             , filterSection "Part of speech"
-                (PartOfSpeech.items |> List.map (\pos -> ( PartOfSpeechIs pos, PartOfSpeech.toString pos )))
-                (\filter ->
-                    AppUrl.search model.session.globalParams
-                        |> AppUrl.withFilters
-                            (filters
-                                |> List.filter
-                                    (\f ->
-                                        case f of
-                                            PartOfSpeechIs _ ->
-                                                False
-
-                                            _ ->
-                                                True
-                                    )
-                                |> (\fs -> fs ++ addIfNotExists filter filters)
-                            )
-                )
-                filters
-             , filterSection "Tags"
-                (model.session.dict
-                    |> Array.toList
-                    |> List.concatMap .tags
-                    |> uniq
-                    |> List.map (\tag -> ( HasTag tag, tag ))
-                )
-                (\filter ->
-                    AppUrl.search model.session.globalParams
-                        |> AppUrl.withFilters
-                            (filters
-                                |> List.filter ((/=) filter)
-                                |> (\fs -> fs ++ addIfNotExists filter filters)
-                            )
-                )
-                filters
+             , filterViewByAddedIn model.session.globalParams
+             , filterViewByPartOfSpeech model.session.globalParams
+             , filterViewByTags model.session.dict model.session.globalParams
              ]
                 ++ (if
                         model.expandSearchResults
@@ -217,6 +148,87 @@ view model =
             ]
             [ Icon.close "width: 2em; height: 2em" "#3d4852" ]
         ]
+
+
+filterViewByAddedIn globalParams =
+    filterSection "Added in"
+        [ ( IsAddedIn (RelativeDays 7 7), "-1w" )
+        , ( IsAddedIn (RelativeDays 14 7), "-2w" )
+        , ( IsAddedIn (RelativeDays 21 7), "-3w" )
+        , ( IsAddedIn (RelativeDays 28 7), "-4w" )
+        , ( IsAddedIn (RelativeDays 1 1), "-1d" )
+        , ( IsAddedIn (RelativeDays 2 1), "-2d" )
+        , ( IsAddedIn (RelativeDays 3 1), "-3d" )
+        , ( IsAddedIn (RelativeDays 4 1), "-4d" )
+        , ( IsAddedIn (RelativeDays 5 1), "-5d" )
+        , ( IsAddedIn (RelativeDays 6 1), "-6d" )
+        , ( IsAddedIn (RelativeDays 7 1), "-7d" )
+        , ( IsAddedIn (RelativeDays 8 1), "-8d" )
+        , ( IsAddedIn (RelativeDays 9 1), "-9d" )
+        , ( IsAddedIn (RelativeDays 10 1), "-10d" )
+        , ( IsAddedIn (RelativeDays 11 1), "-11d" )
+        , ( IsAddedIn (RelativeDays 12 1), "-12d" )
+        , ( IsAddedIn (RelativeDays 13 1), "-13d" )
+        , ( IsAddedIn (RelativeDays 14 1), "-14d" )
+        ]
+        (\filter ->
+            AppUrl.search globalParams
+                |> AppUrl.withFilters
+                    (globalParams.filters
+                        |> List.filter
+                            (\f ->
+                                case f of
+                                    IsAddedIn _ ->
+                                        False
+
+                                    _ ->
+                                        True
+                            )
+                        |> (\fs -> fs ++ addIfNotExists filter globalParams.filters)
+                    )
+        )
+        globalParams.filters
+
+
+filterViewByPartOfSpeech globalParams =
+    filterSection "Part of speech"
+        (PartOfSpeech.items |> List.map (\pos -> ( PartOfSpeechIs pos, PartOfSpeech.toString pos )))
+        (\filter ->
+            AppUrl.search globalParams
+                |> AppUrl.withFilters
+                    (globalParams.filters
+                        |> List.filter
+                            (\f ->
+                                case f of
+                                    PartOfSpeechIs _ ->
+                                        False
+
+                                    _ ->
+                                        True
+                            )
+                        |> (\fs -> fs ++ addIfNotExists filter globalParams.filters)
+                    )
+        )
+        globalParams.filters
+
+
+filterViewByTags dict globalParams =
+    filterSection "Tags"
+        (dict
+            |> Array.toList
+            |> List.concatMap .tags
+            |> uniq
+            |> List.map (\tag -> ( HasTag tag, tag ))
+        )
+        (\filter ->
+            AppUrl.search globalParams
+                |> AppUrl.withFilters
+                    (globalParams.filters
+                        |> List.filter ((/=) filter)
+                        |> (\fs -> fs ++ addIfNotExists filter globalParams.filters)
+                    )
+        )
+        globalParams.filters
 
 
 addIfNotExists : Filter -> List Filter -> List Filter
@@ -341,10 +353,10 @@ searchResultRow globalParams entry =
                 , "text-black"
                 , "hover:bg-grey-lighter"
                 ]
-            , href (AppUrl.card entry.de globalParams |> AppUrl.toString)
+            , href (AppUrl.card entry.index globalParams |> AppUrl.toString)
             ]
-            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] [ span [] [ text entry.de ] ]
-            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] [ span [] [ text entry.ja ] ]
+            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] [ span [] [ text entry.index ] ]
+            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] [ span [] [ text entry.translation ] ]
             ]
         ]
 

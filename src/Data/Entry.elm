@@ -8,8 +8,8 @@ import Time
 
 
 type alias Entry =
-    { de : String
-    , ja : String
+    { index : String
+    , translation : String
     , pos : PartOfSpeech
     , example : Maybe String
     , addedAt : Time.Posix
@@ -25,11 +25,11 @@ type EntryValidationError
 
 
 encode : Entry -> Encode.Value
-encode { de, pos, ja, example, addedAt, updatedAt, starred, tags } =
+encode { index, pos, translation, example, addedAt, updatedAt, starred, tags } =
     Encode.object
-        ([ ( "id", Encode.string de )
+        ([ ( "id", Encode.string index )
          , ( "partOfSpeech", PartOfSpeech.encode pos )
-         , ( "translation", Encode.string ja )
+         , ( "translation", Encode.string translation )
          , ( "addedAt", Encode.int (Time.posixToMillis addedAt) )
          , ( "updatedAt", Encode.int (Time.posixToMillis updatedAt) )
          , ( "starred", Encode.bool starred )
@@ -46,10 +46,10 @@ encode { de, pos, ja, example, addedAt, updatedAt, starred, tags } =
 decode : Decode.Decoder Entry
 decode =
     Decode.map8
-        (\de pos ja example addedAt updatedAt starred tags ->
-            { de = de
+        (\index pos translation example addedAt updatedAt starred tags ->
+            { index = index
             , pos = pos |> Maybe.withDefault Verb
-            , ja = ja
+            , translation = translation
             , example =
                 if example == Just "" then
                     Nothing
@@ -73,12 +73,12 @@ decode =
 
 
 withoutArticle : Entry -> String
-withoutArticle { de } =
+withoutArticle { index } =
     let
         articleRegex =
             Regex.fromString "^(der|die|das) " |> Maybe.withDefault Regex.never
     in
-    de
+    index 
         |> Regex.replace articleRegex (.match >> (\_ -> ""))
 
 
@@ -108,9 +108,9 @@ censorExample text =
 
 empty : Entry
 empty =
-    { de = ""
+    { index = ""
     , pos = Verb
-    , ja = ""
+    , translation = ""
     , example = Nothing
     , addedAt = Time.millisToPosix 0
     , updatedAt = Time.millisToPosix 0
@@ -120,11 +120,11 @@ empty =
 
 
 findFirstError : Entry -> Maybe EntryValidationError
-findFirstError { de, ja } =
-    if de == "" then
+findFirstError { index, translation } =
+    if index == "" then
         Just WordIsEmpty
 
-    else if ja == "" then
+    else if translation == "" then
         Just TranslationIsEmpty
 
     else

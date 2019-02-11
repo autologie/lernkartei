@@ -1,10 +1,19 @@
-module Help exposing (btnClasses, classNames, groupedBtnClasses, isJust, replaceEntry, showText, updateWithCurrentTime)
+module Help exposing
+    ( btnClasses
+    , classNames
+    , groupedBtnClasses
+    , isJust
+    , monthNumber
+    , replaceEntry
+    , showText
+    , updateWithCurrentTime
+    )
 
 import Data.Entry exposing (Entry)
 import Html exposing (Attribute, Html, div, text)
 import Html.Attributes exposing (classList)
 import Task
-import Time
+import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 
 
 classNames : List String -> Attribute a
@@ -78,3 +87,43 @@ showText message =
 isJust : Maybe a -> Bool
 isJust =
     Maybe.map (\_ -> True) >> Maybe.withDefault False
+
+
+monthNumber : Posix -> Zone -> Int
+monthNumber posix zone =
+    case posix |> Time.toMonth zone of
+        Jan ->
+            1
+
+        Feb ->
+            2
+
+        Mar ->
+            3
+
+        Apr ->
+            4
+
+        May ->
+            5
+
+        Jun ->
+            6
+
+        Jul ->
+            7
+
+        Aug ->
+            8
+
+        Sep ->
+            9
+
+        Oct ->
+            10
+
+        Nov ->
+            11
+
+        Dec ->
+            12
