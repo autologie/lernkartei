@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "parcel index.html",
-    "build": "yarn run deploy:firebase && parcel build index.html",
+    "build": "yarn run deploy:firebase && parcel build index.html && cp ./_redirects ./dist/",
     "format": "elm-format --yes src/",
     "deploy:firebase": "firebase deploy --token \"$FIREBASE_TOKEN\" --only firestore",
     "test": "elm-test"
