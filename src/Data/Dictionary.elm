@@ -8,11 +8,13 @@ module Data.Dictionary exposing
     , nextEntry
     , randomEntry
     , replacedWith
+    , tags
     , without
     )
 
 import Array exposing (Array)
 import Data.Entry as Entry exposing (Entry, EntryValidationError)
+import Help
 import Random exposing (Seed)
 import Url
 
@@ -133,3 +135,10 @@ replacedWith original replacement dict =
 added : Entry -> Dictionary -> Dictionary
 added entry dict =
     dict |> Array.append ([ entry ] |> Array.fromList)
+
+
+tags : Dictionary -> List String
+tags =
+    Array.toList
+        >> List.concatMap .tags
+        >> Help.uniq

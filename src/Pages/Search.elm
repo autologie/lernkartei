@@ -215,9 +215,7 @@ filterViewByPartOfSpeech globalParams =
 filterViewByTags dict globalParams =
     filterSection "Tags"
         (dict
-            |> Array.toList
-            |> List.concatMap .tags
-            |> uniq
+            |> Dictionary.tags
             |> List.map (\tag -> ( HasTag tag, tag ))
         )
         (\filter ->
@@ -238,20 +236,6 @@ addIfNotExists filter filters =
 
     else
         [ filter ]
-
-
-uniq : List a -> List a
-uniq list =
-    List.foldl
-        (\value passed ->
-            if List.member value passed then
-                passed
-
-            else
-                passed ++ [ value ]
-        )
-        []
-        list
 
 
 filterSection : String -> List ( Filter, String ) -> (Filter -> AppUrl) -> List Filter -> Html Msg

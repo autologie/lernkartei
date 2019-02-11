@@ -5,12 +5,12 @@ import Browser.Navigation
 import Components.Dialog as Dialog
 import Components.Icon as Icon
 import Data.AppUrl as AppUrl
-import Data.Dictionary as Dictionary exposing (DictValidationError(..))
+import Data.Dictionary as Dictionary exposing (DictValidationError(..), Dictionary)
 import Data.Entry as Entry exposing (Entry, EntryValidationError(..))
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
-import Html exposing (Html, button, div, input, label, option, p, select, text, textarea)
+import Html exposing (Html, button, div, input, label, li, option, p, select, text, textarea, ul)
 import Html.Attributes exposing (disabled, id, rows, selected, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Ports
@@ -25,6 +25,7 @@ type Msg
     | DoDeleteEntry
     | CloseDialog
     | WithModel (Model -> ( Model, Cmd Msg ))
+    | TagClicked String
     | NoOp
 
 
@@ -116,6 +117,16 @@ update model msg =
 
         WithModel withModel ->
             withModel model
+
+        TagClicked tag ->
+            let
+                entry =
+                    model.entry
+
+                updatedEntry =
+                    { entry | tags = entry.tags |> Help.toggle tag }
+            in
+            ( { model | entry = updatedEntry }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -231,6 +242,7 @@ view { entry, originalEntry, dialog, session } =
                     )
                 )
                 Nothing
+             , tagList session.dict entry
              ]
                 ++ (if isNew then
                         []
@@ -436,4 +448,43 @@ navigateTo { navigationKey, globalParams } maybeEntry =
             |> Maybe.map (\{ index } -> AppUrl.card index globalParams)
             |> Maybe.withDefault (AppUrl.top globalParams)
             |> AppUrl.toString
+        )
+
+
+tagList : Dictionary -> Entry -> Html Msg
+tagList dict entry =
+    ul
+        [ Help.classNames
+            [ "list-reset"
+            , "flex"
+            , "flex-wrap"
+            , "justify-center"
+            ]
+        ]
+        (dict
+            |> Dictionary.tags
+            |> List.map
+                (\tag ->
+                    li
+                        [ Help.classNames
+                            ([ "mb-2"
+                             , "mx-1"
+                             , "p-2"
+                             , "rounded"
+                             ]
+                                ++ (if List.member tag entry.tags then
+                                        [ "bg-blue"
+                                        , "text-white"
+                                        ]
+
+                                    else
+                                        [ "bg-grey-light"
+                                        , "text-grey-darkest"
+                                        ]
+                                   )
+                            )
+                        , onClick (TagClicked tag)
+                        ]
+                        [ text tag ]
+                )
         )
