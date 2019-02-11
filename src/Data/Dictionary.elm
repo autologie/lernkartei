@@ -142,3 +142,4 @@ tags =
     Array.toList
         >> List.concatMap .tags
         >> Help.uniq
+        >> List.sort

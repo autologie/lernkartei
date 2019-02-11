@@ -27,10 +27,12 @@ view results searchInputBuffer filters =
             , id "search-input"
             , Help.classNames
                 [ "text-grey-darkest"
-                , "bg-transparent"
+                , "bg-grey-lighter"
                 , "w-full"
                 , "text-sm"
                 , "py-4"
+                , "px-2"
+                , "rounded"
                 ]
             , value searchInputBuffer
             ]
