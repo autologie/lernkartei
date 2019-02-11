@@ -38,7 +38,6 @@ initialModel session =
         session.globalParams.filters |> Filter.toString
     , expandSearchResults = False
     }
-        |> Debug.log "expand"
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )

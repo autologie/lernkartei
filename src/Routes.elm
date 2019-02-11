@@ -124,7 +124,6 @@ buildQueryParams maybeFilters shuffle translate =
     , shuffle = parseBool shuffle
     , translate = parseBool translate
     }
-        |> Debug.log "<MjMjMj"
 
 
 extractSession : Route -> Maybe Session
