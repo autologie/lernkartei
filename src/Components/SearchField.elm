@@ -7,13 +7,14 @@ import Data.Filter as Filter exposing (Filter(..))
 import Help
 import Html exposing (Html, button, div, input, p, text, ul)
 import Html.Attributes exposing (id, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onFocus, onInput)
 
 
 type Msg
     = SearchInput String
     | ToggleSearchResults
     | ClearSearchText
+    | Focus
 
 
 view : Dictionary -> String -> List Filter -> Html Msg
@@ -22,6 +23,7 @@ view results searchInputBuffer filters =
         (input
             [ type_ "text"
             , onInput SearchInput
+            , onFocus Focus
             , id "search-input"
             , Help.classNames
                 [ "text-grey-darkest"

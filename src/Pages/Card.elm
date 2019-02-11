@@ -4,7 +4,7 @@ import Array
 import Browser.Navigation
 import Components.Icon as Icon exposing (add)
 import Components.SearchField as SearchField
-import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
+import Data.AppUrl as AppUrl exposing (AppUrl, GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
@@ -27,10 +27,9 @@ type alias Model =
 
 
 type Msg
-    = Translate
-    | TextDispositionChange ( Int, Int, Float )
+    = TextDispositionChange ( Int, Int, Float )
     | ToggleStar
-    | NavigateTo String
+    | NavigateTo AppUrl
 
 
 initialModel : Session -> String -> Model
@@ -49,15 +48,6 @@ subscriptions _ =
 update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
-        Translate ->
-            ( model
-            , Browser.Navigation.pushUrl model.session.navigationKey
-                (AppUrl.card model.entry.de model.session.globalParams
-                    |> AppUrl.withTranslate (not model.session.globalParams.translate)
-                    |> AppUrl.toString
-                )
-            )
-
         TextDispositionChange value ->
             ( { model
                 | textDisposition = Just value
@@ -81,7 +71,7 @@ update model msg =
             )
 
         NavigateTo url ->
-            ( model, Browser.Navigation.pushUrl model.session.navigationKey url )
+            ( model, Browser.Navigation.pushUrl model.session.navigationKey (AppUrl.toString url) )
 
 
 view : Model -> Html Msg
@@ -101,6 +91,7 @@ view model =
             [ "container"
             , "max-w-md"
             , "p-5"
+            , "pt-12"
             ]
         ]
         [ ( "nav"
@@ -153,7 +144,12 @@ cardView model results entry =
                     , "text-grey-darkest"
                     , "relative"
                     ]
-                , onClick Translate
+                , onClick
+                    (NavigateTo
+                        (AppUrl.card model.entry.de model.session.globalParams
+                            |> AppUrl.withTranslate (not model.session.globalParams.translate)
+                        )
+                    )
                 ]
                 [ div
                     ([ id "text", attribute "data-text" textToShow ]
@@ -332,7 +328,11 @@ buttons entry globalParams =
         [ a
             [ Help.classNames
                 [ "rounded-full"
-                , "bg-grey"
+                , if globalParams.shuffle then
+                    "bg-green"
+
+                  else
+                    "bg-grey"
                 , "text-xl"
                 , "shadow-md"
                 , "flex"
@@ -345,16 +345,10 @@ buttons entry globalParams =
             , href
                 (AppUrl.card entry.de globalParams
                     |> AppUrl.withShuffle (not globalParams.shuffle)
-                    |> AppUrl.withTranslate globalParams.translate
                     |> AppUrl.toString
                 )
             ]
-            [ if globalParams.shuffle then
-                Icon.shuffle "width: .4em; height: .4em;"
-
-              else
-                Icon.noShuffle "width: .4em; height: .4em;"
-            ]
+            [ Icon.shuffle "width: .4em; height: .4em;" ]
         , a
             [ Help.classNames
                 [ "rounded-full"
@@ -386,11 +380,13 @@ translateSearchFieldMsg model msg =
         SearchField.ClearSearchText ->
             AppUrl.card model.entry.de { params | filters = [] }
 
+        SearchField.Focus ->
+            AppUrl.search params
+
         SearchField.SearchInput txt ->
             AppUrl.search { params | filters = Filter.parse txt }
 
         SearchField.ToggleSearchResults ->
             AppUrl.search model.session.globalParams
     )
-        |> AppUrl.toString
         |> NavigateTo

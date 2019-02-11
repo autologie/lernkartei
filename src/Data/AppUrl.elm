@@ -46,15 +46,16 @@ toString url =
 
         toStringWithParams path extraParams { filters, shuffle, translate } =
             Builder.relative path
-                (if List.length filters == 0 then
-                    []
+                (List.concat
+                    [ if List.length filters == 0 then
+                        []
 
-                 else
-                    [ Builder.string "filter" (Filter.toString filters)
-                    , Builder.int "shuffle" (encodeBool shuffle)
-                    , Builder.int "translate" (encodeBool translate)
+                      else
+                        [ Builder.string "filter" (Filter.toString filters) ]
+                    , [ Builder.int "shuffle" (encodeBool shuffle) ]
+                    , [ Builder.int "translate" (encodeBool translate) ]
+                    , extraParams
                     ]
-                        ++ extraParams
                 )
     in
     case url of

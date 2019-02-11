@@ -27,6 +27,7 @@ parse : String -> List Filter
 parse str =
     str
         |> String.split " "
+        |> List.filter ((/=) "")
         |> List.map fromString
 
 

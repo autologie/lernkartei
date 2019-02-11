@@ -4,13 +4,14 @@ import Array
 import Browser.Navigation
 import Components.Icon as Icon
 import Components.SearchField as SearchField
-import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
+import Data.AppUrl as AppUrl exposing (AppUrl, GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
+import Data.PartOfSpeech as PartOfSpeech
 import Data.Session exposing (Session)
 import Help
-import Html exposing (Html, a, button, div, input, li, p, span, text, ul)
+import Html exposing (Html, a, button, div, h3, input, li, p, section, span, text, ul)
 import Html.Attributes exposing (href, id, type_, value)
 import Html.Events exposing (onClick, onInput)
 
@@ -26,6 +27,8 @@ type Msg
     = SearchInput String
     | ToggleSearchResults
     | ClearSearchText
+    | CloseSearch
+    | NoOp
 
 
 initialModel : Session -> Model
@@ -35,6 +38,7 @@ initialModel session =
         session.globalParams.filters |> Filter.toString
     , expandSearchResults = False
     }
+        |> Debug.log "expand"
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )
@@ -71,6 +75,19 @@ update model msg =
                 )
             )
 
+        CloseSearch ->
+            ( model
+            , Browser.Navigation.pushUrl model.session.navigationKey
+                (AppUrl.nextCard model.session.globalParams
+                    |> AppUrl.toString
+                )
+            )
+
+        NoOp ->
+            ( model
+            , Cmd.none
+            )
+
 
 view : Model -> Html Msg
 view model =
@@ -97,6 +114,7 @@ view model =
                 [ "container"
                 , "max-w-md"
                 , "p-5"
+                , "pt-12"
                 ]
             ]
             ([ SearchField.view
@@ -104,64 +122,82 @@ view model =
                 model.searchInputBuffer
                 filters
                 |> Html.map translateSearchFieldMsg
-             , ul
-                [ Help.classNames
-                    [ "list-reset"
-                    , "flex"
-                    , "justify-center"
-                    , "mb-2"
-                    , "bg-grey-light"
-                    , "rounded-full"
-                    , "overflow-scroll"
-                    , "p-2"
-                    , "relative"
-                    ]
+             , filterSection "Added in"
+                [ ( IsAddedIn (RelativeDays 7 7), "-1w" )
+                , ( IsAddedIn (RelativeDays 14 7), "-2w" )
+                , ( IsAddedIn (RelativeDays 21 7), "-3w" )
+                , ( IsAddedIn (RelativeDays 28 7), "-4w" )
+                , ( IsAddedIn (RelativeDays 1 1), "-1d" )
+                , ( IsAddedIn (RelativeDays 2 1), "-2d" )
+                , ( IsAddedIn (RelativeDays 3 1), "-3d" )
+                , ( IsAddedIn (RelativeDays 4 1), "-4d" )
+                , ( IsAddedIn (RelativeDays 5 1), "-5d" )
+                , ( IsAddedIn (RelativeDays 6 1), "-6d" )
+                , ( IsAddedIn (RelativeDays 7 1), "-7d" )
+                , ( IsAddedIn (RelativeDays 8 1), "-8d" )
+                , ( IsAddedIn (RelativeDays 9 1), "-9d" )
+                , ( IsAddedIn (RelativeDays 10 1), "-10d" )
+                , ( IsAddedIn (RelativeDays 11 1), "-11d" )
+                , ( IsAddedIn (RelativeDays 12 1), "-12d" )
+                , ( IsAddedIn (RelativeDays 13 1), "-13d" )
+                , ( IsAddedIn (RelativeDays 14 1), "-14d" )
                 ]
-                ([ 1, 2, 3, 4, 5, 6, 7 ]
-                    |> List.reverse
-                    |> List.map
-                        (\n ->
-                            li
-                                []
-                                [ a
-                                    [ href
-                                        (AppUrl.search model.session.globalParams
-                                            |> AppUrl.withFilters
-                                                (filters
-                                                    |> List.filter
-                                                        (\f ->
-                                                            case f of
-                                                                IsAddedIn _ ->
-                                                                    False
+                (\filter ->
+                    AppUrl.search model.session.globalParams
+                        |> AppUrl.withFilters
+                            (filters
+                                |> List.filter
+                                    (\f ->
+                                        case f of
+                                            IsAddedIn _ ->
+                                                False
 
-                                                                _ ->
-                                                                    True
-                                                        )
-                                                    |> (\fs -> fs ++ [ IsAddedIn (RelativeDays n 1) ])
-                                                )
-                                            |> AppUrl.toString
-                                        )
-                                    , Help.classNames
-                                        [ "no-underline"
-                                        , "block"
-                                        , "text-white"
-                                        , "rounded-full"
-                                        , "p-2"
-                                        , "mx-1"
-                                        , "bg-blue"
-                                        ]
-                                    ]
-                                    [ text ("-" ++ String.fromInt n ++ "d") ]
-                                ]
-                        )
+                                            _ ->
+                                                True
+                                    )
+                                |> (\fs -> fs ++ addIfNotExists filter filters)
+                            )
                 )
+                filters
+             , filterSection "Part of speech"
+                (PartOfSpeech.items |> List.map (\pos -> ( PartOfSpeechIs pos, PartOfSpeech.toString pos )))
+                (\filter ->
+                    AppUrl.search model.session.globalParams
+                        |> AppUrl.withFilters
+                            (filters
+                                |> List.filter
+                                    (\f ->
+                                        case f of
+                                            PartOfSpeechIs _ ->
+                                                False
+
+                                            _ ->
+                                                True
+                                    )
+                                |> (\fs -> fs ++ addIfNotExists filter filters)
+                            )
+                )
+                filters
+             , filterSection "Tags"
+                (model.session.dict
+                    |> Array.toList
+                    |> List.concatMap .tags
+                    |> uniq
+                    |> List.map (\tag -> ( HasTag tag, tag ))
+                )
+                (\filter ->
+                    AppUrl.search model.session.globalParams
+                        |> AppUrl.withFilters
+                            (filters
+                                |> List.filter ((/=) filter)
+                                |> (\fs -> fs ++ addIfNotExists filter filters)
+                            )
+                )
+                filters
              ]
                 ++ (if
-                        True
-                            || (model.expandSearchResults
-                                    && (Array.length results > 0)
-                                    && (List.length model.session.globalParams.filters > 0)
-                               )
+                        model.expandSearchResults
+                            && (List.length model.session.globalParams.filters > 0)
                     then
                         searchResultView results model.session.globalParams
                             |> Maybe.map List.singleton
@@ -170,6 +206,88 @@ view model =
                     else
                         []
                    )
+            )
+        , button
+            [ onClick CloseSearch
+            , Help.classNames
+                [ "fixed"
+                , "pin-r"
+                , "pin-t"
+                , "m-4"
+                ]
+            ]
+            [ Icon.close "width: 2em; height: 2em" "#3d4852" ]
+        ]
+
+
+addIfNotExists : Filter -> List Filter -> List Filter
+addIfNotExists filter filters =
+    if List.member filter filters then
+        []
+
+    else
+        [ filter ]
+
+
+uniq : List a -> List a
+uniq list =
+    List.foldl
+        (\value passed ->
+            if List.member value passed then
+                passed
+
+            else
+                passed ++ [ value ]
+        )
+        []
+        list
+
+
+filterSection : String -> List ( Filter, String ) -> (Filter -> AppUrl) -> List Filter -> Html Msg
+filterSection title filters createUrl currentFilters =
+    section [ Help.classNames [ "my-4" ] ]
+        [ h3 [ Help.classNames [ "text-grey-darker" ] ] [ text title ]
+        , ul
+            [ Help.classNames
+                [ "list-reset"
+                , "flex"
+                , "justify-center"
+                , "flex-wrap"
+                , "my-4"
+                ]
+            ]
+            (filters
+                |> List.reverse
+                |> List.map
+                    (\( filter, txt ) ->
+                        li
+                            []
+                            [ a
+                                [ href (createUrl filter |> AppUrl.toString)
+                                , Help.classNames
+                                    ([ "no-underline"
+                                     , "rounded"
+                                     , "inline-block"
+                                     , "mr-1"
+                                     , "mb-2"
+                                     , "py-1"
+                                     , "px-2"
+                                     ]
+                                        ++ (if List.member filter currentFilters then
+                                                [ "text-white"
+                                                , "bg-blue"
+                                                ]
+
+                                            else
+                                                [ "text-grey-darker"
+                                                , "bg-grey-light"
+                                                ]
+                                           )
+                                    )
+                                ]
+                                [ text txt ]
+                            ]
+                    )
             )
         ]
 
@@ -243,3 +361,6 @@ translateSearchFieldMsg searchFieldMsg =
 
         SearchField.ClearSearchText ->
             ClearSearchText
+
+        SearchField.Focus ->
+            NoOp

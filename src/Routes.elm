@@ -30,7 +30,13 @@ type RoutingAction
 
 
 resolve : Maybe Session -> Url.Parser.Parser (RoutingAction -> a) a
-resolve maybeSession =
+resolve =
+    Maybe.map resolveWithSession
+        >> Maybe.withDefault (Url.Parser.custom "INITIALIZING" (\_ -> Just AwaitInitialization))
+
+
+resolveWithSession : Session -> Url.Parser.Parser (RoutingAction -> a) a
+resolveWithSession session =
     let
         globalParams path =
             path
@@ -40,7 +46,7 @@ resolve maybeSession =
     in
     Url.Parser.oneOf
         [ Url.Parser.map
-            (resolveSearch maybeSession)
+            (resolveSearch session)
             (s "search" |> globalParams)
         , Url.Parser.map
             (\a b c -> buildQueryParams a b c |> RedirectToRandom)
@@ -49,93 +55,60 @@ resolve maybeSession =
             (\a b c -> buildQueryParams a b c |> RedirectToRandom)
             (Url.Parser.top |> globalParams)
         , Url.Parser.map
-            (resolveNewEntry maybeSession)
+            (resolveNewEntry session)
             (s "entries" </> s "_new" <?> Query.string "de" |> globalParams)
         , Url.Parser.map
-            (resolveCard maybeSession)
+            (resolveCard session)
             (s "entries" </> string |> globalParams)
         , Url.Parser.map
-            (resolveEditor maybeSession)
+            (resolveEditor session)
             (s "entries" </> string </> s "_edit" |> globalParams)
         ]
 
 
-resolveCard : Maybe Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
-resolveCard maybeSession de filter shuffle translate =
-    let
-        withSession session =
-            Show
-                (Card
-                    (Pages.Card.initialModel
-                        { session | globalParams = buildQueryParams filter shuffle translate }
-                        de
-                    )
-                )
-    in
-    maybeSession
-        |> Maybe.map withSession
-        |> Maybe.withDefault AwaitInitialization
+resolveCard : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveCard session de filter shuffle translate =
+    Pages.Card.initialModel
+        { session | globalParams = buildQueryParams filter shuffle translate }
+        de
+        |> (Card >> Show)
 
 
-resolveNewEntry : Maybe Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
-resolveNewEntry maybeSession de filter shuffle translate =
+resolveNewEntry : Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveNewEntry session de filter shuffle translate =
     let
         emptyEntry =
             Entry.empty
-
-        withSession session =
-            Show
-                (Editor
-                    { entry = { emptyEntry | de = Maybe.withDefault "" de }
-                    , originalEntry = Nothing
-                    , dialog = Nothing
-                    , session = { session | globalParams = buildQueryParams filter shuffle translate }
-                    }
-                )
     in
-    maybeSession
-        |> Maybe.map withSession
-        |> Maybe.withDefault AwaitInitialization
+    { entry = { emptyEntry | de = Maybe.withDefault "" de }
+    , originalEntry = Nothing
+    , dialog = Nothing
+    , session = { session | globalParams = buildQueryParams filter shuffle translate }
+    }
+        |> (Editor >> Show)
 
 
-resolveEditor : Maybe Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
-resolveEditor maybeSession de filter shuffle translate =
+resolveEditor : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveEditor session de filter shuffle translate =
     let
-        withSession session =
-            let
-                entry =
-                    Dictionary.get de session.dict
-            in
-            Show
-                (Editor
-                    { entry = entry
-                    , originalEntry = Just entry
-                    , dialog = Nothing
-                    , session = { session | globalParams = buildQueryParams filter shuffle translate }
-                    }
-                )
+        entry =
+            Dictionary.get de session.dict
     in
-    maybeSession
-        |> Maybe.map withSession
-        |> Maybe.withDefault AwaitInitialization
+    { entry = entry
+    , originalEntry = Just entry
+    , dialog = Nothing
+    , session = { session | globalParams = buildQueryParams filter shuffle translate }
+    }
+        |> (Editor >> Show)
 
 
-resolveSearch : Maybe Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
-resolveSearch maybeSession filter shuffle translate =
-    let
-        withSession session =
-            Show
-                (Search
-                    (Pages.Search.initialModel
-                        { session
-                            | globalParams = buildQueryParams filter shuffle translate
-                        }
-                    )
-                )
-    in
-    maybeSession
-        |> Maybe.map withSession
-        |> Maybe.withDefault AwaitInitialization
+resolveSearch : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveSearch session filter shuffle translate =
+    Pages.Search.initialModel
+        { session
+            | globalParams = buildQueryParams filter shuffle translate
+        }
+        |> (Search >> Show)
 
 
 buildQueryParams : Maybe String -> Maybe Int -> Maybe Int -> GlobalQueryParams
@@ -151,6 +124,7 @@ buildQueryParams maybeFilters shuffle translate =
     , shuffle = parseBool shuffle
     , translate = parseBool translate
     }
+        |> Debug.log "<MjMjMj"
 
 
 extractSession : Route -> Maybe Session
