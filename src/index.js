@@ -84,7 +84,7 @@ import "@firebase/firestore";
     attributeFilter: ["data-text"]
   });
 
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.SERVICE_WORKER_ENABLED === "true") {
     register("/service-worker.js", {
       ready(registration) {
         console.log("Service worker is active.");

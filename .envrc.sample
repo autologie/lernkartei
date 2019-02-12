@@ -1,4 +1,4 @@
 export FIREBASE_API_KEY=
 export FIREBASE_PROJECT_ID=
 expoet FIREBASE_TOKEN=
-export NODE_ENV=development
+export SERVICE_WORKER_ENABLED=false
