@@ -20,6 +20,7 @@ type alias Model =
     , filters : List Filter
     , searchInputBuffer : String
     , expandSearchResults : Bool
+    , results : Dictionary
     }
 
 
@@ -42,6 +43,7 @@ initialModel session =
     , filters = originalFilters
     , searchInputBuffer = originalFilters |> Filter.toString
     , expandSearchResults = False
+    , results = Filter.applied session.startTime session.dict originalFilters
     }
 
 
@@ -49,9 +51,14 @@ update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
         SearchInput text ->
+            let
+                filters =
+                    Filter.parse text
+            in
             ( { model
                 | searchInputBuffer = text
-                , filters = Filter.parse text
+                , filters = filters
+                , results = Filter.applied model.session.startTime model.session.dict filters
               }
             , Cmd.none
             )
@@ -67,6 +74,9 @@ update model msg =
         ClearSearchText ->
             update model (SearchInput "")
 
+        UpdateFilters filters ->
+            update model (SearchInput (Filter.toString filters))
+
         ApplyFilter ->
             let
                 globalParams =
@@ -79,9 +89,6 @@ update model msg =
                 )
             )
 
-        UpdateFilters filters ->
-            update model (SearchInput (Filter.toString filters))
-
         NoOp ->
             ( model
             , Cmd.none
@@ -93,12 +100,6 @@ view model =
     let
         filters =
             model.session.globalParams.filters
-
-        results =
-            Filter.applied
-                model.session.startTime
-                model.session.dict
-                filters
     in
     div
         [ Help.classNames
@@ -113,11 +114,11 @@ view model =
                 [ "container"
                 , "max-w-md"
                 , "p-5"
-                , "pt-12"
+                , "pb-12"
                 ]
             ]
             ([ SearchField.view
-                results
+                model.results
                 model.searchInputBuffer
                 filters
                 |> Html.map translateSearchFieldMsg
@@ -127,9 +128,9 @@ view model =
              ]
                 ++ (if
                         model.expandSearchResults
-                            && (List.length model.session.globalParams.filters > 0)
+                            && (List.length model.filters > 0)
                     then
-                        searchResultView results model.session.globalParams
+                        searchResultView model.results model.session.globalParams
                             |> Maybe.map List.singleton
                             |> Maybe.withDefault []
 
@@ -148,7 +149,7 @@ view model =
             ]
             [ button
                 [ onClick ApplyFilter
-                , Help.classNames ([ "w-full", "p-4", "shadow-md" ] ++ Help.btnClasses True False)
+                , Help.classNames ([ "w-full", "p-4", "shadow-md" ] ++ Help.btnClasses True (Array.length model.results == 0))
                 ]
                 [ text "Verwerden" ]
             ]
@@ -244,7 +245,7 @@ filterSection title filters createFilters currentFilters =
                 , "flex"
                 , "justify-center"
                 , "flex-wrap"
-                , "my-4"
+                , "my-6"
                 ]
             ]
             (filters

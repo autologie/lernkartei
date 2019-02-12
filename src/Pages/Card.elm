@@ -91,7 +91,6 @@ view model =
             [ "container"
             , "max-w-md"
             , "p-5"
-            , "pt-12"
             ]
         ]
         [ ( "nav"
@@ -248,7 +247,6 @@ cardView model results entry =
                 (Help.btnClasses True (not hasNext)
                     ++ [ "my-5"
                        , "p-4"
-                       , "text-lg"
                        , "w-full"
                        ]
                 )
@@ -284,7 +282,11 @@ entryDetailView { pos, example, tags } =
             , "py-4"
             , "leading-normal"
             , "text-left"
-            , "rounded-b"
+            , "rounded"
+            , "bg-white"
+            , "shadow-md"
+            , "p-3"
+            , "py-6"
             ]
         ]
         [ section [ Help.classNames [ "mb-6" ] ]
