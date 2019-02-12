@@ -17,6 +17,7 @@ import Html.Events exposing (onClick, onInput)
 
 type alias Model =
     { session : Session
+    , filters : List Filter
     , searchInputBuffer : String
     , expandSearchResults : Bool
     }
@@ -26,15 +27,20 @@ type Msg
     = SearchInput String
     | ToggleSearchResults
     | ClearSearchText
-    | CloseSearch
+    | ApplyFilter
+    | UpdateFilters (List Filter)
     | NoOp
 
 
 initialModel : Session -> Model
 initialModel session =
+    let
+        originalFilters =
+            session.globalParams.filters
+    in
     { session = session
-    , searchInputBuffer =
-        session.globalParams.filters |> Filter.toString
+    , filters = originalFilters
+    , searchInputBuffer = originalFilters |> Filter.toString
     , expandSearchResults = False
     }
 
@@ -43,18 +49,12 @@ update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
         SearchInput text ->
-            case SearchField.error text of
-                Just _ ->
-                    ( { model | searchInputBuffer = text }, Cmd.none )
-
-                _ ->
-                    ( model
-                    , Browser.Navigation.pushUrl model.session.navigationKey
-                        (AppUrl.search model.session.globalParams
-                            |> AppUrl.withFilters (Filter.parse text)
-                            |> AppUrl.toString
-                        )
-                    )
+            ( { model
+                | searchInputBuffer = text
+                , filters = Filter.parse text
+              }
+            , Cmd.none
+            )
 
         ToggleSearchResults ->
             ( { model
@@ -65,21 +65,22 @@ update model msg =
             )
 
         ClearSearchText ->
+            update model (SearchInput "")
+
+        ApplyFilter ->
+            let
+                globalParams =
+                    model.session.globalParams
+            in
             ( model
             , Browser.Navigation.pushUrl model.session.navigationKey
-                (AppUrl.search model.session.globalParams
-                    |> AppUrl.withoutFilters
+                (AppUrl.nextCard { globalParams | filters = model.filters }
                     |> AppUrl.toString
                 )
             )
 
-        CloseSearch ->
-            ( model
-            , Browser.Navigation.pushUrl model.session.navigationKey
-                (AppUrl.nextCard model.session.globalParams
-                    |> AppUrl.toString
-                )
-            )
+        UpdateFilters filters ->
+            update model (SearchInput (Filter.toString filters))
 
         NoOp ->
             ( model
@@ -120,9 +121,9 @@ view model =
                 model.searchInputBuffer
                 filters
                 |> Html.map translateSearchFieldMsg
-             , filterViewByAddedIn model.session.globalParams
-             , filterViewByPartOfSpeech model.session.globalParams
-             , filterViewByTags model.session.dict model.session.globalParams
+             , filterViewByAddedIn model.filters
+             , filterViewByPartOfSpeech model.filters
+             , filterViewByTags model.session.dict model.filters
              ]
                 ++ (if
                         model.expandSearchResults
@@ -146,7 +147,7 @@ view model =
                 ]
             ]
             [ button
-                [ onClick CloseSearch
+                [ onClick ApplyFilter
                 , Help.classNames ([ "w-full", "p-4", "shadow-md" ] ++ Help.btnClasses True False)
                 ]
                 [ text "Verwerden" ]
@@ -154,7 +155,7 @@ view model =
         ]
 
 
-filterViewByAddedIn globalParams =
+filterViewByAddedIn filters =
     filterSection "Added in"
         [ ( IsAddedIn (RelativeDays 7 7), "-1w" )
         , ( IsAddedIn (RelativeDays 14 7), "-2w" )
@@ -176,61 +177,52 @@ filterViewByAddedIn globalParams =
         , ( IsAddedIn (RelativeDays 14 1), "-14d" )
         ]
         (\filter ->
-            AppUrl.search globalParams
-                |> AppUrl.withFilters
-                    (globalParams.filters
-                        |> List.filter
-                            (\f ->
-                                case f of
-                                    IsAddedIn _ ->
-                                        False
+            filters
+                |> List.filter
+                    (\f ->
+                        case f of
+                            IsAddedIn _ ->
+                                False
 
-                                    _ ->
-                                        True
-                            )
-                        |> (\fs -> fs ++ addIfNotExists filter globalParams.filters)
+                            _ ->
+                                True
                     )
+                |> (\fs -> fs ++ addIfNotExists filter filters)
         )
-        globalParams.filters
+        filters
 
 
-filterViewByPartOfSpeech globalParams =
+filterViewByPartOfSpeech filters =
     filterSection "Part of speech"
         (PartOfSpeech.items |> List.map (\pos -> ( PartOfSpeechIs pos, PartOfSpeech.toString pos )))
         (\filter ->
-            AppUrl.search globalParams
-                |> AppUrl.withFilters
-                    (globalParams.filters
-                        |> List.filter
-                            (\f ->
-                                case f of
-                                    PartOfSpeechIs _ ->
-                                        False
+            filters
+                |> List.filter
+                    (\f ->
+                        case f of
+                            PartOfSpeechIs _ ->
+                                False
 
-                                    _ ->
-                                        True
-                            )
-                        |> (\fs -> fs ++ addIfNotExists filter globalParams.filters)
+                            _ ->
+                                True
                     )
+                |> (\fs -> fs ++ addIfNotExists filter filters)
         )
-        globalParams.filters
+        filters
 
 
-filterViewByTags dict globalParams =
+filterViewByTags dict filters =
     filterSection "Tags"
         (dict
             |> Dictionary.tags
             |> List.map (\tag -> ( HasTag tag, tag ))
         )
         (\filter ->
-            AppUrl.search globalParams
-                |> AppUrl.withFilters
-                    (globalParams.filters
-                        |> List.filter ((/=) filter)
-                        |> (\fs -> fs ++ addIfNotExists filter globalParams.filters)
-                    )
+            filters
+                |> List.filter ((/=) filter)
+                |> (\fs -> fs ++ addIfNotExists filter filters)
         )
-        globalParams.filters
+        filters
 
 
 addIfNotExists : Filter -> List Filter -> List Filter
@@ -242,8 +234,8 @@ addIfNotExists filter filters =
         [ filter ]
 
 
-filterSection : String -> List ( Filter, String ) -> (Filter -> AppUrl) -> List Filter -> Html Msg
-filterSection title filters createUrl currentFilters =
+filterSection : String -> List ( Filter, String ) -> (Filter -> List Filter) -> List Filter -> Html Msg
+filterSection title filters createFilters currentFilters =
     section [ Help.classNames [ "my-4" ] ]
         [ h3 [ Help.classNames [ "text-grey-darker" ] ] [ text title ]
         , ul
@@ -261,8 +253,8 @@ filterSection title filters createUrl currentFilters =
                     (\( filter, txt ) ->
                         li
                             []
-                            [ a
-                                [ href (createUrl filter |> AppUrl.toString)
+                            [ div
+                                [ onClick (UpdateFilters (createFilters filter))
                                 , Help.classNames
                                     ([ "no-underline"
                                      , "rounded"
