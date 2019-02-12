@@ -30,6 +30,7 @@ type Msg
     = TextDispositionChange ( Int, Int, Float )
     | ToggleStar
     | NavigateTo AppUrl
+    | BackToPrevPage
 
 
 initialModel : Session -> String -> Model
@@ -72,6 +73,9 @@ update model msg =
 
         NavigateTo url ->
             ( model, Browser.Navigation.pushUrl model.session.navigationKey (AppUrl.toString url) )
+
+        BackToPrevPage ->
+            ( model, Browser.Navigation.back model.session.navigationKey 1 )
 
 
 view : Model -> Html Msg
@@ -136,6 +140,32 @@ cardView model results entry =
             ]
             [ cardBehindView 1.6 5 -1
             , cardBehindView 2 10 -2
+            , a
+                [ Help.classNames
+                    [ "absolute"
+                    , "rounded-full"
+                    , "bg-blue"
+                    , "pin-r"
+                    , "pin-t"
+                    , "shadow-md"
+                    ]
+                , style "margin" "7rem -1em 0 0"
+                , href (AppUrl.nextCard model.session.globalParams |> AppUrl.toString)
+                ]
+                [ Icon.next "width: 2em; height: 2em" ]
+            , a
+                [ Help.classNames
+                    [ "absolute"
+                    , "rounded-full"
+                    , "bg-blue"
+                    , "pin-l"
+                    , "pin-t"
+                    , "shadow-md"
+                    ]
+                , style "margin" "7rem 0 0 -1em"
+                , onClick BackToPrevPage
+                ]
+                [ Icon.prev "width: 2em; height: 2em" ]
             , div
                 [ Help.classNames
                     [ "select-none"
@@ -242,17 +272,6 @@ cardView model results entry =
                     ]
                 ]
             ]
-        , a
-            [ Help.classNames
-                (Help.btnClasses True (not hasNext)
-                    ++ [ "my-5"
-                       , "p-4"
-                       , "w-full"
-                       ]
-                )
-            , href (AppUrl.nextCard model.session.globalParams |> AppUrl.toString)
-            ]
-            [ text "Nächst" ]
         , entryDetailView entry
         ]
 
@@ -356,7 +375,14 @@ buttons entry globalParams =
                     |> AppUrl.toString
                 )
             ]
-            [ Icon.shuffle "width: .4em; height: .4em;" ]
+            [ Icon.shuffle "width: .4em; height: .4em;"
+                (if globalParams.shuffle then
+                    "#38c172"
+
+                 else
+                    "#b8c2cc"
+                )
+            ]
         , a
             [ Help.classNames
                 [ "rounded-full"

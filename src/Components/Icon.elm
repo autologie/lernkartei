@@ -1,4 +1,4 @@
-module Components.Icon exposing (add, close, shuffle)
+module Components.Icon exposing (add, close, next, prev, shuffle)
 
 import Svg exposing (Svg, path, svg)
 import Svg.Attributes exposing (d, fill, height, stroke, strokeWidth, style, viewBox, width)
@@ -30,15 +30,40 @@ close theStyle color =
         ]
 
 
-shuffle : String -> Svg a
-shuffle theStyle =
-    -- TODO
+shuffle : String -> String -> Svg a
+shuffle theStyle bgColor =
     svg
         [ width "120"
         , height "120"
         , viewBox "0 0 120 120"
         , style theStyle
         ]
-        [ path [ d "M30,30 L90,90", stroke "white", fill "transparent", strokeWidth "12" ] []
-        , path [ d "M30,90 L90,30", stroke "white", fill "transparent", strokeWidth "12" ] []
+        [ path [ d "M10,30 C70,30 50,90 110,90", stroke "white", fill "transparent", strokeWidth "16" ] []
+        , path [ d "M10,90 C70,90 50,30 110,30", stroke bgColor, fill "transparent", strokeWidth "36" ] []
+        , path [ d "M10,90 C70,90 50,30 110,30", stroke "white", fill "transparent", strokeWidth "16" ] []
+        , path [ d "M100,70 L120,90 L100,110 Z", fill "white" ] []
+        , path [ d "M100,10 L120,30 L100,50 Z", fill "white" ] []
+        ]
+
+
+next : String -> Svg a
+next theStyle =
+    svg
+        [ width "120"
+        , height "120"
+        , viewBox "0 0 120 120"
+        , style theStyle
+        ]
+        [ path [ d "M50,40 L70,60 L50,80", stroke "white", fill "transparent", strokeWidth "9" ] []
+        ]
+
+
+prev theStyle =
+    svg
+        [ width "120"
+        , height "120"
+        , viewBox "0 0 120 120"
+        , style theStyle
+        ]
+        [ path [ d "M70,40 L50,60 L70,80", stroke "white", fill "transparent", strokeWidth "9" ] []
         ]
