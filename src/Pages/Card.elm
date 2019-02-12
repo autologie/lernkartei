@@ -152,7 +152,7 @@ cardView model results entry =
                 , style "margin" "7rem -1em 0 0"
                 , href (AppUrl.nextCard model.session.globalParams |> AppUrl.toString)
                 ]
-                [ Icon.next "width: 2em; height: 2em" ]
+                [ Icon.next "width: 3em; height: 3em" ]
             , a
                 [ Help.classNames
                     [ "absolute"
@@ -165,7 +165,7 @@ cardView model results entry =
                 , style "margin" "7rem 0 0 -1em"
                 , onClick BackToPrevPage
                 ]
-                [ Icon.prev "width: 2em; height: 2em" ]
+                [ Icon.prev "width: 3em; height: 3em" ]
             , div
                 [ Help.classNames
                     [ "select-none"
