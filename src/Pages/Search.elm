@@ -13,6 +13,7 @@ import Help
 import Html exposing (Html, a, button, div, h3, input, li, p, section, span, text, ul)
 import Html.Attributes exposing (href, id, type_, value)
 import Html.Events exposing (onClick, onInput)
+import Html.Keyed
 
 
 type alias Model =
@@ -97,63 +98,49 @@ update model msg =
 
 view : Model -> Html Msg
 view model =
-    let
-        filters =
-            model.session.globalParams.filters
-    in
-    div
-        [ Help.classNames
-            [ "w-full"
-            , "flex"
-            , "justify-center"
-            , "items-start"
+    Html.Keyed.node "div"
+        [ Help.classNames [ "container", "max-w-md" ] ]
+        (Help.flatten
+            [ Help.V <|
+                ( "search"
+                , div [ Help.classNames [ "fixed", "w-full", "p-5" ] ]
+                    [ SearchField.view
+                        model.results
+                        model.searchInputBuffer
+                        model.filters
+                        |> Html.map translateSearchFieldMsg
+                    ]
+                )
+            , Help.V <|
+                ( "utilities"
+                , div [ Help.classNames [ "py-20", "p-5" ] ]
+                    [ filterViewByAddedIn model.filters
+                    , filterViewByPartOfSpeech model.filters
+                    , filterViewByTags model.session.dict model.filters
+                    ]
+                )
+            , Help.Q (model.expandSearchResults && (List.length model.filters > 0))
+                (\_ -> searchResultView model.results model.session.globalParams |> Maybe.map (\d -> ( "results", d )))
+            , Help.V <|
+                ( "apply"
+                , div
+                    [ Help.classNames
+                        [ "fixed"
+                        , "pin-b"
+                        , "text-md"
+                        , "w-full"
+                        , "p-5"
+                        ]
+                    ]
+                    [ button
+                        [ onClick ApplyFilter
+                        , Help.classNames ([ "w-full", "p-4", "shadow-md" ] ++ Help.btnClasses True (Array.length model.results == 0))
+                        ]
+                        [ text "Verwerden" ]
+                    ]
+                )
             ]
-        ]
-        [ div
-            [ Help.classNames
-                [ "container"
-                , "max-w-md"
-                , "p-5"
-                , "pb-12"
-                ]
-            ]
-            ([ SearchField.view
-                model.results
-                model.searchInputBuffer
-                filters
-                |> Html.map translateSearchFieldMsg
-             , filterViewByAddedIn model.filters
-             , filterViewByPartOfSpeech model.filters
-             , filterViewByTags model.session.dict model.filters
-             ]
-                ++ (if
-                        model.expandSearchResults
-                            && (List.length model.filters > 0)
-                    then
-                        searchResultView model.results model.session.globalParams
-                            |> Maybe.map List.singleton
-                            |> Maybe.withDefault []
-
-                    else
-                        []
-                   )
-            )
-        , div
-            [ Help.classNames
-                [ "fixed"
-                , "pin-b"
-                , "p-4"
-                , "text-md"
-                , "w-full"
-                ]
-            ]
-            [ button
-                [ onClick ApplyFilter
-                , Help.classNames ([ "w-full", "p-4", "shadow-md" ] ++ Help.btnClasses True (Array.length model.results == 0))
-                ]
-                [ text "Verwerden" ]
-            ]
-        ]
+        )
 
 
 filterViewByAddedIn filters =

@@ -165,15 +165,18 @@ dispatchRoute model url =
     case Url.Parser.parse (Routes.resolve maybeSession) url of
         Just (Show r) ->
             ( { model | route = r }
-            , case r of
-                Editor _ ->
-                    Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+            , Cmd.batch
+                [ case r of
+                    Editor _ ->
+                        Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
 
-                Search _ ->
-                    Dom.focus "search-input" |> Task.attempt (\_ -> NoOp)
+                    Search _ ->
+                        Dom.focus "search-input" |> Task.attempt (\_ -> NoOp)
 
-                _ ->
-                    Cmd.none
+                    _ ->
+                        Cmd.none
+                , Dom.setViewport 0 0 |> Task.attempt (\_ -> NoOp)
+                ]
             )
 
         Just (RedirectToRandom params) ->

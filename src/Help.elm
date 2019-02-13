@@ -24,6 +24,7 @@ type C a b
     = V a
     | B Bool (() -> a) (() -> a)
     | O Bool (() -> a)
+    | Q Bool (() -> Maybe a)
     | M (Maybe a)
     | L (List a)
     | G (Maybe b) (b -> List a)
@@ -177,6 +178,12 @@ flatten values =
                     [ v () ]
 
                 O False _ ->
+                    []
+
+                Q True v ->
+                    v () |> Maybe.map List.singleton |> Maybe.withDefault []
+
+                Q False _ ->
                     []
 
                 B True v _ ->

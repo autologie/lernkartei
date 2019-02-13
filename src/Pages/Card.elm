@@ -104,7 +104,7 @@ view model =
             , "p-5"
             ]
         ]
-        [ ( "nav"
+        [ ( "search"
           , SearchField.view results
                 (Filter.toString filters)
                 filters
@@ -135,12 +135,12 @@ cardView model results =
             (Help.flatten
                 [ Help.V <| cardBehindView 1.6 5 -1
                 , Help.V <| cardBehindView 2 10 -2
+                , Help.V <| cardBodyView model.entry model.session.globalParams results model.textDisposition
                 , Help.O hasNext <| \_ -> nextButton model.session.globalParams
                 , Help.V <| prevButton
-                , Help.V <| cardBodyView model.entry model.session.globalParams results model.textDisposition
                 ]
             )
-        , entryDetailView model.entry
+        , entryDetailView model.session.globalParams model.entry
         ]
 
 
@@ -325,8 +325,8 @@ cardBehindView rotateValue y zIndex =
         []
 
 
-entryDetailView : Entry -> Html Msg
-entryDetailView { pos, example, tags } =
+entryDetailView : GlobalQueryParams -> Entry -> Html Msg
+entryDetailView globalParams { pos, example, tags } =
     div
         [ Help.classNames
             [ "text-grey-dark"
@@ -346,7 +346,7 @@ entryDetailView { pos, example, tags } =
             ]
         , section [ Help.classNames [ "mb-6" ] ]
             [ h3 [] [ text "Beispiel" ]
-            , p [ Help.classNames [ "whitespace-prewrap" ] ]
+            , p [ Help.classNames [ "whitespace-pre-wrap" ] ]
                 [ text
                     (example
                         |> Maybe.map Entry.censorExample
@@ -356,15 +356,30 @@ entryDetailView { pos, example, tags } =
             ]
         , section [ Help.classNames [ "mb-6" ] ]
             [ h3 [] [ text "Etikett" ]
-            , p []
-                [ text
-                    (if List.length tags > 0 then
-                        tags |> String.join ", "
-
-                     else
-                        "-"
+            , if List.length tags > 0 then
+                ul [ Help.classNames [ "list-reset" ] ]
+                    (tags
+                        |> List.map
+                            (\tag ->
+                                li
+                                    [ Help.classNames
+                                        [ "bg-grey-light"
+                                        , "px-2"
+                                        , "py-1"
+                                        , "mr-2"
+                                        , "mb-1"
+                                        , "inline-block"
+                                        , "rounded"
+                                        , "text-xs"
+                                        ]
+                                    , onClick (NavigateTo (AppUrl.nextCard globalParams |> AppUrl.withFilters [ HasTag tag ]))
+                                    ]
+                                    [ text tag ]
+                            )
                     )
-                ]
+
+              else
+                p [] [ text "-" ]
             ]
         ]
 
