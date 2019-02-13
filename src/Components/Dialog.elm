@@ -45,8 +45,9 @@ view dialog =
 
 btnClasses : List String
 btnClasses =
-    Help.btnClasses True False
-        ++ [ "px-4"
-           , "py-2"
-           , "mx-2"
-           ]
+    [ Help.L <| Help.btnClasses True False
+    , Help.V "px-4"
+    , Help.V "py-2"
+    , Help.V "mx-2"
+    ]
+        |> Help.flatten

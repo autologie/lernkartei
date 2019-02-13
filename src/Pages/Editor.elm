@@ -170,125 +170,103 @@ view { entry, originalEntry, dialog, session } =
             , "items-start"
             ]
         ]
-        ([ div
-            [ Help.classNames
-                [ "container"
-                , "max-w-md"
-                , "p-5"
+        (Help.flatten
+            [ div
+                [ Help.classNames
+                    [ "container"
+                    , "max-w-md"
+                    , "p-5"
+                    ]
                 ]
-            ]
-            ([ inputRowView "Das Wort"
-                (textInputView (Just "editor-input-de")
-                    entry.index
-                    False
-                    (\value -> WordChange { entry | index = value })
-                )
-                deError
-             , inputRowView "Teil"
-                (selectInputView
-                    (pos |> PartOfSpeech.toString)
-                    (\value ->
-                        WordChange
-                            { entry
-                                | pos =
-                                    value
-                                        |> PartOfSpeech.fromString
-                                        |> Result.withDefault pos
-                            }
-                    )
-                    (PartOfSpeech.items
-                        |> List.map PartOfSpeech.toString
-                        |> List.map (\v -> ( v, v ))
-                    )
-                )
-                Nothing
-             , inputRowView "Übersetzung"
-                (textInputView Nothing
-                    translation
-                    False
-                    (\value -> WordChange { entry | translation = value })
-                )
-                jaError
-             , inputRowView "Beispiel"
-                (textInputView Nothing
-                    (example |> Maybe.withDefault "")
-                    True
-                    (\value ->
-                        WordChange
-                            { entry
-                                | example =
-                                    if value == "" then
-                                        Nothing
-
-                                    else
-                                        Just value
-                            }
-                    )
-                )
-                Nothing
-             , inputRowView "Etikett"
-                (textInputView Nothing
-                    (tags |> String.join "\n")
-                    True
-                    (\value ->
-                        WordChange
-                            { entry
-                                | tags =
-                                    value
-                                        |> String.split "\n"
-                                        |> List.map String.trim
-                                        |> List.filter ((/=) "")
-                            }
-                    )
-                )
-                Nothing
-             , tagList session.dict entry
-             ]
-                ++ (if isNew then
-                        []
-
-                    else
-                        let
-                            addedAtExpr =
-                                describeDate session.zone session.zoneName addedAt
-
-                            updatedAtExpr =
-                                describeDate session.zone session.zoneName updatedAt
-                        in
-                        [ p
-                            [ Help.classNames
-                                [ "text-grey-dark"
-                                , "my-6"
-                                ]
-                            ]
-                            [ text
-                                ("Added on "
-                                    ++ addedAtExpr
-                                    ++ (if addedAtExpr /= updatedAtExpr then
-                                            ", updated on "
-                                                ++ updatedAtExpr
-
-                                        else
-                                            ""
-                                       )
-                                )
-                            ]
-                        ]
-                   )
-                ++ [ button
-                        [ onClick SaveAndCloseEditor
-                        , Help.classNames
-                            (Help.btnClasses True hasError
-                                ++ [ "w-full"
-                                   , "p-3"
-                                   , "text-base"
-                                   , "mb-2"
-                                   ]
+                (Help.flatten
+                    [ inputRowView "Das Wort"
+                        (textInputView (Just "editor-input-de")
+                            entry.index
+                            False
+                            (\value -> WordChange { entry | index = value })
+                        )
+                        deError
+                        |> Help.V
+                    , inputRowView "Teil"
+                        (selectInputView
+                            (pos |> PartOfSpeech.toString)
+                            (\value ->
+                                WordChange
+                                    { entry
+                                        | pos =
+                                            value
+                                                |> PartOfSpeech.fromString
+                                                |> Result.withDefault pos
+                                    }
                             )
-                        , disabled hasError
-                        ]
-                        [ text "Hinzufügen" ]
-                   , button
+                            (PartOfSpeech.items
+                                |> List.map PartOfSpeech.toString
+                                |> List.map (\v -> ( v, v ))
+                            )
+                        )
+                        Nothing
+                        |> Help.V
+                    , inputRowView "Übersetzung"
+                        (textInputView Nothing
+                            translation
+                            False
+                            (\value -> WordChange { entry | translation = value })
+                        )
+                        jaError
+                        |> Help.V
+                    , inputRowView "Beispiel"
+                        (textInputView Nothing
+                            (example |> Maybe.withDefault "")
+                            True
+                            (\value ->
+                                WordChange
+                                    { entry
+                                        | example =
+                                            if value == "" then
+                                                Nothing
+
+                                            else
+                                                Just value
+                                    }
+                            )
+                        )
+                        Nothing
+                        |> Help.V
+                    , inputRowView "Etikett"
+                        (textInputView Nothing
+                            (tags |> String.join "\n")
+                            True
+                            (\value ->
+                                WordChange
+                                    { entry
+                                        | tags =
+                                            value
+                                                |> String.split "\n"
+                                                |> List.map String.trim
+                                                |> List.filter ((/=) "")
+                                    }
+                            )
+                        )
+                        Nothing
+                        |> Help.V
+                    , Help.V <| tagList session.dict entry
+                    , Help.O isNew (\_ -> dateView session.zone session.zoneName addedAt updatedAt)
+                    , Help.V <|
+                        button
+                            [ onClick SaveAndCloseEditor
+                            , Help.classNames
+                                (Help.flatten
+                                    [ Help.L (Help.btnClasses True hasError)
+                                    , Help.V "w-full"
+                                    , Help.V "p-3"
+                                    , Help.V "text-base"
+                                    , Help.V "mb-2"
+                                    ]
+                                )
+                            , disabled hasError
+                            ]
+                            [ text "Hinzufügen" ]
+                    , button
                         [ onClick DeleteEntry
                         , style "display"
                             (if isNew then
@@ -298,17 +276,19 @@ view { entry, originalEntry, dialog, session } =
                                 "inline"
                             )
                         , Help.classNames
-                            ((Help.btnClasses True False |> List.filter (\c -> c /= "bg-blue"))
-                                ++ [ "w-full"
-                                   , "p-3"
-                                   , "text-base"
-                                   , "bg-red"
-                                   ]
+                            (Help.flatten
+                                [ Help.L (Help.btnClasses True False |> List.filter ((/=) "bg-blue"))
+                                , Help.V "w-full"
+                                , Help.V "p-3"
+                                , Help.V "text-base"
+                                , Help.V "bg-red"
+                                ]
                             )
                         , disabled hasError
                         ]
                         [ text "Löschen" ]
-                   , button
+                        |> Help.V
+                    , button
                         [ onClick CloseEditor
                         , Help.classNames
                             [ "fixed"
@@ -318,52 +298,78 @@ view { entry, originalEntry, dialog, session } =
                             ]
                         ]
                         [ Icon.close "width: 2em; height: 2em" "#3d4852" ]
-                   ]
-            )
-         ]
-            ++ (dialog |> Maybe.map (\d -> [ Dialog.view d ]) |> Maybe.withDefault [])
+                        |> Help.V
+                    ]
+                )
+                |> Help.V
+            , Help.M <| (dialog |> Maybe.map (\d -> Dialog.view d))
+            ]
         )
+
+
+dateView zone zoneName addedAt updatedAt =
+    let
+        addedAtExpr =
+            describeDate zone zoneName addedAt
+
+        updatedAtExpr =
+            describeDate zone zoneName updatedAt
+    in
+    p
+        [ Help.classNames
+            [ "text-grey-dark"
+            , "my-6"
+            ]
+        ]
+        [ text
+            ([ Help.V "Added on"
+             , Help.V addedAtExpr
+             , Help.O (addedAtExpr /= updatedAtExpr) (\_ -> ", updated on " ++ updatedAtExpr)
+             ]
+                |> Help.flatten
+                |> String.join " "
+            )
+        ]
 
 
 inputRowView : String -> (List String -> Html msg) -> Maybe String -> Html msg
 inputRowView fieldName inputView maybeError =
     div [ Help.classNames [ "mb-6", "w-full" ] ]
-        ([ label [ Help.classNames [ "w-full" ] ]
-            [ div
-                [ Help.classNames
-                    [ "mr-2"
-                    , "text-left"
-                    , "text-xs"
-                    , "my-2"
+        (Help.flatten
+            [ label [ Help.classNames [ "w-full" ] ]
+                [ div
+                    [ Help.classNames
+                        [ "mr-2"
+                        , "text-left"
+                        , "text-xs"
+                        , "my-2"
+                        , "w-full"
+                        , "text-grey-dark"
+                        ]
+                    ]
+                    [ text fieldName ]
+                , inputView
+                    [ "bg-grey-lighter"
+                    , "rounded"
+                    , "p-3"
+                    , "text-grey-darkest"
                     , "w-full"
-                    , "text-grey-dark"
                     ]
                 ]
-                [ text fieldName ]
-            , inputView
-                [ "bg-grey-lighter"
-                , "rounded"
-                , "p-3"
-                , "text-grey-darkest"
-                , "w-full"
-                ]
+                |> Help.V
+            , Help.M <| (maybeError |> Maybe.map inputRowErrorView)
             ]
-         ]
-            ++ (maybeError
-                    |> Maybe.map
-                        (\e ->
-                            [ p
-                                [ Help.classNames
-                                    [ "my-2"
-                                    , "text-red"
-                                    ]
-                                ]
-                                [ text e ]
-                            ]
-                        )
-                    |> Maybe.withDefault []
-               )
         )
+
+
+inputRowErrorView e =
+    p
+        [ Help.classNames
+            [ "my-2"
+            , "text-red"
+            ]
+        ]
+        [ text e ]
 
 
 textInputView : Maybe String -> String -> Bool -> (String -> Msg) -> List String -> Html Msg
@@ -371,11 +377,12 @@ textInputView maybeInputId inputValue multiline handleInput formClasses =
     if multiline then
         textarea
             [ Help.classNames
-                ([ "text-sm"
-                 , "leading-normal"
-                 , "resize-none"
-                 ]
-                    ++ formClasses
+                (Help.flatten
+                    [ Help.V "text-sm"
+                    , Help.V "leading-normal"
+                    , Help.V "resize-none"
+                    , Help.L formClasses
+                    ]
                 )
             , rows 5
             , value inputValue
@@ -385,15 +392,13 @@ textInputView maybeInputId inputValue multiline handleInput formClasses =
 
     else
         input
-            ([ type_ "text"
-             , Help.classNames ([ "text-base" ] ++ formClasses)
-             , value inputValue
-             , onInput handleInput
-             ]
-                ++ (maybeInputId
-                        |> Maybe.map (\value -> [ id value ])
-                        |> Maybe.withDefault []
-                   )
+            (Help.flatten
+                [ Help.V <| type_ "text"
+                , Help.V <| Help.classNames (Help.flatten [ Help.V "text-base", Help.L formClasses ])
+                , Help.V <| value inputValue
+                , Help.V <| onInput handleInput
+                , Help.G maybeInputId (\value -> [ id value ])
+                ]
             )
             []
 
@@ -425,8 +430,7 @@ describeDate zone zoneName posix =
     else
         [ posix |> Time.toDay zone |> String.fromInt
         , "."
-        , Help.monthNumber posix zone
-            |> String.fromInt
+        , Help.monthNumber posix zone |> String.fromInt
         , "."
         , posix |> Time.toYear zone |> String.fromInt
         , " ("
@@ -465,23 +469,20 @@ tagList dict entry =
             |> Dictionary.tags
             |> List.map
                 (\tag ->
+                    let
+                        isMember =
+                            List.member tag entry.tags
+                    in
                     li
                         [ Help.classNames
-                            ([ "mb-2"
-                             , "mx-1"
-                             , "p-2"
-                             , "rounded"
-                             ]
-                                ++ (if List.member tag entry.tags then
-                                        [ "bg-blue"
-                                        , "text-white"
-                                        ]
-
-                                    else
-                                        [ "bg-grey-light"
-                                        , "text-grey-darkest"
-                                        ]
-                                   )
+                            (Help.flatten
+                                [ Help.V "mb-2"
+                                , Help.V "mx-1"
+                                , Help.V "p-2"
+                                , Help.V "rounded"
+                                , Help.B isMember (\_ -> "bg-blue") (\_ -> "bg-grey-light")
+                                , Help.B isMember (\_ -> "text-white") (\_ -> "text-grey-darkest")
+                                ]
                             )
                         , onClick (TagClicked tag)
                         ]

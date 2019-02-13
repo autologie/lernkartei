@@ -63,16 +63,23 @@ update model msg =
 
                 updatedEntry =
                     { entry | starred = not entry.starred }
+
+                updatedDict =
+                    model.session.dict
+                        |> Array.map (Help.replaceEntry entry updatedEntry)
             in
             ( { model
                 | entry = updatedEntry
-                , session = model.session |> Session.withDict (model.session.dict |> Array.map (Help.replaceEntry entry updatedEntry))
+                , session = model.session |> Session.withDict updatedDict
               }
             , Ports.saveEntry ( model.session.userId, Entry.encode updatedEntry )
             )
 
         NavigateTo url ->
-            ( model, Browser.Navigation.pushUrl model.session.navigationKey (AppUrl.toString url) )
+            ( model
+            , Browser.Navigation.pushUrl model.session.navigationKey
+                (AppUrl.toString url)
+            )
 
         BackToPrevPage ->
             ( model, Browser.Navigation.back model.session.navigationKey 1 )
@@ -103,29 +110,16 @@ view model =
                 filters
                 |> Html.map (translateSearchFieldMsg model)
           )
-        , ( "card", cardView model results model.entry )
+        , ( "card", cardView model results )
         , ( "buttons", buttons model.entry model.session.globalParams )
         ]
 
 
-cardView : Model -> Dictionary -> Entry -> Html Msg
-cardView model results entry =
+cardView : Model -> Dictionary -> Html Msg
+cardView model results =
     let
-        textToShow =
-            if model.session.globalParams.translate then
-                entry.translation
-
-            else
-                entry.index
-
-        simpleDe =
-            Entry.withoutArticle entry
-
         hasNext =
             Array.length results > 1
-
-        searchText =
-            model.session.globalParams.filters
     in
     div []
         [ div
@@ -138,141 +132,179 @@ cardView model results entry =
                 , "mb-8"
                 ]
             ]
-            [ cardBehindView 1.6 5 -1
-            , cardBehindView 2 10 -2
-            , a
-                [ Help.classNames
-                    [ "absolute"
-                    , "rounded-full"
-                    , "bg-blue"
-                    , "pin-r"
-                    , "pin-t"
-                    , "shadow-md"
-                    ]
-                , style "margin" "7rem -1em 0 0"
-                , href (AppUrl.nextCard model.session.globalParams |> AppUrl.toString)
+            (Help.flatten
+                [ Help.V <| cardBehindView 1.6 5 -1
+                , Help.V <| cardBehindView 2 10 -2
+                , Help.O hasNext <| \_ -> nextButton model.session.globalParams
+                , Help.V <| prevButton
+                , Help.V <| cardBodyView model.entry model.session.globalParams results model.textDisposition
                 ]
-                [ Icon.next "width: 3em; height: 3em" ]
-            , a
-                [ Help.classNames
-                    [ "absolute"
-                    , "rounded-full"
-                    , "bg-blue"
-                    , "pin-l"
-                    , "pin-t"
-                    , "shadow-md"
-                    ]
-                , style "margin" "7rem 0 0 -1em"
-                , onClick BackToPrevPage
-                ]
-                [ Icon.prev "width: 3em; height: 3em" ]
-            , div
-                [ Help.classNames
-                    [ "select-none"
-                    , "h-64"
-                    , "text-grey-darkest"
-                    , "relative"
-                    ]
-                , onClick
-                    (NavigateTo
-                        (AppUrl.card model.entry.index model.session.globalParams
-                            |> AppUrl.withTranslate (not model.session.globalParams.translate)
-                        )
-                    )
-                ]
-                [ div
-                    ([ id "text", attribute "data-text" textToShow ]
-                        ++ (case model.textDisposition of
-                                Just ( x, y, scale ) ->
-                                    [ Help.classNames
-                                        [ "absolute"
-                                        , "inline-block"
-                                        ]
-                                    , style "transform" ("scale(" ++ String.fromFloat scale ++ ")")
-                                    , style "left" (String.fromInt x)
-                                    , style "top" (String.fromInt y)
-                                    ]
+            )
+        , entryDetailView model.entry
+        ]
 
-                                Nothing ->
-                                    [ Help.classNames [ "inline-block text-transparent" ] ]
-                           )
-                    )
-                    [ text textToShow ]
-                , div
-                    [ Help.classNames
-                        [ "absolute"
-                        , "pin-t"
-                        , "pin-l"
-                        , "m-2"
-                        ]
-                    ]
-                    [ button
-                        [ stopPropagationOn "click" (Decode.map (\msg -> ( msg, True )) (Decode.succeed ToggleStar))
-                        , Help.classNames
-                            ([ "text-lg"
-                             , "text-black"
-                             ]
-                                ++ (if entry.starred then
-                                        [ "text-orange" ]
 
-                                    else
-                                        [ "text-grey" ]
-                                   )
-                            )
-                        , if entry.starred then
-                            style "text-shadow" "0 0 .4em rgba(0,0,0,.1)"
-
-                          else
-                            style "" ""
-                        ]
-                        [ text
-                            (if entry.starred then
-                                "★"
-
-                             else
-                                "☆︎"
-                            )
-                        ]
-                    ]
-                , div
-                    [ Help.classNames
-                        [ "absolute"
-                        , "pin-t"
-                        , "pin-r"
-                        , "m-2"
-                        ]
-                    ]
-                    [ a
-                        [ href ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch")
-                        , target "_blank"
-                        , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
-                        ]
-                        [ text "Bilder" ]
-                    , a
-                        [ href ("https://de.wiktionary.org/wiki/" ++ simpleDe)
-                        , target "_blank"
-                        , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
-                        ]
-                        [ text "Untersuchen" ]
-                    , a
-                        [ href ("https://translate.google.co.jp/m/translate?hl=translation#view=home&op=translate&sl=de&tl=translation&text=" ++ simpleDe)
-                        , target "_blank"
-                        , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
-                        ]
-                        [ text "Hören" ]
-                    , a
-                        [ href
-                            (AppUrl.editorFor entry.index model.session.globalParams
-                                |> AppUrl.withFilters searchText
-                                |> AppUrl.toString
-                            )
-                        , Help.classNames [ "text-blue", "no-underline" ]
-                        ]
-                        [ text "Edit" ]
-                    ]
-                ]
+nextButton globalParams =
+    a
+        [ Help.classNames
+            [ "absolute"
+            , "rounded-full"
+            , "bg-blue"
+            , "pin-r"
+            , "pin-t"
+            , "shadow-md"
             ]
-        , entryDetailView entry
+        , style "margin" "7rem -1em 0 0"
+        , href (AppUrl.nextCard globalParams |> AppUrl.toString)
+        ]
+        [ Icon.next "width: 3em; height: 3em" ]
+
+
+prevButton =
+    a
+        [ Help.classNames
+            [ "absolute"
+            , "rounded-full"
+            , "bg-blue"
+            , "pin-l"
+            , "pin-t"
+            , "shadow-md"
+            ]
+        , style "margin" "7rem 0 0 -1em"
+        , onClick BackToPrevPage
+        ]
+        [ Icon.prev "width: 3em; height: 3em" ]
+
+
+cardBodyView entry globalParams results textDisposition =
+    let
+        textToShow =
+            if globalParams.translate then
+                entry.translation
+
+            else
+                entry.index
+    in
+    div
+        [ Help.classNames
+            [ "select-none"
+            , "h-64"
+            , "text-grey-darkest"
+            , "relative"
+            ]
+        , onClick
+            (NavigateTo
+                (AppUrl.card entry.index globalParams
+                    |> AppUrl.withTranslate (not globalParams.translate)
+                )
+            )
+        ]
+        [ div
+            ([ id "text"
+             , attribute "data-text" textToShow
+             ]
+                ++ (case textDisposition of
+                        Just ( x, y, scale ) ->
+                            [ Help.classNames
+                                [ "absolute"
+                                , "inline-block"
+                                ]
+                            , style "transform" ("scale(" ++ String.fromFloat scale ++ ")")
+                            , style "left" (String.fromInt x)
+                            , style "top" (String.fromInt y)
+                            ]
+
+                        Nothing ->
+                            [ Help.classNames [ "inline-block text-transparent" ] ]
+                   )
+            )
+            [ text textToShow ]
+        , starView entry.starred
+        , linksView entry globalParams globalParams.filters
+        ]
+
+
+starView : Bool -> Html Msg
+starView starred =
+    div
+        [ Help.classNames
+            [ "absolute"
+            , "pin-t"
+            , "pin-l"
+            , "m-2"
+            ]
+        ]
+        [ button
+            [ stopPropagationOn "click" (Decode.map (\msg -> ( msg, True )) (Decode.succeed ToggleStar))
+            , Help.classNames
+                ([ "text-lg"
+                 , "text-black"
+                 ]
+                    ++ (if starred then
+                            [ "text-orange" ]
+
+                        else
+                            [ "text-grey" ]
+                       )
+                )
+            , if starred then
+                style "text-shadow" "0 0 .4em rgba(0,0,0,.1)"
+
+              else
+                style "" ""
+            ]
+            [ text
+                (if starred then
+                    "★"
+
+                 else
+                    "☆︎"
+                )
+            ]
+        ]
+
+
+linksView : Entry -> GlobalQueryParams -> List Filter -> Html Msg
+linksView entry globalParams appliedFilters =
+    let
+        simpleDe =
+            Entry.withoutArticle entry
+    in
+    div
+        [ Help.classNames
+            [ "absolute"
+            , "pin-t"
+            , "pin-r"
+            , "m-2"
+            ]
+        ]
+        [ a
+            [ href ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch")
+            , target "_blank"
+            , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
+            ]
+            [ text "Bilder" ]
+        , a
+            [ href ("https://de.wiktionary.org/wiki/" ++ simpleDe)
+            , target "_blank"
+            , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
+            ]
+            [ text "Untersuchen" ]
+        , a
+            [ href ("https://translate.google.co.jp/m/translate?hl=translation#view=home&op=translate&sl=de&tl=translation&text=" ++ simpleDe)
+            , target "_blank"
+            , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
+            ]
+            [ text "Hören" ]
+        , a
+            [ href
+                (AppUrl.editorFor entry.index globalParams
+                    |> AppUrl.withFilters appliedFilters
+                    |> AppUrl.toString
+                )
+            , Help.classNames [ "text-blue", "no-underline" ]
+            ]
+            [ text "Edit" ]
         ]
 
 

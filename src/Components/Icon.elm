@@ -39,7 +39,7 @@ shuffle theStyle bgColor =
         , style theStyle
         ]
         [ path [ d "M10,30 C70,30 50,90 110,90", stroke "white", fill "transparent", strokeWidth "16" ] []
-        , path [ d "M10,90 C70,90 50,30 110,30", stroke bgColor, fill "transparent", strokeWidth "36" ] []
+        , path [ d "M10,90 C70,90 50,30 110,30", stroke bgColor, fill "transparent", strokeWidth "48" ] []
         , path [ d "M10,90 C70,90 50,30 110,30", stroke "white", fill "transparent", strokeWidth "16" ] []
         , path [ d "M100,70 L120,90 L100,110 Z", fill "white" ] []
         , path [ d "M100,10 L120,30 L100,50 Z", fill "white" ] []

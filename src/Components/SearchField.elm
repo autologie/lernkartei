@@ -20,38 +20,40 @@ type Msg
 view : Dictionary -> String -> List Filter -> Html Msg
 view results searchInputBuffer filters =
     div [ Help.classNames [ "relative" ] ]
-        (input
-            [ type_ "text"
-            , onInput SearchInput
-            , onFocus Focus
-            , id "search-input"
-            , Help.classNames
-                [ "text-grey-darkest"
-                , "bg-grey-lighter"
-                , "w-full"
-                , "text-sm"
-                , "py-4"
-                , "px-2"
-                , "rounded"
-                ]
-            , value searchInputBuffer
-            ]
-            []
-            :: (error searchInputBuffer
+        (Help.flatten
+            [ Help.V <|
+                input
+                    [ type_ "text"
+                    , onInput SearchInput
+                    , onFocus Focus
+                    , id "search-input"
+                    , Help.classNames
+                        [ "text-grey-darkest"
+                        , "bg-grey-lighter"
+                        , "w-full"
+                        , "text-sm"
+                        , "py-4"
+                        , "px-2"
+                        , "rounded"
+                        ]
+                    , value searchInputBuffer
+                    ]
+                    []
+            , Help.M <|
+                (error searchInputBuffer
                     |> Maybe.map
                         (\errorMessage ->
-                            [ p
+                            p
                                 [ Help.classNames
                                     [ "text-red"
                                     , "my-4"
                                     ]
                                 ]
                                 [ text errorMessage ]
-                            ]
                         )
-                    |> Maybe.withDefault []
-               )
-            ++ [ resultCountView results filters ]
+                )
+            , Help.V <| resultCountView results filters
+            ]
         )
 
 
@@ -85,35 +87,38 @@ resultCountView results filters =
             , "flex"
             ]
         ]
-        ([ button
-            [ Help.classNames
-                (Help.groupedBtnClasses isClickable
-                    (not isClickable)
-                    True
-                    (not isFiltered)
-                    ++ [ "px-4", "py-2", "ml-px" ]
-                )
-            , onClick ToggleSearchResults
-            ]
-            [ text (prefix ++ (resultCount |> String.fromInt) ++ " Wörter") ]
-         ]
-            ++ (if isFiltered then
-                    [ button
+        (Help.flatten
+            [ button
+                [ Help.classNames
+                    (List.concat
+                        [ Help.groupedBtnClasses isClickable
+                            (not isClickable)
+                            True
+                            (not isFiltered)
+                        , [ "px-4", "py-2", "ml-px" ]
+                        ]
+                    )
+                , onClick ToggleSearchResults
+                ]
+                [ text (prefix ++ (resultCount |> String.fromInt) ++ " Wörter") ]
+                |> Help.V
+            , Help.O isFiltered
+                (\_ ->
+                    button
                         [ Help.classNames
-                            (Help.groupedBtnClasses True
-                                False
-                                (not isClickable)
-                                True
-                                ++ [ "px-2", "py-2", "ml-px" ]
+                            (List.concat
+                                [ Help.groupedBtnClasses True
+                                    False
+                                    (not isClickable)
+                                    True
+                                , [ "px-2", "py-2", "ml-px" ]
+                                ]
                             )
                         , onClick ClearSearchText
                         ]
                         [ Icon.close "width: 1.2em; height: 1.2em" "white" ]
-                    ]
-
-                else
-                    []
-               )
+                )
+            ]
         )
 
 

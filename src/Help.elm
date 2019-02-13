@@ -1,6 +1,8 @@
 module Help exposing
-    ( btnClasses
+    ( C(..)
+    , btnClasses
     , classNames
+    , flatten
     , groupedBtnClasses
     , isJust
     , monthNumber
@@ -16,6 +18,15 @@ import Html exposing (Attribute, Html, div, text)
 import Html.Attributes exposing (classList)
 import Task
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
+
+
+type C a b
+    = V a
+    | B Bool (() -> a) (() -> a)
+    | O Bool (() -> a)
+    | M (Maybe a)
+    | L (List a)
+    | G (Maybe b) (b -> List a)
 
 
 classNames : List String -> Attribute a
@@ -152,3 +163,35 @@ toggle value list =
 
     else
         list ++ [ value ]
+
+
+flatten : List (C a b) -> List a
+flatten values =
+    List.concatMap
+        (\value ->
+            case value of
+                V v ->
+                    [ v ]
+
+                O True v ->
+                    [ v () ]
+
+                O False _ ->
+                    []
+
+                B True v _ ->
+                    [ v () ]
+
+                B False _ v ->
+                    [ v () ]
+
+                M v ->
+                    v |> Maybe.map (\vv -> [ vv ]) |> Maybe.withDefault []
+
+                L v ->
+                    v
+
+                G v gen ->
+                    v |> Maybe.map gen |> Maybe.withDefault []
+        )
+        values
