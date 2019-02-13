@@ -112,15 +112,17 @@ view model =
                     ]
                 )
             , Help.V <|
-                ( "utilities"
+                ( "body"
                 , div [ Help.classNames [ "py-20", "p-5" ] ]
-                    [ filterViewByAddedIn model.filters
-                    , filterViewByPartOfSpeech model.filters
-                    , filterViewByTags model.session.dict model.filters
-                    ]
+                    (Help.flatten
+                        [ Help.V <| filterViewByAddedIn model.filters
+                        , Help.V <| filterViewByPartOfSpeech model.filters
+                        , Help.V <| filterViewByTags model.session.dict model.filters
+                        , Help.Q (model.expandSearchResults && (List.length model.filters > 0))
+                            (\_ -> searchResultView model.results model.session.globalParams)
+                        ]
+                    )
                 )
-            , Help.Q (model.expandSearchResults && (List.length model.filters > 0))
-                (\_ -> searchResultView model.results model.session.globalParams |> Maybe.map (\d -> ( "results", d )))
             , Help.V <|
                 ( "apply"
                 , div
@@ -298,7 +300,7 @@ searchResultView results globalParams =
 
         _ ->
             Just
-                (ul [ Help.classNames [ "list-reset", "py-3" ] ]
+                (ul [ Help.classNames [ "list-reset" ] ]
                     (results
                         |> Array.toList
                         |> List.sortBy Entry.toComparable
