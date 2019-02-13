@@ -32,7 +32,7 @@ main =
         { init = init
         , subscriptions = subscriptions
         , update = update
-        , view = \model -> { title = "Wortkarten", body = [ view model ] }
+        , view = \model -> { title = "Lernkartei", body = [ view model ] }
         , onUrlRequest = NewUrlRequested
         , onUrlChange = RouteChanged
         }

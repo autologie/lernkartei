@@ -103,7 +103,7 @@ view model =
         (Help.flatten
             [ Help.V <|
                 ( "search"
-                , div [ Help.classNames [ "fixed", "w-full", "p-5" ] ]
+                , div [ Help.classNames [ "fixed", "w-full", "p-5", "max-w-md" ] ]
                     [ SearchField.view
                         model.results
                         model.searchInputBuffer
@@ -132,6 +132,7 @@ view model =
                         , "text-md"
                         , "w-full"
                         , "p-5"
+                        , "max-w-md"
                         ]
                     ]
                     [ button

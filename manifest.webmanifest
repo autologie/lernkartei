@@ -1,11 +1,11 @@
 {
-  "name": "Wortkarten",
-  "short_name": "Wortkarten",
-  "start_url": "https://wortkarten.netlify.com/",
+  "name": "lernkartei",
+  "short_name": "lernkartei",
+  "start_url": "https://lernkartei.netlify.com/",
   "display": "standalone",
   "theme_color": "#3490dc",
   "background_color": "#fff",
-  "description": "",
+  "description": "A flashcard app for vocabulary building",
   "icons": [],
   "related_applications": []
 }
