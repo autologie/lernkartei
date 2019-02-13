@@ -1,3 +1,3 @@
 # lernkartei
 
-A flashcard app for vocabulary building
+A flashcard app for German-language vocabulary building

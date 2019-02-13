@@ -1,6 +1,6 @@
 {
   "name": "lernkartei",
-  "description": "A flashcard app for vocabulary building",
+  "description": "A flashcard app for German-language vocabulary building",
   "version": "1.0.0",
   "main": "src/index.js",
   "license": "MIT",
