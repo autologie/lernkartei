@@ -153,6 +153,7 @@ view model =
                         , "text-md"
                         , "w-full"
                         , "p-5"
+                        , "flex"
                         , "max-w-md"
                         ]
                     ]
@@ -164,7 +165,7 @@ view model =
                             , "w-full"
                             , "p-4"
                             , "shadow-md"
-                            , "mb-2"
+                            , "mr-1"
                             , "rounded"
                             ]
                         ]
@@ -173,6 +174,7 @@ view model =
                         [ onClick ApplyFilter
                         , Help.classNames
                             ([ "w-full"
+                             , "ml-1"
                              , "p-4"
                              , "shadow-md"
                              ]
