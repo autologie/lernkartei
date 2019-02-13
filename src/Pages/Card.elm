@@ -108,6 +108,7 @@ view model =
           , SearchField.view results
                 (Filter.toString filters)
                 filters
+                False
                 |> Html.map (translateSearchFieldMsg model)
           )
         , ( "card", cardView model results )
@@ -329,23 +330,21 @@ entryDetailView : GlobalQueryParams -> Entry -> Html Msg
 entryDetailView globalParams { pos, example, tags } =
     div
         [ Help.classNames
-            [ "text-grey-dark"
-            , "py-4"
+            [ "text-grey-light"
             , "leading-normal"
             , "text-left"
             , "rounded"
-            , "bg-white"
+            , "bg-grey-darkest"
             , "shadow-md"
             , "p-3"
-            , "py-6"
             ]
         ]
-        [ section [ Help.classNames [ "mb-6" ] ]
-            [ h3 [] [ text "Teil" ]
+        [ section [ Help.classNames [ "mb-8" ] ]
+            [ h3 [ Help.classNames [ "my-4", "text-xs" ] ] [ text "Teil" ]
             , p [] [ text (PartOfSpeech.toString pos) ]
             ]
-        , section [ Help.classNames [ "mb-6" ] ]
-            [ h3 [] [ text "Beispiel" ]
+        , section [ Help.classNames [ "mb-8" ] ]
+            [ h3 [ Help.classNames [ "my-4", "text-xs" ] ] [ text "Beispiel" ]
             , p [ Help.classNames [ "whitespace-pre-wrap" ] ]
                 [ text
                     (example
@@ -354,8 +353,8 @@ entryDetailView globalParams { pos, example, tags } =
                     )
                 ]
             ]
-        , section [ Help.classNames [ "mb-6" ] ]
-            [ h3 [] [ text "Etikett" ]
+        , section [ Help.classNames [ "mb-8" ] ]
+            [ h3 [ Help.classNames [ "my-4", "text-xs" ] ] [ text "Etikett" ]
             , if List.length tags > 0 then
                 ul [ Help.classNames [ "list-reset" ] ]
                     (tags
@@ -364,6 +363,7 @@ entryDetailView globalParams { pos, example, tags } =
                                 li
                                     [ Help.classNames
                                         [ "bg-grey-light"
+                                        , "text-grey-darker"
                                         , "px-2"
                                         , "py-1"
                                         , "mr-2"

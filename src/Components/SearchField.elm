@@ -17,8 +17,8 @@ type Msg
     | Focus
 
 
-view : Dictionary -> String -> List Filter -> Html Msg
-view results searchInputBuffer filters =
+view : Dictionary -> String -> List Filter -> Bool -> Html Msg
+view results searchInputBuffer filters needShadow =
     div [ Help.classNames [ "relative" ] ]
         (Help.flatten
             [ Help.V <|
@@ -28,14 +28,17 @@ view results searchInputBuffer filters =
                     , onFocus Focus
                     , id "search-input"
                     , Help.classNames
-                        [ "text-grey-darkest"
-                        , "bg-grey-lighter"
-                        , "w-full"
-                        , "text-sm"
-                        , "py-4"
-                        , "px-2"
-                        , "rounded"
-                        ]
+                        (Help.flatten
+                            [ Help.V "text-grey-darkest"
+                            , Help.V "bg-grey-lighter"
+                            , Help.V "w-full"
+                            , Help.V "text-sm"
+                            , Help.V "py-4"
+                            , Help.V "px-2"
+                            , Help.V "rounded"
+                            , Help.O needShadow (\_ -> "shadow-md")
+                            ]
+                        )
                     , value searchInputBuffer
                     ]
                     []

@@ -84,6 +84,10 @@ import "@firebase/firestore";
     attributeFilter: ["data-text"]
   });
 
+  window.addEventListener("scroll", () =>
+    app.ports.scrollChange.send(window.scrollY)
+  );
+
   if (process.env.SERVICE_WORKER_ENABLED === "true") {
     register("/service-worker.js", {
       ready(registration) {

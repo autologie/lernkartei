@@ -1,4 +1,4 @@
-module Pages.Search exposing (Model, Msg, initialModel, update, view)
+module Pages.Search exposing (Model, Msg, initialModel, subscriptions, update, view)
 
 import Array
 import Browser.Navigation
@@ -14,6 +14,7 @@ import Html exposing (Html, a, button, div, h3, input, li, p, section, span, tex
 import Html.Attributes exposing (href, id, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
+import Ports
 
 
 type alias Model =
@@ -22,6 +23,7 @@ type alias Model =
     , searchInputBuffer : String
     , expandSearchResults : Bool
     , results : Dictionary
+    , isScrolled : Bool
     }
 
 
@@ -31,7 +33,14 @@ type Msg
     | ClearSearchText
     | ApplyFilter
     | UpdateFilters (List Filter)
+    | CloseSearch
+    | OnScrollChange Int
     | NoOp
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.batch [ Ports.scrollChange OnScrollChange ]
 
 
 initialModel : Session -> Model
@@ -45,6 +54,7 @@ initialModel session =
     , searchInputBuffer = originalFilters |> Filter.toString
     , expandSearchResults = False
     , results = Filter.applied session.startTime session.dict originalFilters
+    , isScrolled = False
     }
 
 
@@ -90,6 +100,16 @@ update model msg =
                 )
             )
 
+        CloseSearch ->
+            ( model
+            , Browser.Navigation.back model.session.navigationKey 1
+            )
+
+        OnScrollChange scrollY ->
+            ( { model | isScrolled = scrollY /= 0 }
+            , Cmd.none
+            )
+
         NoOp ->
             ( model
             , Cmd.none
@@ -108,6 +128,7 @@ view model =
                         model.results
                         model.searchInputBuffer
                         model.filters
+                        model.isScrolled
                         |> Html.map translateSearchFieldMsg
                     ]
                 )
@@ -136,8 +157,27 @@ view model =
                         ]
                     ]
                     [ button
+                        [ onClick CloseSearch
+                        , Help.classNames
+                            [ "bg-grey-lighter"
+                            , "text-grey-dark"
+                            , "w-full"
+                            , "p-4"
+                            , "shadow-md"
+                            , "mb-2"
+                            , "rounded"
+                            ]
+                        ]
+                        [ text "Abbrechen" ]
+                    , button
                         [ onClick ApplyFilter
-                        , Help.classNames ([ "w-full", "p-4", "shadow-md" ] ++ Help.btnClasses True (Array.length model.results == 0))
+                        , Help.classNames
+                            ([ "w-full"
+                             , "p-4"
+                             , "shadow-md"
+                             ]
+                                ++ Help.btnClasses True (Array.length model.results == 0)
+                            )
                         ]
                         [ text "Verwerden" ]
                     ]

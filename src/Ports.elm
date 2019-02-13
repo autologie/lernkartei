@@ -1,4 +1,12 @@
-port module Ports exposing (deleteEntry, dictionaryLoaded, saveEntry, signInDone, syncEntryDone, textDisposition)
+port module Ports exposing
+    ( deleteEntry
+    , dictionaryLoaded
+    , saveEntry
+    , scrollChange
+    , signInDone
+    , syncEntryDone
+    , textDisposition
+    )
 
 import Json.Encode as Encode
 
@@ -19,3 +27,6 @@ port dictionaryLoaded : (List Encode.Value -> msg) -> Sub msg
 
 
 port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
+
+
+port scrollChange : (Int -> msg) -> Sub msg

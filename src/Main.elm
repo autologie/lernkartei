@@ -65,6 +65,9 @@ subscriptions model =
             Initializing pageModel ->
                 Pages.Initialize.subscriptions pageModel |> Sub.map (InitializeMsg >> PageMsg)
 
+            Search pageModel ->
+                Pages.Search.subscriptions pageModel |> Sub.map (SearchMsg >> PageMsg)
+
             _ ->
                 Sub.none
         ]
@@ -169,9 +172,6 @@ dispatchRoute model url =
                 [ case r of
                     Editor _ ->
                         Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
-
-                    Search _ ->
-                        Dom.focus "search-input" |> Task.attempt (\_ -> NoOp)
 
                     _ ->
                         Cmd.none
