@@ -60,6 +60,10 @@ initialModel session =
 
 update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
+    let
+        globalParams =
+            model.session.globalParams
+    in
     case msg of
         SearchInput text ->
             let
@@ -75,11 +79,9 @@ update model msg =
             )
 
         ToggleSearchResults ->
-            ( { model
-                | expandSearchResults =
-                    not model.expandSearchResults
-              }
-            , Cmd.none
+            ( model
+            , Browser.Navigation.pushUrl model.session.navigationKey
+                (AppUrl.entries { globalParams | filters = model.filters } |> AppUrl.toString)
             )
 
         ClearSearchText ->
@@ -89,10 +91,6 @@ update model msg =
             update model (SearchInput (Filter.toString filters))
 
         ApplyFilter ->
-            let
-                globalParams =
-                    model.session.globalParams
-            in
             ( model
             , Browser.Navigation.pushUrl model.session.navigationKey
                 (AppUrl.nextCard { globalParams | filters = model.filters }
@@ -135,14 +133,10 @@ view model =
             , Help.V <|
                 ( "body"
                 , div [ Help.classNames [ "py-20", "p-5" ] ]
-                    (Help.flatten
-                        [ Help.V <| filterViewByAddedIn model.filters
-                        , Help.V <| filterViewByPartOfSpeech model.filters
-                        , Help.V <| filterViewByTags model.session.dict model.filters
-                        , Help.Q (model.expandSearchResults && (List.length model.filters > 0))
-                            (\_ -> searchResultView model.results model.session.globalParams)
-                        ]
-                    )
+                    [ filterViewByAddedIn model.filters
+                    , filterViewByPartOfSpeech model.filters
+                    , filterViewByTags model.session.dict model.filters
+                    ]
                 )
             , Help.V <|
                 ( "apply"
@@ -313,64 +307,6 @@ filterSection title filters createFilters currentFilters =
                             ]
                     )
             )
-        ]
-
-
-searchResultView : Dictionary -> GlobalQueryParams -> Maybe (Html Msg)
-searchResultView results globalParams =
-    case Array.length results of
-        0 ->
-            case globalParams.filters of
-                [ Contains index ] ->
-                    Just
-                        (a
-                            [ href (AppUrl.newEntry (Just index) globalParams |> AppUrl.toString)
-                            , Help.classNames
-                                (Help.btnClasses True False
-                                    ++ [ "p-3"
-                                       , "w-full"
-                                       , "my-2"
-                                       , "block"
-                                       , "no-underline"
-                                       ]
-                                )
-                            ]
-                            [ text ("\"" ++ index ++ "\" hinzufügen") ]
-                        )
-
-                _ ->
-                    Nothing
-
-        _ ->
-            Just
-                (ul [ Help.classNames [ "list-reset" ] ]
-                    (results
-                        |> Array.toList
-                        |> List.sortBy Entry.toComparable
-                        |> List.map (searchResultRow globalParams)
-                    )
-                )
-
-
-searchResultRow : GlobalQueryParams -> Entry -> Html Msg
-searchResultRow globalParams entry =
-    li
-        []
-        [ a
-            [ Help.classNames
-                [ "py-3"
-                , "block"
-                , "text-left"
-                , "rounded"
-                , "cursor-pointer"
-                , "text-black"
-                , "hover:bg-grey-lighter"
-                ]
-            , href (AppUrl.card entry.index globalParams |> AppUrl.toString)
-            ]
-            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] [ span [] [ text entry.index ] ]
-            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] [ span [] [ text entry.translation ] ]
-            ]
         ]
 
 

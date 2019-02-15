@@ -3,6 +3,7 @@ module Data.AppUrl exposing
     , GlobalQueryParams
     , card
     , editorFor
+    , entries
     , newEntry
     , nextCard
     , search
@@ -31,6 +32,7 @@ type AppUrl
     | NextCardUrl GlobalQueryParams
     | EditorUrl String GlobalQueryParams
     | SearchUrl GlobalQueryParams
+    | ListUrl GlobalQueryParams
     | NewEntryUrl (Maybe String) GlobalQueryParams
 
 
@@ -74,6 +76,9 @@ toString url =
         SearchUrl params ->
             toStringWithParams [ "", "search" ] [] params
 
+        ListUrl params ->
+            toStringWithParams [ "", "entries" ] [] params
+
         NewEntryUrl Nothing params ->
             toStringWithParams [ "", "entries", "_new" ] [] params
 
@@ -86,9 +91,18 @@ top params =
     TopUrl params
 
 
+
+-- TODO: rename to "entry"
+
+
 card : String -> GlobalQueryParams -> AppUrl
 card index params =
     CardUrl index params
+
+
+entries : GlobalQueryParams -> AppUrl
+entries params =
+    ListUrl params
 
 
 search : GlobalQueryParams -> AppUrl
@@ -148,6 +162,9 @@ withParams updateParams url =
 
         SearchUrl params ->
             SearchUrl (updateParams params)
+
+        ListUrl params ->
+            ListUrl (updateParams params)
 
         NewEntryUrl maybeIndex params ->
             NewEntryUrl maybeIndex (updateParams params)

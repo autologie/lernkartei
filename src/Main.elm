@@ -15,6 +15,7 @@ import Html.Lazy
 import Pages.Card exposing (Msg(..))
 import Pages.Editor
 import Pages.Initialize
+import Pages.List
 import Pages.Search
 import Ports
 import Process
@@ -102,6 +103,7 @@ type PageMsg
     = CardMsg Pages.Card.Msg
     | EditorMsg Pages.Editor.Msg
     | SearchMsg Pages.Search.Msg
+    | ListMsg Pages.List.Msg
     | InitializeMsg Pages.Initialize.Msg
 
 
@@ -115,6 +117,9 @@ update msg model =
 
                 ( Search pageModel, SearchMsg pageMsg ) ->
                     pageStep Search SearchMsg (Pages.Search.update pageModel pageMsg) model
+
+                ( Entries pageModel, ListMsg pageMsg ) ->
+                    pageStep Entries ListMsg (Pages.List.update pageModel pageMsg) model
 
                 ( Editor pageModel, EditorMsg pageMsg ) ->
                     pageStep Editor EditorMsg (Pages.Editor.update pageModel pageMsg) model
@@ -273,6 +278,10 @@ view model =
             Search pageModel ->
                 Html.Lazy.lazy Pages.Search.view pageModel
                     |> Html.map (SearchMsg >> PageMsg)
+
+            Entries pageModel ->
+                Html.Lazy.lazy Pages.List.view pageModel
+                    |> Html.map (ListMsg >> PageMsg)
 
             Editor pageModel ->
                 Html.Lazy.lazy

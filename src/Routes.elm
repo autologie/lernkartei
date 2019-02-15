@@ -9,6 +9,7 @@ import Data.Session as Session exposing (AccumulatingSession, Session)
 import Pages.Card
 import Pages.Editor
 import Pages.Initialize
+import Pages.List
 import Pages.Search
 import Time
 import Url.Parser exposing ((</>), (<?>), s, string)
@@ -20,6 +21,7 @@ type Route
     | Card Pages.Card.Model
     | Editor Pages.Editor.Model
     | Search Pages.Search.Model
+    | Entries Pages.List.Model
     | NotFound Key
 
 
@@ -48,6 +50,9 @@ resolveWithSession session =
         [ Url.Parser.map
             (resolveSearch session)
             (s "search" |> globalParams)
+        , Url.Parser.map
+            (resolveList session)
+            (s "entries" |> globalParams)
         , Url.Parser.map
             (\a b c -> buildQueryParams a b c |> RedirectToRandom)
             (s "entries" </> s "_next" |> globalParams)
@@ -111,6 +116,15 @@ resolveSearch session filter shuffle translate =
         |> (Search >> Show)
 
 
+resolveList : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveList session filter shuffle translate =
+    Pages.List.initialModel
+        { session
+            | globalParams = buildQueryParams filter shuffle translate
+        }
+        |> (Entries >> Show)
+
+
 buildQueryParams : Maybe String -> Maybe Int -> Maybe Int -> GlobalQueryParams
 buildQueryParams maybeFilters shuffle translate =
     let
@@ -141,6 +155,9 @@ extractSession routes =
         Search pageModel ->
             Just pageModel.session
 
+        Entries pageModel ->
+            Just pageModel.session
+
         NotFound _ ->
             Nothing
 
@@ -158,6 +175,9 @@ extractAccumulatingSession routes =
             Session.toAccumulatingSession session
 
         Search { session } ->
+            Session.toAccumulatingSession session
+
+        Entries { session } ->
             Session.toAccumulatingSession session
 
         NotFound navigationKey ->

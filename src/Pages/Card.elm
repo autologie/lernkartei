@@ -468,6 +468,6 @@ translateSearchFieldMsg model msg =
             AppUrl.search { params | filters = Filter.parse txt }
 
         SearchField.ToggleSearchResults ->
-            AppUrl.search model.session.globalParams
+            AppUrl.entries model.session.globalParams
     )
         |> NavigateTo
