@@ -40,6 +40,7 @@ init startTime url navigationKey =
             , zone = Nothing
             , zoneName = Nothing
             , startTime = startTime
+            , language = Session.Japanese
             }
       , url = Just url
       , notification = Notification.initialModel

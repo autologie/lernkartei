@@ -8,8 +8,9 @@ import Data.AppUrl as AppUrl exposing (AppUrl, GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
+import Data.Google as Google
 import Data.PartOfSpeech as PartOfSpeech
-import Data.Session as Session exposing (Session)
+import Data.Session as Session exposing (Language, Session)
 import Help
 import Html exposing (Html, a, button, div, h3, input, li, p, section, span, text, ul)
 import Html.Attributes exposing (attribute, href, id, style, target, type_, value)
@@ -136,7 +137,12 @@ cardView model results =
             (Help.flatten
                 [ Help.V <| cardBehindView 1.6 5 -1
                 , Help.V <| cardBehindView 2 10 -2
-                , Help.V <| cardBodyView model.entry model.session.globalParams results model.textDisposition
+                , Help.V <|
+                    cardBodyView model.entry
+                        model.session.globalParams
+                        results
+                        model.textDisposition
+                        model.session.language
                 , Help.O hasNext <| \_ -> nextButton model.session.globalParams
                 , Help.V <| prevButton
                 ]
@@ -177,7 +183,7 @@ prevButton =
         [ Icon.prev "width: 3em; height: 3em" ]
 
 
-cardBodyView entry globalParams results textDisposition =
+cardBodyView entry globalParams results textDisposition userLanguage =
     let
         textToShow =
             if globalParams.translate then
@@ -221,7 +227,7 @@ cardBodyView entry globalParams results textDisposition =
             )
             [ text textToShow ]
         , starView entry.starred
-        , linksView entry globalParams globalParams.filters
+        , linksView entry globalParams globalParams.filters userLanguage
         ]
 
 
@@ -265,8 +271,8 @@ starView starred =
         ]
 
 
-linksView : Entry -> GlobalQueryParams -> List Filter -> Html Msg
-linksView entry globalParams appliedFilters =
+linksView : Entry -> GlobalQueryParams -> List Filter -> Language -> Html Msg
+linksView entry globalParams appliedFilters userLanguage =
     let
         simpleDe =
             Entry.withoutArticle entry
@@ -292,7 +298,7 @@ linksView entry globalParams appliedFilters =
             ]
             [ text "Untersuchen" ]
         , a
-            [ href ("https://translate.google.co.jp/m/translate?hl=translation#view=home&op=translate&sl=de&tl=translation&text=" ++ simpleDe)
+            [ href (Google.translationAppUrl simpleDe userLanguage)
             , target "_blank"
             , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
             ]

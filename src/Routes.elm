@@ -187,4 +187,5 @@ extractAccumulatingSession routes =
             , zone = Nothing
             , zoneName = Nothing
             , startTime = Time.millisToPosix 0
+            , language = Session.Japanese
             }

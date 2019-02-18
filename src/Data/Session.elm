@@ -1,4 +1,11 @@
-module Data.Session exposing (AccumulatingSession, Session, toAccumulatingSession, toSession, withDict)
+module Data.Session exposing
+    ( AccumulatingSession
+    , Language(..)
+    , Session
+    , toAccumulatingSession
+    , toSession
+    , withDict
+    )
 
 import Browser.Navigation exposing (Key)
 import Data.AppUrl exposing (GlobalQueryParams)
@@ -14,6 +21,7 @@ type alias Session =
     , zoneName : ZoneName
     , globalParams : GlobalQueryParams
     , startTime : Posix
+    , language : Language
     }
 
 
@@ -24,7 +32,12 @@ type alias AccumulatingSession =
     , zone : Maybe Zone
     , zoneName : Maybe ZoneName
     , startTime : Posix
+    , language : Language
     }
+
+
+type Language
+    = Japanese
 
 
 withDict : Dictionary -> Session -> Session
@@ -33,13 +46,14 @@ withDict dict session =
 
 
 toAccumulatingSession : Session -> AccumulatingSession
-toAccumulatingSession { navigationKey, userId, dict, zone, zoneName, startTime } =
+toAccumulatingSession { navigationKey, userId, dict, zone, zoneName, startTime, language } =
     { navigationKey = navigationKey
     , userId = Just userId
     , dict = Just dict
     , zone = Just zone
     , zoneName = Just zoneName
     , startTime = startTime
+    , language = language
     }
 
 
@@ -58,6 +72,7 @@ toSession session =
                 , translate = False
                 }
             , startTime = session.startTime
+            , language = session.language
             }
         )
         session.userId
