@@ -162,7 +162,7 @@ nextButton globalParams =
 
 
 prevButton =
-    a
+    span
         [ Help.classNames
             [ "absolute"
             , "rounded-full"
