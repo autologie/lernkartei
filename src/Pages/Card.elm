@@ -13,7 +13,7 @@ import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Language, Session)
 import Help
 import Html exposing (Html, a, button, div, h3, input, li, p, section, span, text, ul)
-import Html.Attributes exposing (attribute, href, id, style, target, type_, value)
+import Html.Attributes exposing (attribute, class, href, id, style, target, type_, value)
 import Html.Events exposing (onClick, onInput, stopPropagationOn)
 import Html.Keyed
 import Json.Decode as Decode
@@ -99,12 +99,7 @@ view model =
                 filters
     in
     Html.Keyed.node "div"
-        [ Help.classNames
-            [ "container"
-            , "max-w-md"
-            , "p-5"
-            ]
-        ]
+        [ class "container max-w-md p-5" ]
         [ ( "search"
           , SearchField.view results
                 (Filter.toString filters)
@@ -125,15 +120,7 @@ cardView model results =
     in
     div []
         [ div
-            [ Help.classNames
-                [ "rounded"
-                , "bg-white"
-                , "shadow-lg"
-                , "relative"
-                , "mt-4"
-                , "mb-8"
-                ]
-            ]
+            [ class "rounded bg-white shadow-lg relative mt-4 mb-8" ]
             (Help.flatten
                 [ Help.V <| cardBehindView 1.6 5 -1
                 , Help.V <| cardBehindView 2 10 -2
@@ -147,20 +134,14 @@ cardView model results =
                 , Help.V <| prevButton
                 ]
             )
+        , linksView model.entry model.session.globalParams model.session.language
         , entryDetailView model.session.globalParams model.entry
         ]
 
 
 nextButton globalParams =
     a
-        [ Help.classNames
-            [ "absolute"
-            , "rounded-full"
-            , "bg-blue"
-            , "pin-r"
-            , "pin-t"
-            , "shadow-md"
-            ]
+        [ class "absolute rounded-full bg-blue pin-r pin-t shadow-md"
         , style "margin" "7rem -1em 0 0"
         , href (AppUrl.nextCard globalParams |> AppUrl.toString)
         ]
@@ -169,14 +150,7 @@ nextButton globalParams =
 
 prevButton =
     span
-        [ Help.classNames
-            [ "absolute"
-            , "rounded-full"
-            , "bg-blue"
-            , "pin-l"
-            , "pin-t"
-            , "shadow-md"
-            ]
+        [ class "absolute rounded-full bg-blue pin-l pin-t shadow-md"
         , style "margin" "7rem 0 0 -1em"
         , onClick BackToPrevPage
         ]
@@ -193,12 +167,7 @@ cardBodyView entry globalParams results textDisposition userLanguage =
                 entry.index
     in
     div
-        [ Help.classNames
-            [ "select-none"
-            , "h-64"
-            , "text-grey-darkest"
-            , "relative"
-            ]
+        [ class "select-none h-64 text-grey-darkest relative"
         , onClick
             (NavigateTo
                 (AppUrl.card entry.index globalParams
@@ -212,120 +181,81 @@ cardBodyView entry globalParams results textDisposition userLanguage =
              ]
                 ++ (case textDisposition of
                         Just ( x, y, scale ) ->
-                            [ Help.classNames
-                                [ "absolute"
-                                , "inline-block"
-                                ]
+                            [ class "absolute inline-block"
                             , style "transform" ("scale(" ++ String.fromFloat scale ++ ")")
                             , style "left" (String.fromInt x)
                             , style "top" (String.fromInt y)
                             ]
 
                         Nothing ->
-                            [ Help.classNames [ "inline-block text-transparent" ] ]
+                            [ class "inline-block text-transparent" ]
                    )
             )
             [ text textToShow ]
         , starView entry.starred
-        , linksView entry globalParams globalParams.filters userLanguage
         ]
 
 
 starView : Bool -> Html Msg
 starView starred =
-    div
-        [ Help.classNames
-            [ "absolute"
-            , "pin-t"
-            , "pin-l"
-            , "m-2"
-            ]
-        ]
-        [ button
-            [ stopPropagationOn "click" (Decode.map (\msg -> ( msg, True )) (Decode.succeed ToggleStar))
-            , Help.classNames
-                ([ "text-lg"
-                 , "text-black"
-                 ]
-                    ++ (if starred then
-                            [ "text-orange" ]
+    let
+        starViewTemplate extraStyles extraClasses txt =
+            div
+                [ class "absolute pin-t pin-l m-2" ]
+                [ button
+                    ([ stopPropagationOn "click" (Decode.map (\msg -> ( msg, True )) (Decode.succeed ToggleStar))
+                     , class ("text-lg 1text-black " ++ extraClasses)
+                     ]
+                        ++ (extraStyles |> List.map (\( k, v ) -> style k v))
+                    )
+                    [ text txt ]
+                ]
+    in
+    if starred then
+        starViewTemplate [ ( "text-shadow", "0 0 .4em rgba(0,0,0,.1)" ) ] "text-orange" "★"
 
-                        else
-                            [ "text-grey" ]
-                       )
-                )
-            , if starred then
-                style "text-shadow" "0 0 .4em rgba(0,0,0,.1)"
-
-              else
-                style "" ""
-            ]
-            [ text
-                (if starred then
-                    "★"
-
-                 else
-                    "☆︎"
-                )
-            ]
-        ]
+    else
+        starViewTemplate [] "text-grey" "☆"
 
 
-linksView : Entry -> GlobalQueryParams -> List Filter -> Language -> Html Msg
-linksView entry globalParams appliedFilters userLanguage =
+linksView : Entry -> GlobalQueryParams -> Language -> Html Msg
+linksView entry globalParams userLanguage =
     let
         simpleDe =
             Entry.withoutArticle entry
     in
     div
-        [ Help.classNames
-            [ "absolute"
-            , "pin-t"
-            , "pin-r"
-            , "m-2"
-            ]
+        [ class "flex justify-around flex-wrap pb-4 px-8" ]
+        [ linkView True ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch") "Bilder" Icon.image
+        , linkView True ("https://de.wiktionary.org/wiki/" ++ simpleDe) "Untersuchen" Icon.detail
+        , linkView True (Google.translationAppUrl simpleDe userLanguage) "Hören" Icon.sound
+        , linkView False
+            (AppUrl.editorFor entry.index globalParams
+                |> AppUrl.withFilters globalParams.filters
+                |> AppUrl.toString
+            )
+            "Bearbeiten"
+            Icon.edit
         ]
+
+
+linkView external url label icon =
+    div [ class "flex items-center py-1" ]
         [ a
-            [ href ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch")
-            , target "_blank"
-            , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
-            ]
-            [ text "Bilder" ]
-        , a
-            [ href ("https://de.wiktionary.org/wiki/" ++ simpleDe)
-            , target "_blank"
-            , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
-            ]
-            [ text "Untersuchen" ]
-        , a
-            [ href (Google.translationAppUrl simpleDe userLanguage)
-            , target "_blank"
-            , Help.classNames [ "text-blue", "no-underline", "mr-2" ]
-            ]
-            [ text "Hören" ]
-        , a
-            [ href
-                (AppUrl.editorFor entry.index globalParams
-                    |> AppUrl.withFilters appliedFilters
-                    |> AppUrl.toString
-                )
-            , Help.classNames [ "text-blue", "no-underline" ]
-            ]
-            [ text "Edit" ]
+            (Help.flatten
+                [ Help.V <| href url
+                , Help.V <| class "bg-grey-lighter rounded-full mr-1 shadow p-3 text-grey-dark"
+                , Help.O external (\_ -> target "_blank")
+                ]
+            )
+            [ icon "width: 2.4em; height: 2.4em" ]
         ]
 
 
 cardBehindView : Float -> Float -> Int -> Html Msg
 cardBehindView rotateValue y zIndex =
     div
-        [ Help.classNames
-            [ "absolute"
-            , "w-full"
-            , "h-full"
-            , "shadow"
-            , "bg-white"
-            , "rounded"
-            ]
+        [ class "absolute w-full h-full shadow bg-white rounded"
         , style "transform" ("rotate(" ++ String.fromFloat rotateValue ++ "deg) translateY(" ++ String.fromFloat y ++ "px)")
         , style "z-index" (String.fromInt zIndex)
         ]
@@ -335,23 +265,14 @@ cardBehindView rotateValue y zIndex =
 entryDetailView : GlobalQueryParams -> Entry -> Html Msg
 entryDetailView globalParams { pos, example, tags } =
     div
-        [ Help.classNames
-            [ "text-grey-light"
-            , "leading-normal"
-            , "text-left"
-            , "rounded"
-            , "bg-grey-darkest"
-            , "shadow-md"
-            , "p-3"
-            ]
-        ]
-        [ section [ Help.classNames [ "mb-8" ] ]
-            [ h3 [ Help.classNames [ "my-4", "text-xs" ] ] [ text "Teil" ]
+        [ class "text-grey-light leading-normal text-left rounded bg-grey-darkest shadow-md p-3" ]
+        [ section [ class "mb-8" ]
+            [ h3 [ class "my-4 text-xs" ] [ text "Teil" ]
             , p [] [ text (PartOfSpeech.toString pos) ]
             ]
-        , section [ Help.classNames [ "mb-8" ] ]
-            [ h3 [ Help.classNames [ "my-4", "text-xs" ] ] [ text "Beispiel" ]
-            , p [ Help.classNames [ "whitespace-pre-wrap" ] ]
+        , section [ class "mb-8" ]
+            [ h3 [ class "my-4 text-xs" ] [ text "Beispiel" ]
+            , p [ class "whitespace-pre-wrap" ]
                 [ text
                     (example
                         |> Maybe.map Entry.censorExample
@@ -359,25 +280,15 @@ entryDetailView globalParams { pos, example, tags } =
                     )
                 ]
             ]
-        , section [ Help.classNames [ "mb-8" ] ]
-            [ h3 [ Help.classNames [ "my-4", "text-xs" ] ] [ text "Etikett" ]
+        , section [ class "mb-8" ]
+            [ h3 [ class "my-4 text-xs" ] [ text "Etikett" ]
             , if List.length tags > 0 then
-                ul [ Help.classNames [ "list-reset" ] ]
+                ul [ class "list-reset" ]
                     (tags
                         |> List.map
                             (\tag ->
                                 li
-                                    [ Help.classNames
-                                        [ "bg-grey-light"
-                                        , "text-grey-darker"
-                                        , "px-2"
-                                        , "py-1"
-                                        , "mr-2"
-                                        , "mb-1"
-                                        , "inline-block"
-                                        , "rounded"
-                                        , "text-xs"
-                                        ]
+                                    [ class "bg-grey-light text-grey-darker px-2 py-1 mr-2 mb-1 inline-block rounded text-xs"
                                     , onClick (NavigateTo (AppUrl.nextCard globalParams |> AppUrl.withFilters [ HasTag tag ]))
                                     ]
                                     [ text tag ]
@@ -393,35 +304,16 @@ entryDetailView globalParams { pos, example, tags } =
 buttons : Entry -> GlobalQueryParams -> Html Msg
 buttons entry globalParams =
     div
-        [ Help.classNames
-            [ "fixed"
-            , "pin-r"
-            , "pin-b"
-            , "m-4"
-            , "z-30"
-            , "flex"
-            , "justify-center"
-            , "items-center"
-            , "flex-col"
-            ]
-        ]
+        [ class "fixed pin-r pin-b m-4 z-30 flex justify-center items-center flex-col" ]
         [ a
-            [ Help.classNames
-                [ "rounded-full"
-                , if globalParams.shuffle then
+            [ class "rounded-full text-xl shadow-md flex w-8 h-8 justify-center items-center mb-2"
+            , class
+                (if globalParams.shuffle then
                     "bg-green"
 
-                  else
+                 else
                     "bg-grey"
-                , "text-xl"
-                , "shadow-md"
-                , "flex"
-                , "w-8"
-                , "h-8"
-                , "justify-center"
-                , "items-center"
-                , "mb-2"
-                ]
+                )
             , href
                 (AppUrl.card entry.index globalParams
                     |> AppUrl.withShuffle (not globalParams.shuffle)
@@ -437,20 +329,7 @@ buttons entry globalParams =
                 )
             ]
         , a
-            [ Help.classNames
-                [ "rounded-full"
-                , "bg-green"
-                , "text-white"
-                , "text-xl"
-                , "p-2"
-                , "w-16"
-                , "h-16"
-                , "flex"
-                , "justify-center"
-                , "items-center"
-                , "shadow-lg"
-                , "no-underline"
-                ]
+            [ class "rounded-full bg-green text-white text-xl p-2 w-16 h-16 flex justify-center items-center shadow-lg no-underline"
             , href (AppUrl.newEntry Nothing globalParams |> AppUrl.toString)
             ]
             [ Icon.add "width: .6em; height: .6em;" ]
