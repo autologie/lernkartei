@@ -32,6 +32,7 @@ type Msg
     | ToggleStar
     | NavigateTo AppUrl
     | BackToPrevPage
+    | CopyToClipboard
 
 
 initialModel : Session -> String -> Model
@@ -84,6 +85,9 @@ update model msg =
 
         BackToPrevPage ->
             ( model, Browser.Navigation.back model.session.navigationKey 1 )
+
+        CopyToClipboard ->
+            ( model, Ports.copyToClipboard model.entry.index )
 
 
 view : Model -> Html Msg
@@ -225,7 +229,7 @@ linksView entry globalParams userLanguage =
             Entry.withoutArticle entry
     in
     div
-        [ class "flex justify-around flex-wrap pb-4 px-8" ]
+        [ class "flex justify-around flex-wrap pb-4 px-4" ]
         [ linkView True ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch") "Bilder" Icon.image
         , linkView True ("https://de.wiktionary.org/wiki/" ++ simpleDe) "Untersuchen" Icon.detail
         , linkView True (Google.translationAppUrl simpleDe userLanguage) "Hören" Icon.sound
@@ -236,6 +240,13 @@ linksView entry globalParams userLanguage =
             )
             "Bearbeiten"
             Icon.edit
+        , div [ class "flex items-center py-1" ]
+            [ span
+                [ class "bg-grey-lighter rounded-full mx-1 shadow p-3 text-grey-dark cursor-pointer"
+                , onClick CopyToClipboard
+                ]
+                [ Icon.copy "" ]
+            ]
         ]
 
 
@@ -244,11 +255,11 @@ linkView external url label icon =
         [ a
             (Help.flatten
                 [ Help.V <| href url
-                , Help.V <| class "bg-grey-lighter rounded-full mr-1 shadow p-3 text-grey-dark"
+                , Help.V <| class "bg-grey-lighter rounded-full mx-1 shadow p-3 text-grey-dark"
                 , Help.O external (\_ -> target "_blank")
                 ]
             )
-            [ icon "width: 2.4em; height: 2.4em" ]
+            [ icon "" ]
         ]
 
 
@@ -265,7 +276,7 @@ cardBehindView rotateValue y zIndex =
 entryDetailView : GlobalQueryParams -> Entry -> Html Msg
 entryDetailView globalParams { pos, example, tags } =
     div
-        [ class "text-grey-light leading-normal text-left rounded bg-grey-darkest shadow-md p-3" ]
+        [ class "text-grey-light leading-normal text-left rounded bg-grey-darkest shadow-md p-3 pt-16" ]
         [ section [ class "mb-8" ]
             [ h3 [ class "my-4 text-xs" ] [ text "Teil" ]
             , p [] [ text (PartOfSpeech.toString pos) ]

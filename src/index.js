@@ -4,7 +4,8 @@ import { register } from "register-service-worker";
 import firebase from "@firebase/app";
 import "@firebase/auth";
 import "@firebase/firestore";
-
+import copy from "copy-text-to-clipboard";
+console.log(copy);
 (async () => {
   firebase.initializeApp({
     apiKey: process.env.FIREBASE_API_KEY,
@@ -87,6 +88,12 @@ import "@firebase/firestore";
   window.addEventListener("scroll", () =>
     app.ports.scrollChange.send(window.scrollY)
   );
+
+  app.ports.copyToClipboard.subscribe(text => {
+    if (!copy(text)) return;
+
+    app.ports.copyToClipboardDone.send(null);
+  });
 
   if (process.env.SERVICE_WORKER_ENABLED === "true") {
     register("/service-worker.js", {

@@ -1,5 +1,7 @@
 port module Ports exposing
-    ( deleteEntry
+    ( copyToClipboard
+    , copyToClipboardDone
+    , deleteEntry
     , dictionaryLoaded
     , saveEntry
     , scrollChange
@@ -30,3 +32,9 @@ port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
 
 
 port scrollChange : (Int -> msg) -> Sub msg
+
+
+port copyToClipboard : String -> Cmd msg
+
+
+port copyToClipboardDone : (() -> msg) -> Sub msg

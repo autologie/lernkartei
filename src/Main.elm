@@ -58,6 +58,7 @@ subscriptions model =
                   -- If I do so, no text shows up on the card when page is loaded
                   Ports.textDisposition (TextDispositionChange >> CardMsg >> PageMsg)
                 , Ports.syncEntryDone SyncEntryDone
+                , Ports.copyToClipboardDone CopyToClipboardDone
                 ]
     in
     Sub.batch
@@ -96,6 +97,7 @@ type Msg
     | CloseNotification
     | RouteChanged Url
     | NewUrlRequested UrlRequest
+    | CopyToClipboardDone ()
     | NoOp
 
 
@@ -152,6 +154,11 @@ update msg model =
                     ( model
                     , Browser.Navigation.load url
                     )
+
+        CopyToClipboardDone _ ->
+            ( { model | notification = { isShown = True, message = "Copied!" } }
+            , Process.sleep 2000 |> Task.attempt (\_ -> CloseNotification)
+            )
 
         NoOp ->
             ( model, Cmd.none )

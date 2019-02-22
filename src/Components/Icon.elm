@@ -1,6 +1,7 @@
 module Components.Icon exposing
     ( add
     , close
+    , copy
     , detail
     , edit
     , image
@@ -70,6 +71,10 @@ detail theStyle =
 
 edit theStyle =
     i [ class "material-icons" ] [ text "edit" ]
+
+
+copy theStyle =
+    i [ class "material-icons" ] [ text "file_copy" ]
 
 
 icon theStyle content =
