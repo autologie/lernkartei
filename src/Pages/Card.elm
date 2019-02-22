@@ -243,7 +243,7 @@ linksView entry globalParams userLanguage =
             Icon.edit
         , div [ class "flex items-center py-1" ]
             [ span
-                [ class "bg-grey-lighter rounded-full mx-1 shadow p-3 text-grey-dark cursor-pointer"
+                [ class "bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker cursor-pointer"
                 , onClick CopyToClipboard
                 ]
                 [ Icon.copy "" ]
@@ -256,7 +256,7 @@ linkView external url label icon =
         [ a
             (Help.flatten
                 [ Help.V <| href url
-                , Help.V <| class "bg-grey-lighter rounded-full mx-1 shadow p-3 text-grey-dark"
+                , Help.V <| class "bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker"
                 , Help.O external (\_ -> target "_blank")
                 ]
             )

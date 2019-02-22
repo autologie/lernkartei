@@ -1,4 +1,4 @@
-module Data.Filter exposing (Duration(..), Filter(..), applied, parse, toString)
+module Data.Filter exposing (Duration(..), Filter(..), applied, keyword, parse, toString)
 
 import Array
 import Data.Dictionary exposing (Dictionary)
@@ -201,3 +201,19 @@ isMatchedTo now { index, pos, translation, starred, addedAt, tags } filter =
 applied : Time.Posix -> Dictionary -> List Filter -> Dictionary
 applied now dict filters =
     dict |> Array.filter (\e -> List.all (isMatchedTo now e) filters)
+
+
+keyword : Filter -> Maybe String
+keyword filter =
+    case filter of
+        Contains t ->
+            Just t
+
+        StartsWith t ->
+            Just t
+
+        EndsWith t ->
+            Just t
+
+        _ ->
+            Nothing

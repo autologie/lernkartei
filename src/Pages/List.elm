@@ -53,6 +53,11 @@ view model =
             Filter.applied model.session.startTime
                 model.session.dict
                 globalParams.filters
+
+        maybeKeyword =
+            globalParams.filters
+                |> List.filterMap Filter.keyword
+                |> List.head
     in
     div [ Help.classNames [ "container", "max-w-md" ] ]
         (Help.flatten
@@ -80,7 +85,7 @@ view model =
                 )
             , Help.V <|
                 Button.floatingGroup
-                    [ Button.addNewEntry (AppUrl.newEntry Nothing globalParams)
+                    [ Button.addNewEntry (AppUrl.newEntry maybeKeyword globalParams)
                     ]
             ]
         )

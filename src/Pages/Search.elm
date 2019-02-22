@@ -11,7 +11,7 @@ import Data.PartOfSpeech as PartOfSpeech
 import Data.Session exposing (Session)
 import Help
 import Html exposing (Html, a, button, div, h3, input, li, p, section, span, text, ul)
-import Html.Attributes exposing (href, id, type_, value)
+import Html.Attributes exposing (classList, href, id, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed
 import Ports
@@ -116,6 +116,16 @@ update model msg =
 
 view : Model -> Html Msg
 view model =
+    let
+        maybeKeyword =
+            if Array.length model.results > 0 then
+                Nothing
+
+            else
+                model.filters
+                    |> List.filterMap Filter.keyword
+                    |> List.head
+    in
     Html.Keyed.node "div"
         [ Help.classNames [ "container", "max-w-md" ] ]
         (Help.flatten
@@ -132,11 +142,13 @@ view model =
                 )
             , Help.V <|
                 ( "body"
-                , div [ Help.classNames [ "py-20", "p-5" ] ]
-                    [ filterViewByAddedIn model.filters
-                    , filterViewByPartOfSpeech model.filters
-                    , filterViewByTags model.session.dict model.filters
-                    ]
+                , div [ Help.classNames [ "py-24", "p-5" ] ]
+                    (Help.flatten
+                        [ Help.V <| filterViewByAddedIn model.filters
+                        , Help.V <| filterViewByPartOfSpeech model.filters
+                        , Help.V <| filterViewByTags model.session.dict model.filters
+                        ]
+                    )
                 )
             , Help.V <|
                 ( "apply"
@@ -148,38 +160,52 @@ view model =
                         , "w-full"
                         , "p-5"
                         , "flex"
+                        , "flex-wrap"
                         , "max-w-md"
                         ]
                     ]
-                    [ button
-                        [ onClick CloseSearch
-                        , Help.classNames
-                            [ "bg-grey-lighter"
-                            , "text-grey-dark"
-                            , "w-full"
-                            , "p-4"
-                            , "shadow-md"
-                            , "mr-1"
-                            , "rounded"
-                            ]
+                    (Help.flatten
+                        [ Help.G maybeKeyword (\keyword -> [ addButton keyword model.session.globalParams ])
+                        , Help.V <|
+                            button
+                                [ onClick CloseSearch
+                                , Help.classNames
+                                    [ "bg-grey-lighter"
+                                    , "text-grey-dark"
+                                    , "p-4"
+                                    , "shadow-md"
+                                    , "mr-1"
+                                    , "rounded"
+                                    , "flex-1"
+                                    ]
+                                ]
+                                [ text "Abbrechen" ]
+                        , Help.V <|
+                            button
+                                [ onClick ApplyFilter
+                                , Help.classNames
+                                    ([ "ml-1"
+                                     , "p-4"
+                                     , "shadow-md"
+                                     , "flex-1"
+                                     ]
+                                        ++ Help.btnClasses True (Array.length model.results == 0)
+                                    )
+                                ]
+                                [ text "Verwerden" ]
                         ]
-                        [ text "Abbrechen" ]
-                    , button
-                        [ onClick ApplyFilter
-                        , Help.classNames
-                            ([ "w-full"
-                             , "ml-1"
-                             , "p-4"
-                             , "shadow-md"
-                             ]
-                                ++ Help.btnClasses True (Array.length model.results == 0)
-                            )
-                        ]
-                        [ text "Verwerden" ]
-                    ]
+                    )
                 )
             ]
         )
+
+
+addButton keyword params =
+    a
+        [ Help.classNames (Help.btnClasses True False ++ [ "w-full p-4 mb-2" ])
+        , href (AppUrl.newEntry (Just keyword) params |> AppUrl.toString)
+        ]
+        [ text ("\"" ++ keyword ++ "\" hinzufügen") ]
 
 
 filterViewByAddedIn filters =
