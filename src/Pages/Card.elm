@@ -1,6 +1,7 @@
 module Pages.Card exposing (Model, Msg(..), initialModel, subscriptions, update, view)
 
 import Array
+import Browser.Dom as Dom
 import Browser.Navigation
 import Components.Button as Button
 import Components.Icon as Icon exposing (add)
@@ -23,13 +24,15 @@ import Ports
 
 type alias Model =
     { entry : Entry
-    , textDisposition : Maybe ( Int, Int, Float )
+    , textElementSize : Maybe ( Float, Float )
+    , textWrapperElementSize : Maybe ( Float, Float )
     , session : Session
     }
 
 
 type Msg
-    = TextDispositionChange ( Int, Int, Float )
+    = TextElementMeasured (Result Dom.Error Dom.Element)
+    | TextWrapperElementMeasured (Result Dom.Error Dom.Element)
     | ToggleStar
     | NavigateTo AppUrl
     | BackToPrevPage
@@ -39,7 +42,8 @@ type Msg
 initialModel : Session -> String -> Model
 initialModel session entryDe =
     { entry = Dictionary.get entryDe session.dict
-    , textDisposition = Nothing
+    , textElementSize = Nothing
+    , textWrapperElementSize = Nothing
     , session = session
     }
 
@@ -52,12 +56,27 @@ subscriptions _ =
 update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
-        TextDispositionChange value ->
+        TextWrapperElementMeasured (Ok { element }) ->
             ( { model
-                | textDisposition = Just value
+                | textWrapperElementSize = Just ( element.width, element.height )
               }
             , Cmd.none
             )
+
+        TextWrapperElementMeasured _ ->
+            -- ignore
+            ( model, Cmd.none )
+
+        TextElementMeasured (Ok { element }) ->
+            ( { model
+                | textElementSize = Just ( element.width, element.height )
+              }
+            , Cmd.none
+            )
+
+        TextElementMeasured _ ->
+            -- ignore
+            ( model, Cmd.none )
 
         ToggleStar ->
             let
@@ -133,7 +152,8 @@ cardView model results =
                     cardBodyView model.entry
                         model.session.globalParams
                         results
-                        model.textDisposition
+                        model.textElementSize
+                        model.textWrapperElementSize
                         model.session.language
                 , Help.O hasNext <| \_ -> nextButton model.session.globalParams
                 , Help.V <| prevButton
@@ -162,7 +182,7 @@ prevButton =
         [ Icon.prev "width: 3em; height: 3em" ]
 
 
-cardBodyView entry globalParams results textDisposition userLanguage =
+cardBodyView entry globalParams results textElementSize textWrapperElementSize userLanguage =
     let
         textToShow =
             if globalParams.translate then
@@ -170,9 +190,16 @@ cardBodyView entry globalParams results textDisposition userLanguage =
 
             else
                 entry.index
+
+        textDisposition =
+            Maybe.map2
+                computeTextDisposition
+                textElementSize
+                textWrapperElementSize
     in
     div
-        [ class "select-none h-64 text-grey-darkest relative"
+        [ id "text-wrapper"
+        , class "select-none h-64 text-grey-darkest relative"
         , onClick
             (NavigateTo
                 (AppUrl.card entry.index globalParams
@@ -199,6 +226,13 @@ cardBodyView entry globalParams results textDisposition userLanguage =
             [ text textToShow ]
         , starView entry.starred
         ]
+
+
+computeTextDisposition ( textWidth, textHeight ) ( wrapperWidth, wrapperHeight ) =
+    ( round ((wrapperWidth - textWidth) / 2)
+    , round ((wrapperHeight - textHeight) / 2)
+    , min (0.6 * wrapperWidth / textWidth) (0.4 * wrapperHeight / textHeight)
+    )
 
 
 starView : Bool -> Html Msg
@@ -277,7 +311,7 @@ cardBehindView rotateValue y zIndex =
 entryDetailView : GlobalQueryParams -> Entry -> Html Msg
 entryDetailView globalParams { pos, example, tags } =
     div
-        [ class "text-grey-light leading-normal text-left rounded bg-grey-darkest shadow-md p-3 pt-16" ]
+        [ class "text-grey-light leading-normal text-left rounded bg-grey-darkest shadow-md p-3" ]
         [ section [ class "mb-8" ]
             [ h3 [ class "my-4 text-xs" ] [ text "Teil" ]
             , p [] [ text (PartOfSpeech.toString pos) ]

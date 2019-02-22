@@ -65,26 +65,6 @@ import copy from "copy-text-to-clipboard";
     app.ports.syncEntryDone.send(null);
   });
 
-  new MutationObserver(() => {
-    const el = document.getElementById("text");
-
-    if (!el) return;
-
-    const scale = Math.min(
-      (0.6 * el.parentNode.offsetWidth) / el.offsetWidth,
-      (0.4 * el.parentNode.offsetHeight) / el.offsetHeight
-    );
-    const x = Math.round((el.parentNode.offsetWidth - el.offsetWidth) / 2);
-    const y = Math.round((el.parentNode.offsetHeight - el.offsetHeight) / 2);
-
-    app.ports.textDisposition.send([x, y, scale]);
-  }).observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ["data-text"]
-  });
-
   window.addEventListener("scroll", () =>
     app.ports.scrollChange.send(window.scrollY)
   );

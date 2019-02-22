@@ -53,11 +53,7 @@ subscriptions model =
     let
         globalSubscription =
             Sub.batch
-                [ -- NOTE:
-                  -- This subscription cannot be move to the `Pages.Card.elm` .
-                  -- If I do so, no text shows up on the card when page is loaded
-                  Ports.textDisposition (TextDispositionChange >> CardMsg >> PageMsg)
-                , Ports.syncEntryDone SyncEntryDone
+                [ Ports.syncEntryDone SyncEntryDone
                 , Ports.copyToClipboardDone CopyToClipboardDone
                 ]
     in
@@ -184,6 +180,12 @@ dispatchRoute model url =
                 [ case r of
                     Editor _ ->
                         Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+
+                    Card _ ->
+                        Cmd.batch
+                            [ Dom.getElement "text" |> Task.attempt (Pages.Card.TextElementMeasured >> CardMsg >> PageMsg)
+                            , Dom.getElement "text-wrapper" |> Task.attempt (Pages.Card.TextWrapperElementMeasured >> CardMsg >> PageMsg)
+                            ]
 
                     _ ->
                         Cmd.none

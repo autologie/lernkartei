@@ -7,7 +7,6 @@ port module Ports exposing
     , scrollChange
     , signInDone
     , syncEntryDone
-    , textDisposition
     )
 
 import Json.Encode as Encode
@@ -26,9 +25,6 @@ port signInDone : (String -> msg) -> Sub msg
 
 
 port dictionaryLoaded : (List Encode.Value -> msg) -> Sub msg
-
-
-port textDisposition : (( Int, Int, Float ) -> msg) -> Sub msg
 
 
 port scrollChange : (Int -> msg) -> Sub msg

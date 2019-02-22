@@ -83,7 +83,7 @@ resultCountView results filters =
         [ Help.classNames
             [ "list-reset"
             , "text-xs"
-            , "my-2"
+            , "m-2"
             , "absolute"
             , "pin-r"
             , "pin-t"
