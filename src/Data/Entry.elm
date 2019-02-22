@@ -78,7 +78,7 @@ withoutArticle { index } =
         articleRegex =
             Regex.fromString "^(der|die|das) " |> Maybe.withDefault Regex.never
     in
-    index 
+    index
         |> Regex.replace articleRegex (.match >> (\_ -> ""))
 
 
@@ -123,9 +123,6 @@ findFirstError : Entry -> Maybe EntryValidationError
 findFirstError { index, translation } =
     if index == "" then
         Just WordIsEmpty
-
-    else if translation == "" then
-        Just TranslationIsEmpty
 
     else
         Nothing
