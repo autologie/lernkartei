@@ -250,7 +250,7 @@ view { entry, originalEntry, dialog, session } =
                         Nothing
                         |> Help.V
                     , Help.V <| tagList session.dict entry
-                    , Help.O isNew (\_ -> dateView session.zone session.zoneName addedAt updatedAt)
+                    , Help.O (not isNew) (\_ -> dateView session.zone session.zoneName addedAt updatedAt)
                     , Help.V <|
                         button
                             [ onClick SaveAndCloseEditor
