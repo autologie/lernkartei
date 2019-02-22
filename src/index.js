@@ -5,7 +5,7 @@ import firebase from "@firebase/app";
 import "@firebase/auth";
 import "@firebase/firestore";
 import copy from "copy-text-to-clipboard";
-console.log(copy);
+
 (async () => {
   firebase.initializeApp({
     apiKey: process.env.FIREBASE_API_KEY,

@@ -2,6 +2,7 @@ module Pages.Card exposing (Model, Msg(..), initialModel, subscriptions, update,
 
 import Array
 import Browser.Navigation
+import Components.Button as Button
 import Components.Icon as Icon exposing (add)
 import Components.SearchField as SearchField
 import Data.AppUrl as AppUrl exposing (AppUrl, GlobalQueryParams)
@@ -146,7 +147,7 @@ cardView model results =
 nextButton globalParams =
     a
         [ class "absolute rounded-full bg-blue pin-r pin-t shadow-md"
-        , style "margin" "7rem -1em 0 0"
+        , style "margin" "6.4rem -1em 0 0"
         , href (AppUrl.nextCard globalParams |> AppUrl.toString)
         ]
         [ Icon.next "width: 3em; height: 3em" ]
@@ -155,7 +156,7 @@ nextButton globalParams =
 prevButton =
     span
         [ class "absolute rounded-full bg-blue pin-l pin-t shadow-md"
-        , style "margin" "7rem 0 0 -1em"
+        , style "margin" "6.4rem 0 0 -1em"
         , onClick BackToPrevPage
         ]
         [ Icon.prev "width: 3em; height: 3em" ]
@@ -314,8 +315,7 @@ entryDetailView globalParams { pos, example, tags } =
 
 buttons : Entry -> GlobalQueryParams -> Html Msg
 buttons entry globalParams =
-    div
-        [ class "fixed pin-r pin-b m-4 z-30 flex justify-center items-center flex-col" ]
+    Button.floatingGroup
         [ a
             [ class "rounded-full text-xl shadow-md flex w-8 h-8 justify-center items-center mb-2"
             , class
@@ -339,11 +339,7 @@ buttons entry globalParams =
                     "#b8c2cc"
                 )
             ]
-        , a
-            [ class "rounded-full bg-green text-white text-xl p-2 w-16 h-16 flex justify-center items-center shadow-lg no-underline"
-            , href (AppUrl.newEntry Nothing globalParams |> AppUrl.toString)
-            ]
-            [ Icon.add "width: .6em; height: .6em;" ]
+        , Button.addNewEntry (AppUrl.newEntry Nothing globalParams)
         ]
 
 

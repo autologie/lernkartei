@@ -2,6 +2,7 @@ module Pages.List exposing (Model, Msg, initialModel, update, view)
 
 import Array
 import Browser.Navigation
+import Components.Button as Button
 import Components.SearchField as SearchField
 import Data.AppUrl as AppUrl exposing (AppUrl, GlobalQueryParams)
 import Data.Entry as Entry exposing (Entry)
@@ -77,6 +78,10 @@ view model =
                                 [ el ]
                         )
                 )
+            , Help.V <|
+                Button.floatingGroup
+                    [ Button.addNewEntry (AppUrl.newEntry Nothing globalParams)
+                    ]
             ]
         )
 
