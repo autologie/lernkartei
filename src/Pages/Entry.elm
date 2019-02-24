@@ -1,4 +1,11 @@
-module Pages.Card exposing (Model, Msg(..), initialModel, subscriptions, update, view)
+module Pages.Entry exposing
+    ( Model
+    , Msg(..)
+    , initialModel
+    , subscriptions
+    , update
+    , view
+    )
 
 import Array
 import Browser.Dom as Dom
@@ -148,13 +155,7 @@ cardView model results =
             (Help.flatten
                 [ Help.V <| cardBehindView 1.6 5 -1
                 , Help.V <| cardBehindView 2 10 -2
-                , Help.V <|
-                    cardBodyView model.entry
-                        model.session.globalParams
-                        results
-                        model.textElementSize
-                        model.textWrapperElementSize
-                        model.session.language
+                , Help.V <| cardBodyView model results
                 , Help.O hasNext <| \_ -> nextButton model.session.globalParams
                 , Help.V <| prevButton
                 ]
@@ -164,15 +165,17 @@ cardView model results =
         ]
 
 
+nextButton : GlobalQueryParams -> Html Msg
 nextButton globalParams =
     a
         [ class "absolute rounded-full bg-blue pin-r pin-t shadow-md"
         , style "margin" "6.4rem -1em 0 0"
-        , href (AppUrl.nextCard globalParams |> AppUrl.toString)
+        , href (AppUrl.nextEntry globalParams |> AppUrl.toString)
         ]
         [ Icon.next "width: 3em; height: 3em" ]
 
 
+prevButton : Html Msg
 prevButton =
     span
         [ class "absolute rounded-full bg-blue pin-l pin-t shadow-md"
@@ -182,10 +185,11 @@ prevButton =
         [ Icon.prev "width: 3em; height: 3em" ]
 
 
-cardBodyView entry globalParams results textElementSize textWrapperElementSize userLanguage =
+cardBodyView : Model -> Dictionary -> Html Msg
+cardBodyView { entry, session, textElementSize, textWrapperElementSize } results =
     let
         textToShow =
-            if globalParams.translate then
+            if session.globalParams.translate then
                 entry.translation
 
             else
@@ -202,8 +206,8 @@ cardBodyView entry globalParams results textElementSize textWrapperElementSize u
         , class "select-none h-64 text-grey-darkest relative"
         , onClick
             (NavigateTo
-                (AppUrl.card entry.index globalParams
-                    |> AppUrl.withTranslate (not globalParams.translate)
+                (AppUrl.entry entry.index session.globalParams
+                    |> AppUrl.withTranslate (not session.globalParams.translate)
                 )
             )
         ]
@@ -228,6 +232,7 @@ cardBodyView entry globalParams results textElementSize textWrapperElementSize u
         ]
 
 
+computeTextDisposition : ( Float, Float ) -> ( Float, Float ) -> ( Int, Int, Float )
 computeTextDisposition ( textWidth, textHeight ) ( wrapperWidth, wrapperHeight ) =
     ( round ((wrapperWidth - textWidth) / 2)
     , round ((wrapperHeight - textHeight) / 2)
@@ -285,6 +290,7 @@ linksView entry globalParams userLanguage =
         ]
 
 
+linkView : Bool -> String -> String -> (String -> Html Msg) -> Html Msg
 linkView external url label icon =
     div [ class "flex items-center py-1" ]
         [ a
@@ -335,7 +341,7 @@ entryDetailView globalParams { pos, example, tags } =
                             (\tag ->
                                 li
                                     [ class "bg-grey-light text-grey-darker px-2 py-1 mr-2 mb-1 inline-block rounded text-xs"
-                                    , onClick (NavigateTo (AppUrl.nextCard globalParams |> AppUrl.withFilters [ HasTag tag ]))
+                                    , onClick (NavigateTo (AppUrl.nextEntry globalParams |> AppUrl.withFilters [ HasTag tag ]))
                                     ]
                                     [ text tag ]
                             )
@@ -360,7 +366,7 @@ buttons entry globalParams =
                     "bg-grey"
                 )
             , href
-                (AppUrl.card entry.index globalParams
+                (AppUrl.entry entry.index globalParams
                     |> AppUrl.withShuffle (not globalParams.shuffle)
                     |> AppUrl.toString
                 )
@@ -385,7 +391,7 @@ translateSearchFieldMsg model msg =
     in
     (case msg of
         SearchField.ClearSearchText ->
-            AppUrl.card model.entry.index { params | filters = [] }
+            AppUrl.entry model.entry.index { params | filters = [] }
 
         SearchField.Focus ->
             AppUrl.search params

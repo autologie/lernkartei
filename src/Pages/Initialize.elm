@@ -155,7 +155,7 @@ testSessionAndRouteIfPossible ( { session, url } as model, cmd ) =
                         (url
                             |> Maybe.map Url.toString
                             |> Maybe.withDefault
-                                (AppUrl.nextCard
+                                (AppUrl.nextEntry
                                     { shuffle = False
                                     , filters = []
                                     , translate = False

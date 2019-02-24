@@ -93,7 +93,7 @@ update model msg =
         ApplyFilter ->
             ( model
             , Browser.Navigation.pushUrl model.session.navigationKey
-                (AppUrl.nextCard { globalParams | filters = model.filters }
+                (AppUrl.nextEntry { globalParams | filters = model.filters }
                     |> AppUrl.toString
                 )
             )
@@ -200,6 +200,7 @@ view model =
         )
 
 
+addButton : String -> GlobalQueryParams -> Html msg
 addButton keyword params =
     a
         [ Help.classNames (Help.btnClasses True False ++ [ "w-full p-4 mb-2" ])
@@ -208,6 +209,7 @@ addButton keyword params =
         [ text ("\"" ++ keyword ++ "\" hinzufügen") ]
 
 
+filterViewByAddedIn : List Filter -> Html Msg
 filterViewByAddedIn filters =
     filterSection "Added in"
         [ ( IsAddedIn (RelativeDays 7 7), "-1w" )
@@ -245,6 +247,7 @@ filterViewByAddedIn filters =
         filters
 
 
+filterViewByPartOfSpeech : List Filter -> Html Msg
 filterViewByPartOfSpeech filters =
     filterSection "Part of speech"
         (PartOfSpeech.items |> List.map (\pos -> ( PartOfSpeechIs pos, PartOfSpeech.toString pos )))
@@ -264,6 +267,7 @@ filterViewByPartOfSpeech filters =
         filters
 
 
+filterViewByTags : Dictionary -> List Filter -> Html Msg
 filterViewByTags dict filters =
     filterSection "Tags"
         (dict

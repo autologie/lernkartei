@@ -91,6 +91,7 @@ view model =
         )
 
 
+resultsView : GlobalQueryParams -> Array.Array Entry -> Maybe (Html Msg)
 resultsView globalParams results =
     case Array.length results of
         0 ->
@@ -140,7 +141,7 @@ searchResultRow globalParams entry =
                 , "text-black"
                 , "hover:bg-grey-lighter"
                 ]
-            , href (AppUrl.card entry.index globalParams |> AppUrl.toString)
+            , href (AppUrl.entry entry.index globalParams |> AppUrl.toString)
             ]
             [ div [ Help.classNames [ "inline-block", "mr-2" ] ] [ span [] [ text entry.index ] ]
             , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] [ span [] [ text entry.translation ] ]

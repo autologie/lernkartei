@@ -6,8 +6,8 @@ import Data.Dictionary as Dictionary
 import Data.Entry as Entry
 import Data.Filter as Filter
 import Data.Session as Session exposing (AccumulatingSession, Session)
-import Pages.Card
 import Pages.Editor
+import Pages.Entry
 import Pages.Initialize
 import Pages.List
 import Pages.Search
@@ -18,7 +18,7 @@ import Url.Parser.Query as Query
 
 type Route
     = Initializing Pages.Initialize.Model
-    | Card Pages.Card.Model
+    | Entry Pages.Entry.Model
     | Editor Pages.Editor.Model
     | Search Pages.Search.Model
     | Entries Pages.List.Model
@@ -63,7 +63,7 @@ resolveWithSession session =
             (resolveNewEntry session)
             (s "entries" </> s "_new" <?> Query.string "de" |> globalParams)
         , Url.Parser.map
-            (resolveCard session)
+            (resolveEntry session)
             (s "entries" </> string |> globalParams)
         , Url.Parser.map
             (resolveEditor session)
@@ -71,12 +71,12 @@ resolveWithSession session =
         ]
 
 
-resolveCard : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
-resolveCard session index filter shuffle translate =
-    Pages.Card.initialModel
+resolveEntry : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
+resolveEntry session index filter shuffle translate =
+    Pages.Entry.initialModel
         { session | globalParams = buildQueryParams filter shuffle translate }
         index
-        |> (Card >> Show)
+        |> (Entry >> Show)
 
 
 resolveNewEntry : Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
@@ -146,7 +146,7 @@ extractSession routes =
         Initializing { session } ->
             Session.toSession session
 
-        Card pageModel ->
+        Entry pageModel ->
             Just pageModel.session
 
         Editor pageModel ->
@@ -168,7 +168,7 @@ extractAccumulatingSession routes =
         Initializing { session } ->
             session
 
-        Card { session } ->
+        Entry { session } ->
             Session.toAccumulatingSession session
 
         Editor { session } ->

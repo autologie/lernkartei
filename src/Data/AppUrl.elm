@@ -1,11 +1,11 @@
 module Data.AppUrl exposing
     ( AppUrl
     , GlobalQueryParams
-    , card
     , editorFor
     , entries
+    , entry
     , newEntry
-    , nextCard
+    , nextEntry
     , search
     , toString
     , top
@@ -28,8 +28,8 @@ type alias GlobalQueryParams =
 
 type AppUrl
     = TopUrl GlobalQueryParams
-    | CardUrl String GlobalQueryParams
-    | NextCardUrl GlobalQueryParams
+    | EntryUrl String GlobalQueryParams
+    | NextEntryUrl GlobalQueryParams
     | EditorUrl String GlobalQueryParams
     | SearchUrl GlobalQueryParams
     | ListUrl GlobalQueryParams
@@ -64,10 +64,10 @@ toString url =
         TopUrl params ->
             toStringWithParams [ "" ] [] params
 
-        NextCardUrl params ->
+        NextEntryUrl params ->
             toStringWithParams [ "", "entries", "_next" ] [] params
 
-        CardUrl index params ->
+        EntryUrl index params ->
             toStringWithParams [ "", "entries", index ] [] params
 
         EditorUrl index params ->
@@ -91,13 +91,9 @@ top params =
     TopUrl params
 
 
-
--- TODO: rename to "entry"
-
-
-card : String -> GlobalQueryParams -> AppUrl
-card index params =
-    CardUrl index params
+entry : String -> GlobalQueryParams -> AppUrl
+entry index params =
+    EntryUrl index params
 
 
 entries : GlobalQueryParams -> AppUrl
@@ -110,9 +106,9 @@ search params =
     SearchUrl params
 
 
-nextCard : GlobalQueryParams -> AppUrl
-nextCard params =
-    NextCardUrl params
+nextEntry : GlobalQueryParams -> AppUrl
+nextEntry params =
+    NextEntryUrl params
 
 
 editorFor : String -> GlobalQueryParams -> AppUrl
@@ -151,11 +147,11 @@ withParams updateParams url =
         TopUrl params ->
             TopUrl (updateParams params)
 
-        NextCardUrl params ->
-            NextCardUrl (updateParams params)
+        NextEntryUrl params ->
+            NextEntryUrl (updateParams params)
 
-        CardUrl index params ->
-            CardUrl index (updateParams params)
+        EntryUrl index params ->
+            EntryUrl index (updateParams params)
 
         EditorUrl index params ->
             EditorUrl index (updateParams params)

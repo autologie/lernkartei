@@ -12,8 +12,8 @@ import Data.PartOfSpeech exposing (PartOfSpeech(..))
 import Help
 import Html exposing (Html, div)
 import Html.Lazy
-import Pages.Card exposing (Msg(..))
 import Pages.Editor
+import Pages.Entry
 import Pages.Initialize
 import Pages.List
 import Pages.Search
@@ -98,7 +98,7 @@ type Msg
 
 
 type PageMsg
-    = CardMsg Pages.Card.Msg
+    = EntryMsg Pages.Entry.Msg
     | EditorMsg Pages.Editor.Msg
     | SearchMsg Pages.Search.Msg
     | ListMsg Pages.List.Msg
@@ -122,8 +122,8 @@ update msg model =
                 ( Editor pageModel, EditorMsg pageMsg ) ->
                     pageStep Editor EditorMsg (Pages.Editor.update pageModel pageMsg) model
 
-                ( Card pageModel, CardMsg pageMsg ) ->
-                    pageStep Card CardMsg (Pages.Card.update pageModel pageMsg) model
+                ( Entry pageModel, EntryMsg pageMsg ) ->
+                    pageStep Entry EntryMsg (Pages.Entry.update pageModel pageMsg) model
 
                 _ ->
                     ( model, Cmd.none )
@@ -175,90 +175,16 @@ dispatchRoute model url =
     in
     case Url.Parser.parse (Routes.resolve maybeSession) url of
         Just (Show r) ->
-            ( { model | route = r }
-            , Cmd.batch
-                [ case r of
-                    Editor _ ->
-                        Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
-
-                    Card _ ->
-                        Cmd.batch
-                            [ Dom.getElement "text" |> Task.attempt (Pages.Card.TextElementMeasured >> CardMsg >> PageMsg)
-                            , Dom.getElement "text-wrapper" |> Task.attempt (Pages.Card.TextWrapperElementMeasured >> CardMsg >> PageMsg)
-                            ]
-
-                    _ ->
-                        Cmd.none
-                , Dom.setViewport 0 0 |> Task.attempt (\_ -> NoOp)
-                ]
-            )
+            showRoute model r
 
         Just (RedirectToRandom params) ->
-            let
-                shuffle =
-                    maybeSession
-                        |> Maybe.map (\session -> session.globalParams.shuffle)
-                        |> Maybe.withDefault False
-
-                entries =
-                    Filter.applied model.startTime
-                        (case model.route of
-                            Card { entry, session } ->
-                                if shuffle then
-                                    session.dict |> Dictionary.without entry
-
-                                else
-                                    session.dict
-
-                            route ->
-                                Routes.extractSession route
-                                    |> Maybe.map .dict
-                                    |> Maybe.withDefault Dictionary.empty
-                        )
-                        params.filters
-
-                currentEntry =
-                    case model.route of
-                        Card { entry } ->
-                            entries |> Array.filter ((==) entry) |> Array.get 0
-
-                        _ ->
-                            Nothing
-
-                ( maybeEntry, updatedSeed ) =
-                    case ( shuffle, currentEntry ) of
-                        ( False, Just { index } ) ->
-                            ( Dictionary.nextEntry index entries, model.seed )
-
-                        _ ->
-                            Dictionary.randomEntry model.seed entries
-            in
-            ( { model
-                | route =
-                    Initializing
-                        { url = Just url
-                        , session = Routes.extractAccumulatingSession model.route
-                        , notification = Notification.initialModel
-                        }
-                , seed = updatedSeed
-              }
-            , Browser.Navigation.replaceUrl model.navigationKey
-                (maybeEntry
-                    |> Maybe.map (\{ index } -> AppUrl.card index params)
-                    |> Maybe.withDefault (AppUrl.newEntry Nothing params)
-                    |> AppUrl.toString
-                )
-            )
+            redirectToRandomEntry model params url
 
         Just AwaitInitialization ->
-            ( model
-            , Cmd.none
-            )
+            ( model, Cmd.none )
 
         Nothing ->
-            ( { model | route = NotFound model.navigationKey }
-            , Cmd.none
-            )
+            ( { model | route = NotFound model.navigationKey }, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -280,9 +206,9 @@ view model =
             NotFound _ ->
                 Help.showText "Not found."
 
-            Card pageModel ->
-                Html.Lazy.lazy Pages.Card.view pageModel
-                    |> Html.map (CardMsg >> PageMsg)
+            Entry pageModel ->
+                Html.Lazy.lazy Pages.Entry.view pageModel
+                    |> Html.map (EntryMsg >> PageMsg)
 
             Search pageModel ->
                 Html.Lazy.lazy Pages.Search.view pageModel
@@ -299,3 +225,79 @@ view model =
                     |> Html.map (EditorMsg >> PageMsg)
         , Notification.view model.notification CloseNotification
         ]
+
+
+showRoute : Model -> Route -> ( Model, Cmd Msg )
+showRoute model r =
+    ( { model | route = r }
+    , Cmd.batch
+        [ case r of
+            Editor _ ->
+                Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+
+            Entry _ ->
+                Cmd.batch
+                    [ Dom.getElement "text" |> Task.attempt (Pages.Entry.TextElementMeasured >> EntryMsg >> PageMsg)
+                    , Dom.getElement "text-wrapper" |> Task.attempt (Pages.Entry.TextWrapperElementMeasured >> EntryMsg >> PageMsg)
+                    ]
+
+            _ ->
+                Cmd.none
+        , Dom.setViewport 0 0 |> Task.attempt (\_ -> NoOp)
+        ]
+    )
+
+
+redirectToRandomEntry : Model -> AppUrl.GlobalQueryParams -> Url -> ( Model, Cmd Msg )
+redirectToRandomEntry model params url =
+    let
+        entries =
+            Filter.applied model.startTime
+                (case model.route of
+                    Entry { entry, session } ->
+                        if params.shuffle then
+                            session.dict |> Dictionary.without entry
+
+                        else
+                            session.dict
+
+                    route ->
+                        Routes.extractSession route
+                            |> Maybe.map .dict
+                            |> Maybe.withDefault Dictionary.empty
+                )
+                params.filters
+
+        currentEntry =
+            case model.route of
+                Entry { entry } ->
+                    entries |> Array.filter ((==) entry) |> Array.get 0
+
+                _ ->
+                    Nothing
+
+        ( maybeEntry, updatedSeed ) =
+            case ( params.shuffle, currentEntry ) of
+                ( False, Just { index } ) ->
+                    ( Dictionary.nextEntry index entries, model.seed )
+
+                _ ->
+                    Dictionary.randomEntry model.seed entries
+    in
+    ( { model
+        | route =
+            -- TODO: check if this is necessary (can't i leave the route as it is...?)
+            Initializing
+                { url = Just url
+                , session = Routes.extractAccumulatingSession model.route
+                , notification = Notification.initialModel
+                }
+        , seed = updatedSeed
+      }
+    , Browser.Navigation.replaceUrl model.navigationKey
+        (maybeEntry
+            |> Maybe.map (\{ index } -> AppUrl.entry index params)
+            |> Maybe.withDefault (AppUrl.newEntry Nothing params)
+            |> AppUrl.toString
+        )
+    )

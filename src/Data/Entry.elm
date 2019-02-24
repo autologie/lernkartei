@@ -1,4 +1,14 @@
-module Data.Entry exposing (Entry, EntryValidationError(..), censorExample, decode, empty, encode, findFirstError, toComparable, withoutArticle)
+module Data.Entry exposing
+    ( Entry
+    , EntryValidationError(..)
+    , censorExample
+    , decode
+    , empty
+    , encode
+    , findFirstError
+    , toComparable
+    , withoutArticle
+    )
 
 import Data.PartOfSpeech as PartOfSpeech exposing (PartOfSpeech(..))
 import Json.Decode as Decode

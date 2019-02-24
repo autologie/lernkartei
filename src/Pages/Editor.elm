@@ -307,6 +307,7 @@ view { entry, originalEntry, dialog, session } =
         )
 
 
+dateView : Zone -> ZoneName -> Posix -> Posix -> Html msg
 dateView zone zoneName addedAt updatedAt =
     let
         addedAtExpr =
@@ -362,6 +363,7 @@ inputRowView fieldName inputView maybeError =
         )
 
 
+inputRowErrorView : String -> Html msg
 inputRowErrorView e =
     p
         [ Help.classNames
@@ -449,7 +451,7 @@ navigateTo : Session -> Maybe Entry -> Cmd Msg
 navigateTo { navigationKey, globalParams } maybeEntry =
     Browser.Navigation.pushUrl navigationKey
         (maybeEntry
-            |> Maybe.map (\{ index } -> AppUrl.card index globalParams)
+            |> Maybe.map (\{ index } -> AppUrl.entry index globalParams)
             |> Maybe.withDefault (AppUrl.top globalParams)
             |> AppUrl.toString
         )
