@@ -130,7 +130,7 @@ view model =
                 filters
     in
     Html.Keyed.node "div"
-        [ class "container max-w-md p-5" ]
+        [ class "container max-w-md p-5 pb-0" ]
         [ ( "search"
           , SearchField.view results
                 (Filter.toString filters)
@@ -153,9 +153,7 @@ cardView model results =
         [ div
             [ class "rounded bg-white shadow-lg relative mt-4 mb-8" ]
             (Help.flatten
-                [ Help.V <| cardBehindView 1.6 5 -1
-                , Help.V <| cardBehindView 2 10 -2
-                , Help.V <| cardBodyView model results
+                [ Help.V <| cardBodyView model results
                 , Help.O hasNext <| \_ -> nextButton model.session.globalParams
                 , Help.V <| prevButton
                 ]
@@ -304,20 +302,13 @@ linkView external url label icon =
         ]
 
 
-cardBehindView : Float -> Float -> Int -> Html Msg
-cardBehindView rotateValue y zIndex =
-    div
-        [ class "absolute w-full h-full shadow bg-white rounded"
-        , style "transform" ("rotate(" ++ String.fromFloat rotateValue ++ "deg) translateY(" ++ String.fromFloat y ++ "px)")
-        , style "z-index" (String.fromInt zIndex)
-        ]
-        []
-
-
 entryDetailView : GlobalQueryParams -> Entry -> Html Msg
 entryDetailView globalParams { pos, example, tags } =
     div
-        [ class "text-grey-light leading-normal text-left rounded bg-grey-darkest shadow-md p-3" ]
+        [ class "text-grey-light leading-normal text-left bg-grey-darkest shadow-md rounded"
+        , style "padding" "10em 2em 2em 2em"
+        , style "margin-top" "-10em -2em auto -2em"
+        ]
         [ section [ class "mb-8" ]
             [ h3 [ class "my-4 text-xs" ] [ text "Teil" ]
             , p [] [ text (PartOfSpeech.toString pos) ]

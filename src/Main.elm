@@ -33,7 +33,7 @@ main =
         { init = init
         , subscriptions = subscriptions
         , update = update
-        , view = \model -> { title = "Lernkartei", body = [ view model ] }
+        , view = \model -> { title = title model, body = [ view model ] }
         , onUrlRequest = NewUrlRequested
         , onUrlChange = RouteChanged
         }
@@ -187,6 +187,19 @@ dispatchRoute model url =
             ( { model | route = NotFound model.navigationKey }, Cmd.none )
 
 
+title : Model -> String
+title model =
+    case model.route of
+        Entry { entry } ->
+            "Lernkartei | " ++ entry.index
+
+        Editor { entry } ->
+            "Lernkartei | " ++ entry.index ++ " (Edit)"
+
+        _ ->
+            "Lernkartei"
+
+
 view : Model -> Html Msg
 view model =
     div
@@ -284,16 +297,7 @@ redirectToRandomEntry model params url =
                 _ ->
                     Dictionary.randomEntry model.seed entries
     in
-    ( { model
-        | route =
-            -- TODO: check if this is necessary (can't i leave the route as it is...?)
-            Initializing
-                { url = Just url
-                , session = Routes.extractAccumulatingSession model.route
-                , notification = Notification.initialModel
-                }
-        , seed = updatedSeed
-      }
+    ( { model | seed = updatedSeed }
     , Browser.Navigation.replaceUrl model.navigationKey
         (maybeEntry
             |> Maybe.map (\{ index } -> AppUrl.entry index params)
