@@ -307,7 +307,7 @@ entryDetailView globalParams { pos, example, tags } =
     div
         [ class "text-grey-light leading-normal text-left bg-grey-darkest shadow-md rounded"
         , style "padding" "10em 2em 2em 2em"
-        , style "margin-top" "-10em -2em auto -2em"
+        , style "margin" "-10em -2em auto -2em"
         ]
         [ section [ class "mb-8" ]
             [ h3 [ class "my-4 text-xs" ] [ text "Teil" ]
