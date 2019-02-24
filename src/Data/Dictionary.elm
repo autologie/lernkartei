@@ -38,7 +38,7 @@ empty =
     Array.empty
 
 
-get : String -> Dictionary -> Entry
+get : String -> Dictionary -> Maybe Entry
 get index dict =
     let
         emptyEntry =
@@ -51,7 +51,6 @@ get index dict =
         |> Array.filter (\e -> e.index == decoded)
         |> Array.toList
         |> List.head
-        |> Maybe.withDefault { emptyEntry | index = decoded }
 
 
 nextEntry : String -> Dictionary -> Maybe Entry

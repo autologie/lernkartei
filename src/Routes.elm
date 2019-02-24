@@ -34,7 +34,7 @@ type RoutingAction
 resolve : Maybe Session -> Url.Parser.Parser (RoutingAction -> a) a
 resolve =
     Maybe.map resolveWithSession
-        >> Maybe.withDefault (Url.Parser.custom "INITIALIZING" (\_ -> Just AwaitInitialization))
+        >> Maybe.withDefault (Url.Parser.custom "INITIALIZING" <| always (Just AwaitInitialization))
 
 
 resolveWithSession : Session -> Url.Parser.Parser (RoutingAction -> a) a
@@ -73,10 +73,15 @@ resolveWithSession session =
 
 resolveEntry : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveEntry session index filter shuffle translate =
-    Pages.Entry.initialModel
-        { session | globalParams = buildQueryParams filter shuffle translate }
+    resolveWithFallback
+        (\entry ->
+            Pages.Entry.initialModel
+                { session | globalParams = buildQueryParams filter shuffle translate }
+                entry
+                |> (Entry >> Show)
+        )
+        session
         index
-        |> (Entry >> Show)
 
 
 resolveNewEntry : Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
@@ -95,16 +100,17 @@ resolveNewEntry session index filter shuffle translate =
 
 resolveEditor : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveEditor session index filter shuffle translate =
-    let
-        entry =
-            Dictionary.get index session.dict
-    in
-    { entry = entry
-    , originalEntry = Just entry
-    , dialog = Nothing
-    , session = { session | globalParams = buildQueryParams filter shuffle translate }
-    }
-        |> (Editor >> Show)
+    resolveWithFallback
+        (\entry ->
+            { entry = entry
+            , originalEntry = Just entry
+            , dialog = Nothing
+            , session = { session | globalParams = buildQueryParams filter shuffle translate }
+            }
+                |> (Editor >> Show)
+        )
+        session
+        index
 
 
 resolveSearch : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
@@ -189,3 +195,10 @@ extractAccumulatingSession routes =
             , startTime = Time.millisToPosix 0
             , language = Session.Japanese
             }
+
+
+resolveWithFallback : (Entry.Entry -> RoutingAction) -> Session -> String -> RoutingAction
+resolveWithFallback resolveWithEntry session index =
+    Dictionary.get index session.dict
+        |> Maybe.map resolveWithEntry
+        |> Maybe.withDefault (Show (NotFound session.navigationKey))

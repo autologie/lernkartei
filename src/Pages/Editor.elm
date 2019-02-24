@@ -47,38 +47,10 @@ update model msg =
 
         SaveAndCloseEditor ->
             Help.updateWithCurrentTime model
-                (\now { entry, originalEntry, session } ->
-                    let
-                        theEntry =
-                            { entry
-                                | updatedAt = now
-                                , addedAt = originalEntry |> Maybe.map (\_ -> entry.addedAt) |> Maybe.withDefault now
-                            }
-
-                        theSession =
-                            model.session
-                                |> Session.withDict
-                                    (originalEntry
-                                        |> Maybe.map (\oe -> model.session.dict |> Array.map (Help.replaceEntry oe theEntry))
-                                        |> Maybe.withDefault (model.session.dict |> Array.append (Array.fromList [ theEntry ]))
-                                    )
-                    in
-                    ( { model | session = theSession }
-                    , Cmd.batch
-                        [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
-                        , model.originalEntry
-                            |> Maybe.map
-                                (\oe ->
-                                    if oe.index == model.entry.index then
-                                        Cmd.none
-
-                                    else
-                                        Ports.deleteEntry ( model.session.userId, oe.index )
-                                )
-                            |> Maybe.withDefault Cmd.none
-                        , navigateTo model.session (Just theEntry)
-                        ]
-                    )
+                (\now currentModel ->
+                    currentModel.originalEntry
+                        |> Maybe.map (saveExistingEntryStep now currentModel)
+                        |> Maybe.withDefault (saveNewEntryStep now currentModel)
                 )
                 WithModel
                 NoOp
@@ -95,19 +67,7 @@ update model msg =
 
         DoDeleteEntry ->
             model.originalEntry
-                |> Maybe.map
-                    (\oe ->
-                        ( { model
-                            | session =
-                                model.session
-                                    |> Session.withDict (model.session.dict |> Dictionary.without oe)
-                          }
-                        , Cmd.batch
-                            [ Ports.deleteEntry ( model.session.userId, oe.index )
-                            , navigateTo model.session Nothing
-                            ]
-                        )
-                    )
+                |> Maybe.map (deleteExistingEntryStep model)
                 |> Maybe.withDefault ( model, Cmd.none )
 
         WordChange updatedEntry ->
@@ -190,15 +150,7 @@ view { entry, originalEntry, dialog, session } =
                     , inputRowView "Teil"
                         (selectInputView
                             (pos |> PartOfSpeech.toString)
-                            (\value ->
-                                WordChange
-                                    { entry
-                                        | pos =
-                                            value
-                                                |> PartOfSpeech.fromString
-                                                |> Result.withDefault pos
-                                    }
-                            )
+                            (applyPartOfSpeech pos entry)
                             (PartOfSpeech.items
                                 |> List.map PartOfSpeech.toString
                                 |> List.map (\v -> ( v, v ))
@@ -218,17 +170,7 @@ view { entry, originalEntry, dialog, session } =
                         (textInputView Nothing
                             (example |> Maybe.withDefault "")
                             True
-                            (\value ->
-                                WordChange
-                                    { entry
-                                        | example =
-                                            if value == "" then
-                                                Nothing
-
-                                            else
-                                                Just value
-                                    }
-                            )
+                            (applyExample entry)
                         )
                         Nothing
                         |> Help.V
@@ -236,16 +178,7 @@ view { entry, originalEntry, dialog, session } =
                         (textInputView Nothing
                             (tags |> String.join "\n")
                             True
-                            (\value ->
-                                WordChange
-                                    { entry
-                                        | tags =
-                                            value
-                                                |> String.split "\n"
-                                                |> List.map String.trim
-                                                |> List.filter ((/=) "")
-                                    }
-                            )
+                            (applyTags entry)
                         )
                         Nothing
                         |> Help.V
@@ -491,3 +424,95 @@ tagList dict entry =
                         [ text tag ]
                 )
         )
+
+
+applyPartOfSpeech : PartOfSpeech.PartOfSpeech -> Entry -> String -> Msg
+applyPartOfSpeech pos entry value =
+    WordChange
+        { entry
+            | pos =
+                value
+                    |> PartOfSpeech.fromString
+                    |> Result.withDefault pos
+        }
+
+
+applyExample : Entry -> String -> Msg
+applyExample entry value =
+    WordChange
+        { entry
+            | example =
+                if value == "" then
+                    Nothing
+
+                else
+                    Just value
+        }
+
+
+applyTags : Entry -> String -> Msg
+applyTags entry value =
+    WordChange
+        { entry
+            | tags =
+                value
+                    |> String.split "\n"
+                    |> List.map String.trim
+                    |> List.filter ((/=) "")
+        }
+
+
+saveExistingEntryStep : Posix -> Model -> Entry -> ( Model, Cmd Msg )
+saveExistingEntryStep now ({ entry, session } as model) oe =
+    let
+        theEntry =
+            { entry | updatedAt = now }
+    in
+    ( { model
+        | session =
+            session
+                |> Session.withDict (session.dict |> Array.map (Help.replaceEntry oe theEntry))
+      }
+    , Cmd.batch
+        [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
+        , if oe.index == entry.index then
+            Cmd.none
+
+          else
+            Ports.deleteEntry ( session.userId, oe.index )
+        , navigateTo session (Just theEntry)
+        ]
+    )
+
+
+saveNewEntryStep : Posix -> Model -> ( Model, Cmd Msg )
+saveNewEntryStep now ({ entry, session } as model) =
+    let
+        theEntry =
+            { entry | updatedAt = now, addedAt = now }
+    in
+    ( { model
+        | session =
+            session
+                |> Session.withDict
+                    (session.dict |> Array.append (Array.fromList [ theEntry ]))
+      }
+    , Cmd.batch
+        [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
+        , navigateTo session (Just theEntry)
+        ]
+    )
+
+
+deleteExistingEntryStep : Model -> Entry -> ( Model, Cmd Msg )
+deleteExistingEntryStep model oe =
+    ( { model
+        | session =
+            model.session
+                |> Session.withDict (model.session.dict |> Dictionary.without oe)
+      }
+    , Cmd.batch
+        [ Ports.deleteEntry ( model.session.userId, oe.index )
+        , navigateTo model.session Nothing
+        ]
+    )

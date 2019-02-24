@@ -46,9 +46,9 @@ type Msg
     | CopyToClipboard
 
 
-initialModel : Session -> String -> Model
-initialModel session entryDe =
-    { entry = Dictionary.get entryDe session.dict
+initialModel : Session -> Entry -> Model
+initialModel session entry =
+    { entry = entry
     , textElementSize = Nothing
     , textWrapperElementSize = Nothing
     , session = session
