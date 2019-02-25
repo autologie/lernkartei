@@ -30,7 +30,7 @@ view results searchInputBuffer filters needShadow =
                     , Help.classNames
                         (Help.flatten
                             [ Help.V "text-grey-darkest"
-                            , Help.V "bg-grey-light"
+                            , Help.V "bg-grey-lighter"
                             , Help.V "w-full"
                             , Help.V "text-sm"
                             , Help.V "py-4"
