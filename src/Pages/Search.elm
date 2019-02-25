@@ -147,6 +147,7 @@ view model =
                         [ Help.V <| filterViewByAddedIn model.filters
                         , Help.V <| filterViewByPartOfSpeech model.filters
                         , Help.V <| filterViewByTags model.session.dict model.filters
+                        , Help.V <| filterViewByStar model.filters
                         ]
                     )
                 )
@@ -279,6 +280,14 @@ filterViewByTags dict filters =
                 |> List.filter ((/=) filter)
                 |> (\fs -> fs ++ addIfNotExists filter filters)
         )
+        filters
+
+
+filterViewByStar : List Filter -> Html Msg
+filterViewByStar filters =
+    filterSection "Star"
+        [ ( IsStarred, "Starred" ) ]
+        (\_ -> filters |> Help.toggle IsStarred)
         filters
 
 
