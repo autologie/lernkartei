@@ -12,6 +12,7 @@ type PartOfSpeech
     | Praeposition
     | Konjunktion
     | Modalpartikel
+    | Pronomen
 
 
 items : List PartOfSpeech
@@ -23,6 +24,7 @@ items =
     , Praeposition
     , Konjunktion
     , Modalpartikel
+    , Pronomen
     ]
 
 
@@ -49,6 +51,9 @@ toString pos =
 
         Modalpartikel ->
             "Modalpartikel"
+
+        Pronomen ->
+            "Pronomen"
 
 
 fromString : String -> Result String PartOfSpeech

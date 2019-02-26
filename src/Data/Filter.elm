@@ -64,10 +64,13 @@ toStringHelp filter =
             ":k"
 
         PartOfSpeechIs Praeposition ->
-            ":p"
+            ":pp"
 
         PartOfSpeechIs Modalpartikel ->
             ":m"
+
+        PartOfSpeechIs Pronomen ->
+            ":pn"
 
         IsStarred ->
             ":s"
