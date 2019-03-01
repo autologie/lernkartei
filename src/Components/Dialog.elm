@@ -22,6 +22,8 @@ view dialog =
                     , "flex"
                     , "justify-center"
                     , "items-center"
+                    , "pin-l"
+                    , "pin-t"
                     ]
                 , style "background-color" "rgba(0,0,0,.3)"
                 ]
@@ -32,9 +34,11 @@ view dialog =
                         , "shadow-lg"
                         , "w-full"
                         , "mb-8"
+                        , "text-grey-darker"
+                        , "text-center"
                         ]
                     ]
-                    [ p [ Help.classNames [ "my-2" ] ] [ text message ]
+                    [ p [ Help.classNames [ "my-2 mb-4" ] ] [ text message ]
                     , div [ Help.classNames [ "flex", "justify-center" ] ]
                         [ button [ Help.classNames btnClasses, onClick onYes ] [ text "Ja" ]
                         , button [ Help.classNames btnClasses, onClick onNo ] [ text "Nein" ]

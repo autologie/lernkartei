@@ -4,17 +4,19 @@ import Array
 import Browser.Navigation
 import Components.Dialog as Dialog
 import Components.Icon as Icon
-import Data.AppUrl as AppUrl
+import Data.AppUrl as AppUrl exposing (AppUrl)
 import Data.Dictionary as Dictionary exposing (DictValidationError(..), Dictionary)
 import Data.Entry as Entry exposing (Entry, EntryValidationError(..))
+import Data.Filter as Filter exposing (Duration(..), Filter(..))
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
-import Html exposing (Html, button, div, input, label, li, option, p, select, text, textarea, ul)
-import Html.Attributes exposing (disabled, id, rows, selected, style, type_, value)
+import Html exposing (Html, button, div, h3, input, label, li, option, p, select, text, textarea, ul)
+import Html.Attributes exposing (class, disabled, id, rows, selected, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Ports
-import Time exposing (Month(..), Posix, Zone, ZoneName(..))
+import Templates.Entry
+import Time exposing (Posix)
 
 
 type Msg
@@ -26,6 +28,8 @@ type Msg
     | CloseDialog
     | WithModel (Model -> ( Model, Cmd Msg ))
     | TagClicked String
+    | CopyToClipboard
+    | NavigateTo AppUrl
     | NoOp
 
 
@@ -88,15 +92,24 @@ update model msg =
             in
             ( { model | entry = updatedEntry }, Cmd.none )
 
+        CopyToClipboard ->
+            ( model, Ports.copyToClipboard model.entry.index )
+
+        NavigateTo url ->
+            ( model
+            , Browser.Navigation.pushUrl model.session.navigationKey
+                (AppUrl.toString url)
+            )
+
         NoOp ->
             ( model, Cmd.none )
 
 
 view : Model -> Html Msg
-view { entry, originalEntry, dialog, session } =
+view ({ entry, session } as model) =
     let
         ( isNew, dictToBe ) =
-            originalEntry
+            model.originalEntry
                 |> Maybe.map (\oe -> ( False, session.dict |> Dictionary.replacedWith oe entry ))
                 |> Maybe.withDefault ( True, Dictionary.added entry session.dict )
 
@@ -122,176 +135,132 @@ view { entry, originalEntry, dialog, session } =
         { pos, translation, example, updatedAt, addedAt, tags } =
             entry
     in
-    div
-        [ Help.classNames
-            [ "w-full"
-            , "flex"
-            , "justify-center"
-            , "items-start"
-            ]
-        ]
-        (Help.flatten
-            [ div
-                [ Help.classNames
-                    [ "container"
-                    , "max-w-md"
-                    , "p-5"
-                    ]
-                ]
-                (Help.flatten
-                    [ inputRowView "Das Wort"
-                        (textInputView (Just "editor-input-de")
-                            entry.index
-                            False
-                            (\value -> WordChange { entry | index = value })
-                        )
-                        deError
-                        |> Help.V
-                    , inputRowView "Teil"
-                        (selectInputView
-                            (pos |> PartOfSpeech.toString)
-                            (applyPartOfSpeech pos entry)
-                            (PartOfSpeech.items
-                                |> List.map PartOfSpeech.toString
-                                |> List.map (\v -> ( v, v ))
-                            )
-                        )
-                        Nothing
-                        |> Help.V
-                    , inputRowView "Übersetzung"
-                        (textInputView Nothing
-                            translation
-                            False
-                            (\value -> WordChange { entry | translation = value })
-                        )
-                        jaError
-                        |> Help.V
-                    , inputRowView "Beispiel"
-                        (textInputView Nothing
-                            (example |> Maybe.withDefault "")
-                            True
-                            (applyExample entry)
-                        )
-                        Nothing
-                        |> Help.V
-                    , inputRowView "Etikett"
-                        (textInputView Nothing
-                            (tags |> String.join "\n")
-                            True
-                            (applyTags entry)
-                        )
-                        Nothing
-                        |> Help.V
-                    , Help.V <| tagList session.dict entry
-                    , Help.O (not isNew) (\_ -> dateView session.zone session.zoneName addedAt updatedAt)
-                    , Help.V <|
-                        button
-                            [ onClick SaveAndCloseEditor
-                            , Help.classNames
-                                (Help.flatten
-                                    [ Help.L (Help.btnClasses True hasError)
-                                    , Help.V "w-full"
-                                    , Help.V "p-3"
-                                    , Help.V "text-base"
-                                    , Help.V "mb-2"
-                                    ]
-                                )
-                            , disabled hasError
-                            ]
-                            [ text "Hinzufügen" ]
-                    , button
-                        [ onClick DeleteEntry
-                        , style "display"
-                            (if isNew then
-                                "none"
-
-                             else
-                                "inline"
-                            )
-                        , Help.classNames
-                            (Help.flatten
-                                [ Help.L (Help.btnClasses True False |> List.filter ((/=) "bg-blue"))
-                                , Help.V "w-full"
-                                , Help.V "p-3"
-                                , Help.V "text-base"
-                                , Help.V "bg-red"
-                                ]
-                            )
-                        , disabled hasError
-                        ]
-                        [ text "Löschen" ]
-                        |> Help.V
-                    , button
-                        [ onClick CloseEditor
-                        , Help.classNames
-                            [ "fixed"
-                            , "pin-r"
-                            , "pin-t"
-                            , "m-4"
-                            ]
-                        ]
-                        [ Icon.close "width: 2em; height: 2em" "#3d4852" ]
-                        |> Help.V
-                    ]
+    Templates.Entry.layout
+        { session = session
+        , results =
+            Filter.applied
+                model.session.startTime
+                model.session.dict
+                model.session.globalParams.filters
+        , entry = model.entry
+        , cardContent = cardContentView model deError jaError
+        , partOfSpeech =
+            [ selectInputView
+                (model.entry.pos |> PartOfSpeech.toString)
+                (applyPartOfSpeech model.entry.pos model.entry)
+                (PartOfSpeech.items
+                    |> List.map PartOfSpeech.toString
+                    |> List.map (\v -> ( v, v ))
                 )
-                |> Help.V
-            , Help.M <| (dialog |> Maybe.map (\d -> Dialog.view d))
+            ]
+        , example =
+            [ textInputView Nothing
+                (model.entry.example |> Maybe.withDefault "")
+                True
+                (applyExample model.entry)
+                "shadow-md"
+            ]
+        , tags =
+            [ textInputView Nothing
+                (tags |> String.join "\n")
+                True
+                (applyTags entry)
+                "shadow-md mb-2"
+            , tagList session.dict entry
+            ]
+        , extraContent = div [] []
+        , actions = actionsView model hasError isNew
+        , onNavigationRequested = NavigateTo
+        , onBackLinkClicked = Nothing
+        , onCopyToClipboardClicked = CopyToClipboard
+        }
+
+
+cardContentView : Model -> Maybe String -> Maybe String -> String -> Html Msg
+cardContentView { entry } deError jaError defaultClasses =
+    let
+        extraClasses =
+            "bg-grey-lighter p-3 text-lg"
+    in
+    div [ class (defaultClasses ++ " flex justify-around flex-col p-4 pb-8") ]
+        (Help.flatten
+            [ Help.V <| h3 [ class "text-xs p-2 text-grey" ] [ text "Das Wort" ]
+            , Help.V <|
+                textInputView (Just "editor-input-de")
+                    entry.index
+                    False
+                    (\value -> WordChange { entry | index = value })
+                    extraClasses
+            , Help.M (deError |> Maybe.map inputRowErrorView)
+            , Help.V <| h3 [ class "text-xs p-2 text-grey" ] [ text "Übersetzung" ]
+            , Help.V <|
+                textInputView Nothing
+                    entry.translation
+                    False
+                    (\value -> WordChange { entry | translation = value })
+                    extraClasses
+            , Help.M (jaError |> Maybe.map inputRowErrorView)
             ]
         )
 
 
-dateView : Zone -> ZoneName -> Posix -> Posix -> Html msg
-dateView zone zoneName addedAt updatedAt =
+actionsView : Model -> Bool -> Bool -> Html Msg
+actionsView { entry, session, dialog } hasError isNew =
     let
-        addedAtExpr =
-            describeDate zone zoneName addedAt
-
-        updatedAtExpr =
-            describeDate zone zoneName updatedAt
+        btnClasses selected disabled =
+            Help.btnClasses selected disabled
+                |> List.filter ((/=) "bg-blue")
+                |> List.filter ((/=) "text-white")
+                |> List.filter ((/=) "rounded-l")
+                |> List.filter ((/=) "rounded-r")
     in
-    p
-        [ Help.classNames
-            [ "text-grey-dark"
-            , "my-6"
-            ]
-        ]
-        [ text
-            ([ Help.V "Added on"
-             , Help.V addedAtExpr
-             , Help.O (addedAtExpr /= updatedAtExpr) (\_ -> ", updated on " ++ updatedAtExpr)
-             ]
-                |> Help.flatten
-                |> String.join " "
-            )
-        ]
-
-
-inputRowView : String -> (List String -> Html msg) -> Maybe String -> Html msg
-inputRowView fieldName inputView maybeError =
-    div [ Help.classNames [ "mb-6", "w-full" ] ]
+    div
+        []
         (Help.flatten
-            [ label [ Help.classNames [ "w-full" ] ]
-                [ div
-                    [ Help.classNames
-                        [ "mr-2"
-                        , "text-left"
-                        , "text-xs"
-                        , "my-2"
-                        , "w-full"
-                        , "text-grey-dark"
-                        ]
+            [ div
+                []
+                [ button
+                    [ onClick SaveAndCloseEditor
+                    , Help.classNames
+                        (Help.flatten
+                            [ Help.V "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
+                            , Help.L (btnClasses True hasError)
+                            ]
+                        )
+                    , disabled hasError
                     ]
-                    [ text fieldName ]
-                , inputView
-                    [ "bg-grey-lighter"
-                    , "rounded"
-                    , "p-3"
-                    , "text-grey-darkest"
-                    , "w-full"
+                    [ text "Hinzufügen" ]
+                , button
+                    [ onClick DeleteEntry
+                    , style "display"
+                        (if isNew then
+                            "none"
+
+                         else
+                            "inline"
+                        )
+                    , Help.classNames
+                        (Help.flatten
+                            [ Help.L (btnClasses True False)
+                            , Help.V "w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
+                            ]
+                        )
+                    , disabled hasError
                     ]
+                    [ text "Löschen" ]
+                , button
+                    [ onClick CloseEditor
+                    , Help.classNames
+                        (Help.flatten
+                            [ Help.L (btnClasses True False)
+                            , Help.V "w-full p-3 text-sm rounded-full bg-grey-light text-grey-darkest"
+                            ]
+                        )
+                    ]
+                    [ text "Cancel" ]
                 ]
                 |> Help.V
-            , Help.M <| (maybeError |> Maybe.map inputRowErrorView)
+            , Help.M <| (dialog |> Maybe.map (\d -> Dialog.view d))
             ]
         )
 
@@ -307,18 +276,11 @@ inputRowErrorView e =
         [ text e ]
 
 
-textInputView : Maybe String -> String -> Bool -> (String -> Msg) -> List String -> Html Msg
-textInputView maybeInputId inputValue multiline handleInput formClasses =
+textInputView : Maybe String -> String -> Bool -> (String -> Msg) -> String -> Html Msg
+textInputView maybeInputId inputValue multiline handleInput extraClasses =
     if multiline then
         textarea
-            [ Help.classNames
-                (Help.flatten
-                    [ Help.V "text-sm"
-                    , Help.V "leading-normal"
-                    , Help.V "resize-none"
-                    , Help.L formClasses
-                    ]
-                )
+            [ class ("text-sm leading-normal resize-none w-full rounded p-2 " ++ extraClasses)
             , rows 5
             , value inputValue
             , onInput handleInput
@@ -329,7 +291,7 @@ textInputView maybeInputId inputValue multiline handleInput formClasses =
         input
             (Help.flatten
                 [ Help.V <| type_ "text"
-                , Help.V <| Help.classNames (Help.flatten [ Help.V "text-base", Help.L formClasses ])
+                , Help.V <| class ("text-base w-full p-2 rounded " ++ extraClasses)
                 , Help.V <| value inputValue
                 , Help.V <| onInput handleInput
                 , Help.G maybeInputId (\value -> [ id value ])
@@ -338,10 +300,10 @@ textInputView maybeInputId inputValue multiline handleInput formClasses =
             []
 
 
-selectInputView : String -> (String -> a) -> List ( String, String ) -> List String -> Html a
-selectInputView inputValue handleInput options formClasses =
+selectInputView : String -> (String -> a) -> List ( String, String ) -> Html a
+selectInputView inputValue handleInput options =
     select
-        [ Help.classNames ([ "text-base" ] ++ formClasses)
+        [ Help.classNames [ "text-base w-full p-2 bg-white rounded shadow-md" ]
         , style "-webkit-appearance" "none"
         , onInput handleInput
         ]
@@ -355,29 +317,6 @@ selectInputView inputValue handleInput options formClasses =
                         [ text label ]
                 )
         )
-
-
-describeDate : Zone -> ZoneName -> Posix -> String
-describeDate zone zoneName posix =
-    if Time.posixToMillis posix == 0 then
-        "(Unknown)"
-
-    else
-        [ posix |> Time.toDay zone |> String.fromInt
-        , "."
-        , Help.monthNumber posix zone |> String.fromInt
-        , "."
-        , posix |> Time.toYear zone |> String.fromInt
-        , " ("
-        , case zoneName of
-            Name name ->
-                name
-
-            Offset value ->
-                String.fromInt value
-        , ")"
-        ]
-            |> String.join ""
 
 
 navigateTo : Session -> Maybe Entry -> Cmd Msg
@@ -411,10 +350,7 @@ tagList dict entry =
                     li
                         [ Help.classNames
                             (Help.flatten
-                                [ Help.V "mb-2"
-                                , Help.V "mx-1"
-                                , Help.V "p-2"
-                                , Help.V "rounded"
+                                [ Help.V "mb-2 mx-1 p-1 px-2 rounded text-xs"
                                 , Help.B isMember (\_ -> "bg-blue") (\_ -> "bg-grey-light")
                                 , Help.B isMember (\_ -> "text-white") (\_ -> "text-grey-darkest")
                                 ]

@@ -10,14 +10,16 @@ module Pages.Entry exposing
 import Array
 import Browser.Dom as Dom
 import Browser.Navigation
+import Components.Button as Button
+import Components.Icon as Icon
 import Data.AppUrl as AppUrl exposing (AppUrl)
 import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
-import Html exposing (Html, button, div, li, p, text, ul)
-import Html.Attributes exposing (attribute, class, id, style)
+import Html exposing (Html, a, button, div, li, p, text, ul)
+import Html.Attributes exposing (attribute, class, href, id, style)
 import Html.Events exposing (onClick, stopPropagationOn)
 import Json.Decode as Decode
 import Ports
@@ -122,10 +124,7 @@ view model =
                 model.session.dict
                 model.session.globalParams.filters
         , entry = model.entry
-        , cardContents =
-            [ cardTextView model
-            , starView model.entry.starred
-            ]
+        , cardContent = cardContentView model
         , partOfSpeech = [ p [] [ text (PartOfSpeech.toString model.entry.pos) ] ]
         , example = [ exampleView model ]
         , tags =
@@ -134,8 +133,10 @@ view model =
 
             else
                 [ p [] [ text "-" ] ]
+        , extraContent = buttons model.session model.entry
+        , actions = div [] []
         , onNavigationRequested = NavigateTo
-        , onBackLinkClicked = BackToPrevPage
+        , onBackLinkClicked = Just BackToPrevPage
         , onCopyToClipboardClicked = CopyToClipboard
         }
 
@@ -198,6 +199,22 @@ exampleView model =
         ]
 
 
+cardContentView : Model -> String -> Html Msg
+cardContentView ({ entry, session } as model) defaultClasses =
+    a
+        [ id "text-wrapper"
+        , class defaultClasses
+        , href
+            (AppUrl.entry entry.index session.globalParams
+                |> AppUrl.withTranslate (not session.globalParams.translate)
+                |> AppUrl.toString
+            )
+        ]
+        [ cardTextView model
+        , starView entry.starred
+        ]
+
+
 cardTextView : Model -> Html Msg
 cardTextView model =
     let
@@ -231,3 +248,33 @@ cardTextView model =
                )
         )
         [ text textToShow ]
+
+
+buttons : Session -> Entry -> Html msg
+buttons session entry =
+    Button.floatingGroup
+        [ a
+            [ class "rounded-full text-xl shadow-md flex w-8 h-8 justify-center items-center mb-2"
+            , class
+                (if session.globalParams.shuffle then
+                    "bg-green"
+
+                 else
+                    "bg-grey"
+                )
+            , href
+                (AppUrl.entry entry.index session.globalParams
+                    |> AppUrl.withShuffle (not session.globalParams.shuffle)
+                    |> AppUrl.toString
+                )
+            ]
+            [ Icon.shuffle "width: .4em; height: .4em;"
+                (if session.globalParams.shuffle then
+                    "#38c172"
+
+                 else
+                    "#b8c2cc"
+                )
+            ]
+        , Button.addNewEntry (AppUrl.newEntry Nothing session.globalParams)
+        ]
