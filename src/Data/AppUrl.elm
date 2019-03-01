@@ -47,7 +47,7 @@ toString url =
                 0
 
         toStringWithParams path extraParams { filters, shuffle, translate } =
-            Builder.relative path
+            Builder.absolute path
                 (List.concat
                     [ if List.length filters == 0 then
                         []
@@ -62,28 +62,28 @@ toString url =
     in
     case url of
         TopUrl params ->
-            toStringWithParams [ "" ] [] params
+            toStringWithParams [] [] params
 
         NextEntryUrl params ->
-            toStringWithParams [ "", "entries", "_next" ] [] params
+            toStringWithParams [ "entries", "_next" ] [] params
 
         EntryUrl index params ->
-            toStringWithParams [ "", "entries", index ] [] params
+            toStringWithParams [ "entries", index ] [] params
 
         EditorUrl index params ->
-            toStringWithParams [ "", "entries", index, "_edit" ] [] params
+            toStringWithParams [ "entries", index, "_edit" ] [] params
 
         SearchUrl params ->
-            toStringWithParams [ "", "search" ] [] params
+            toStringWithParams [ "search" ] [] params
 
         ListUrl params ->
-            toStringWithParams [ "", "entries" ] [] params
+            toStringWithParams [ "entries" ] [] params
 
         NewEntryUrl Nothing params ->
-            toStringWithParams [ "", "entries", "_new" ] [] params
+            toStringWithParams [ "entries", "_new" ] [] params
 
         NewEntryUrl (Just index) params ->
-            toStringWithParams [ "", "entries", "_new" ] [ Builder.string "de" index ] params
+            toStringWithParams [ "entries", "_new" ] [ Builder.string "de" index ] params
 
 
 top : GlobalQueryParams -> AppUrl
