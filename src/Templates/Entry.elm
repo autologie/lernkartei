@@ -51,69 +51,6 @@ layout ({ session, results } as vm) =
         ]
 
 
-entryDetailView : Model msg -> Html msg
-entryDetailView { entry, session, partOfSpeech, actions, example, tags } =
-    div
-        [ class "text-grey-light leading-normal text-left bg-grey-darkest shadow-md rounded"
-        , style "padding" "10em 2em 2em 2em"
-        , style "margin" "-10em -2em auto -2em"
-        ]
-        [ dateView session.zone session.zoneName entry.addedAt entry.updatedAt
-        , entryDetailRowView "Tile" partOfSpeech
-        , entryDetailRowView "Beispiel" example
-        , entryDetailRowView "Etikett" tags
-        , actions
-        ]
-
-
-entryDetailRowView : String -> List (Html msg) -> Html msg
-entryDetailRowView title body =
-    section [ class "mb-8" ]
-        ([ h3 [ class "my-4 text-xs" ] [ text title ] ] ++ body)
-
-
-linksView : Model msg -> Html msg
-linksView { session, entry, onCopyToClipboardClicked } =
-    let
-        simpleDe =
-            Entry.withoutArticle entry
-    in
-    div
-        [ class "flex justify-around flex-wrap pb-4 px-4" ]
-        [ linkView True ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch") "Bilder" Icon.image
-        , linkView True ("https://de.wiktionary.org/wiki/" ++ simpleDe) "Untersuchen" Icon.detail
-        , linkView True (Google.translationAppUrl simpleDe session.language) "Hören" Icon.sound
-        , linkView False
-            (AppUrl.editorFor entry.index session.globalParams
-                |> AppUrl.withFilters session.globalParams.filters
-                |> AppUrl.toString
-            )
-            "Bearbeiten"
-            Icon.edit
-        , div [ class "flex items-center py-1" ]
-            [ span
-                [ class "bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker cursor-pointer"
-                , onClick onCopyToClipboardClicked
-                ]
-                [ Icon.copy "" ]
-            ]
-        ]
-
-
-linkView : Bool -> String -> String -> (String -> Html msg) -> Html msg
-linkView external url label icon =
-    div [ class "flex items-center py-1" ]
-        [ a
-            (Help.flatten
-                [ Help.V <| href url
-                , Help.V <| class "bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker"
-                , Help.O external (\_ -> target "_blank")
-                ]
-            )
-            [ icon "" ]
-        ]
-
-
 bodyView : Model msg -> Html msg
 bodyView ({ session, entry, cardContent, results, onBackLinkClicked } as vm) =
     div []
@@ -148,6 +85,65 @@ prevButton onBackLinkClicked =
         , onClick onBackLinkClicked
         ]
         [ Icon.prev "width: 3em; height: 3em" ]
+
+
+entryDetailView : Model msg -> Html msg
+entryDetailView { entry, session, partOfSpeech, actions, example, tags } =
+    div
+        [ class "text-grey-light leading-normal text-left bg-grey-darkest shadow-md rounded"
+        , style "padding" "10em 2em 2em 2em"
+        , style "margin" "-10em -2em auto -2em"
+        ]
+        [ dateView session.zone session.zoneName entry.addedAt entry.updatedAt
+        , entryDetailRowView "Tile" partOfSpeech
+        , entryDetailRowView "Beispiel" example
+        , entryDetailRowView "Etikett" tags
+        , actions
+        ]
+
+
+entryDetailRowView : String -> List (Html msg) -> Html msg
+entryDetailRowView title body =
+    section [ class "mb-8" ]
+        ([ h3 [ class "my-4 text-xs" ] [ text title ] ] ++ body)
+
+
+linksView : Model msg -> Html msg
+linksView { session, entry, onCopyToClipboardClicked } =
+    let
+        simpleDe =
+            Entry.withoutArticle entry
+    in
+    div
+        [ class "flex justify-around flex-wrap pb-4 px-4" ]
+        [ linkView True ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch") "Bilder" "photo"
+        , linkView True ("https://de.wiktionary.org/wiki/" ++ simpleDe) "Untersuchen" "list"
+        , linkView True (Google.translationAppUrl simpleDe session.language) "Hören" "volume_up"
+        , linkView False
+            (AppUrl.editorFor entry.index session.globalParams
+                |> AppUrl.withFilters session.globalParams.filters
+                |> AppUrl.toString
+            )
+            "Bearbeiten"
+            "edit"
+        , div
+            [ class "material-icons bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker cursor-pointer"
+            , onClick onCopyToClipboardClicked
+            ]
+            [ text "file_copy" ]
+        ]
+
+
+linkView : Bool -> String -> String -> String -> Html msg
+linkView external url label icon =
+    a
+        (Help.flatten
+            [ Help.V <| href url
+            , Help.V <| class "z-10 block flex items-center py-1 no-underline material-icons bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker"
+            , Help.O external (\_ -> target "_blank")
+            ]
+        )
+        [ text icon ]
 
 
 translateSearchFieldMsg : Model msg -> SearchField.Msg -> msg

@@ -3,6 +3,7 @@ module Pages.Search exposing (Model, Msg, initialModel, subscriptions, update, v
 import Array
 import Browser.Navigation
 import Components.SearchField as SearchField
+import Components.Tag as Tag
 import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
@@ -316,34 +317,12 @@ filterSection title filters createFilters currentFilters =
                 |> List.reverse
                 |> List.map
                     (\( filter, txt ) ->
-                        li
-                            []
-                            [ div
-                                [ onClick (UpdateFilters (createFilters filter))
-                                , Help.classNames
-                                    ([ "no-underline"
-                                     , "rounded"
-                                     , "inline-block"
-                                     , "mr-1"
-                                     , "mb-2"
-                                     , "py-1"
-                                     , "px-2"
-                                     ]
-                                        ++ (if List.member filter currentFilters then
-                                                [ "text-white"
-                                                , "bg-blue"
-                                                ]
-
-                                            else
-                                                [ "text-grey-darker"
-                                                , "bg-grey-light"
-                                                ]
-                                           )
-                                    )
-                                ]
-                                [ text txt ]
-                            ]
+                        Tag.view
+                            txt
+                            (List.member filter currentFilters)
+                            (UpdateFilters (createFilters filter))
                     )
+                |> List.map (\tag -> li [] [ tag ])
             )
         ]
 

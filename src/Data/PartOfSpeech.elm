@@ -80,6 +80,9 @@ fromString str =
         "Modalpartikel" ->
             Ok Modalpartikel
 
+        "Pronomen" ->
+            Ok Pronomen
+
         other ->
             Err (other ++ " is not a valid part-of-speech.")
 

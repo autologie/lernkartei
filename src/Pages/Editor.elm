@@ -4,6 +4,7 @@ import Array
 import Browser.Navigation
 import Components.Dialog as Dialog
 import Components.Icon as Icon
+import Components.Tag as Tag
 import Data.AppUrl as AppUrl exposing (AppUrl)
 import Data.Dictionary as Dictionary exposing (DictValidationError(..), Dictionary)
 import Data.Entry as Entry exposing (Entry, EntryValidationError(..))
@@ -347,17 +348,7 @@ tagList dict entry =
                         isMember =
                             List.member tag entry.tags
                     in
-                    li
-                        [ Help.classNames
-                            (Help.flatten
-                                [ Help.V "mb-2 mx-1 p-1 px-2 rounded text-xs"
-                                , Help.B isMember (\_ -> "bg-blue") (\_ -> "bg-grey-light")
-                                , Help.B isMember (\_ -> "text-white") (\_ -> "text-grey-darkest")
-                                ]
-                            )
-                        , onClick (TagClicked tag)
-                        ]
-                        [ text tag ]
+                    li [] [ Tag.view tag isMember (TagClicked tag) ]
                 )
         )
 
