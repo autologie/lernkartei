@@ -3,16 +3,15 @@ module Pages.Search exposing (Model, Msg, initialModel, subscriptions, update, v
 import Array
 import Browser.Navigation
 import Components.SearchField as SearchField
-import Data.AppUrl as AppUrl exposing (AppUrl, GlobalQueryParams)
+import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary as Dictionary exposing (Dictionary)
-import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session exposing (Session)
 import Help
-import Html exposing (Html, a, button, div, h3, input, li, p, section, span, text, ul)
-import Html.Attributes exposing (classList, href, id, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Html, a, button, div, h3, li, section, text, ul)
+import Html.Attributes exposing (href)
+import Html.Events exposing (onClick)
 import Html.Keyed
 import Ports
 

@@ -2,7 +2,7 @@ module Components.SearchField exposing (Msg(..), error, view)
 
 import Array
 import Components.Icon as Icon
-import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.Dictionary exposing (Dictionary)
 import Data.Filter as Filter exposing (Filter(..))
 import Help
 import Html exposing (Html, button, div, input, p, text, ul)

@@ -14,7 +14,9 @@ import Html.Attributes exposing (href)
 
 
 type alias Model =
-    { session : Session, isScrolled : Bool }
+    { session : Session
+    , isScrolled : Bool
+    }
 
 
 type Msg

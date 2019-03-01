@@ -2,8 +2,8 @@ module Components.Button exposing (addNewEntry, floatingGroup)
 
 import Components.Icon as Icon
 import Data.AppUrl as AppUrl
-import Html exposing (Attribute, Html, a, div, text)
-import Html.Attributes exposing (class, classList, href)
+import Html exposing (a, div)
+import Html.Attributes exposing (class, href)
 
 
 floatingGroup buttons =
