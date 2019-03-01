@@ -80,7 +80,7 @@ nextButton { session } =
 prevButton : msg -> Html msg
 prevButton onBackLinkClicked =
     span
-        [ class "absolute rounded-full bg-blue pin-l pin-t shadow-md"
+        [ class "absolute rounded-full bg-blue pin-l pin-t shadow-md cursor-pointer"
         , style "margin" "6.4rem 0 0 -1em"
         , onClick onBackLinkClicked
         ]
