@@ -4,7 +4,6 @@ import Array
 import Browser.Dom
 import Browser.Navigation
 import Components.Dialog as Dialog
-import Components.Icon as Icon
 import Components.Tag as Tag
 import Data.AppUrl as AppUrl exposing (AppUrl)
 import Data.Dictionary as Dictionary exposing (DictValidationError(..), Dictionary)
@@ -13,7 +12,7 @@ import Data.Filter as Filter exposing (Duration(..), Filter(..))
 import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
-import Html exposing (Html, button, div, h3, input, label, li, option, p, select, text, textarea, ul)
+import Html exposing (Html, button, div, h3, input, li, option, p, select, text, textarea, ul)
 import Html.Attributes exposing (class, disabled, id, rows, selected, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Ports
@@ -168,7 +167,7 @@ view ({ entry, session } as model) =
             else
                 Templates.Entry.Enabled
 
-        { pos, translation, example, updatedAt, addedAt, tags } =
+        { tags } =
             entry
     in
     Templates.Entry.layout
@@ -250,7 +249,7 @@ cardContentView { entry } deError jaError defaultClasses =
 
 
 actionsView : Model -> Bool -> Bool -> Html Msg
-actionsView { entry, session, dialog } hasError isNew =
+actionsView { dialog } hasError isNew =
     let
         btnClasses selected disabled =
             Help.btnClasses selected disabled

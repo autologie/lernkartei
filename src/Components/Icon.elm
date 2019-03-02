@@ -6,8 +6,6 @@ module Components.Icon exposing
     , shuffle
     )
 
-import Html exposing (i, text)
-import Html.Attributes exposing (class)
 import Svg exposing (Svg, path, svg)
 import Svg.Attributes exposing (d, fill, height, stroke, strokeWidth, style, viewBox, width)
 
@@ -46,12 +44,14 @@ next theStyle =
         ]
 
 
+prev : String -> Svg a
 prev theStyle =
     icon theStyle
         [ path [ d "M70,40 L50,60 L70,80", stroke "white", fill "transparent", strokeWidth "9" ] []
         ]
 
 
+icon : String -> List (Svg a) -> Svg a
 icon theStyle content =
     svg
         [ width "120"

@@ -41,9 +41,6 @@ empty =
 get : String -> Dictionary -> Maybe Entry
 get index dict =
     let
-        emptyEntry =
-            Entry.empty
-
         decoded =
             Url.percentDecode index |> Maybe.withDefault index
     in

@@ -14,9 +14,9 @@ import Data.Entry as Entry
 import Data.Filter as Filter
 import Data.Session as Session exposing (AccumulatingSession, Session)
 import Pages.Editor
+import Pages.Entries
 import Pages.Entry
 import Pages.Initialize
-import Pages.List
 import Pages.Search
 import Time
 import Url.Parser exposing ((</>), (<?>), s, string)
@@ -28,7 +28,7 @@ type Route
     | Entry Pages.Entry.Model
     | Editor Pages.Editor.Model
     | Search Pages.Search.Model
-    | Entries Pages.List.Model
+    | Entries Pages.Entries.Model
     | NotFound Key
 
 
@@ -36,7 +36,7 @@ type PageMsg
     = EntryMsg Pages.Entry.Msg
     | EditorMsg Pages.Editor.Msg
     | SearchMsg Pages.Search.Msg
-    | EntriesMsg Pages.List.Msg
+    | EntriesMsg Pages.Entries.Msg
     | InitializeMsg Pages.Initialize.Msg
 
 
@@ -127,7 +127,7 @@ resolveSearch session filter shuffle translate =
 
 resolveList : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveList session filter shuffle translate =
-    Pages.List.init
+    Pages.Entries.init
         { session
             | globalParams = buildQueryParams filter shuffle translate
         }

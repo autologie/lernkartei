@@ -15,7 +15,7 @@ module Help exposing
 
 import Data.Entry exposing (Entry)
 import Html exposing (Attribute, Html, div, text)
-import Html.Attributes exposing (class, classList)
+import Html.Attributes exposing (classList)
 import Task
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 

@@ -1,8 +1,7 @@
 module Components.Tag exposing (view)
 
 import Help
-import Html exposing (Html, a, button, div, h3, li, section, text, ul)
-import Html.Attributes exposing (href)
+import Html exposing (Html, button, text)
 import Html.Events exposing (onClick)
 
 
@@ -11,8 +10,8 @@ view txt isSelected onClickTag =
     button
         [ onClick onClickTag
         , Help.classNames
-            ([ "no-underline rounded inline-block mr-1 mb-2 py-1 px-2" ]
-                ++ (if isSelected then
+            ("no-underline rounded inline-block mr-1 mb-2 py-1 px-2"
+                :: (if isSelected then
                         [ "text-white"
                         , "bg-blue"
                         ]

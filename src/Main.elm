@@ -13,9 +13,9 @@ import Help
 import Html exposing (Html, div)
 import Html.Lazy
 import Pages.Editor
+import Pages.Entries
 import Pages.Entry
 import Pages.Initialize
-import Pages.List
 import Pages.Search
 import Ports
 import Process
@@ -112,7 +112,7 @@ update msg model =
                     pageStep Search SearchMsg (Pages.Search.update pageModel pageMsg) model
 
                 ( Entries pageModel, EntriesMsg pageMsg ) ->
-                    pageStep Entries EntriesMsg (Pages.List.update pageModel pageMsg) model
+                    pageStep Entries EntriesMsg (Pages.Entries.update pageModel pageMsg) model
 
                 ( Editor pageModel, EditorMsg pageMsg ) ->
                     pageStep Editor EditorMsg (Pages.Editor.update pageModel pageMsg) model
@@ -178,7 +178,7 @@ dispatchRoute model url =
             )
 
         Just (RedirectToRandom params) ->
-            redirectToRandomEntry model params url
+            redirectToRandomEntry model params
 
         Just AwaitInitialization ->
             ( model, Cmd.none )
@@ -228,7 +228,7 @@ view model =
                     |> Html.map (SearchMsg >> PageMsg)
 
             Entries pageModel ->
-                Html.Lazy.lazy Pages.List.view pageModel
+                Html.Lazy.lazy Pages.Entries.view pageModel
                     |> Html.map (EntriesMsg >> PageMsg)
 
             Editor pageModel ->
@@ -240,8 +240,8 @@ view model =
         ]
 
 
-redirectToRandomEntry : Model -> AppUrl.GlobalQueryParams -> Url -> ( Model, Cmd Msg )
-redirectToRandomEntry model params url =
+redirectToRandomEntry : Model -> AppUrl.GlobalQueryParams -> ( Model, Cmd Msg )
+redirectToRandomEntry model params =
     let
         entries =
             Filter.applied model.startTime

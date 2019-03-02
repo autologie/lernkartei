@@ -130,7 +130,7 @@ empty =
 
 
 findFirstError : Entry -> Maybe EntryValidationError
-findFirstError { index, translation } =
+findFirstError { index } =
     if index == "" then
         Just WordIsEmpty
 

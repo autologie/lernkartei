@@ -1,4 +1,4 @@
-module Pages.List exposing (Model, Msg, init, update, view)
+module Pages.Entries exposing (Model, Msg, init, update, view)
 
 import Array
 import Browser.Navigation
@@ -31,10 +31,6 @@ init session =
 
 update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
-    let
-        globalParams =
-            model.session.globalParams
-    in
     case msg of
         NavigateTo url ->
             ( model

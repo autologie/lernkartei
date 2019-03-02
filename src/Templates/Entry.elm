@@ -1,7 +1,5 @@
 module Templates.Entry exposing (ButtonState(..), Model, layout)
 
-import Array
-import Components.Button as Button
 import Components.Icon as Icon
 import Components.SearchField as SearchField
 import Data.AppUrl as AppUrl exposing (AppUrl)
@@ -12,7 +10,7 @@ import Data.Google as Google
 import Data.Session exposing (Session)
 import Help
 import Html exposing (Html, a, div, h3, p, section, span, text)
-import Html.Attributes exposing (class, href, id, style, target)
+import Html.Attributes exposing (class, href, style, target)
 import Html.Events exposing (onClick)
 import Html.Keyed
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
@@ -70,7 +68,7 @@ layout ({ session, results } as vm) =
 
 
 bodyView : Model msg -> Html msg
-bodyView ({ session, entry, cardContent, results, onBackLinkClicked, buttons } as vm) =
+bodyView ({ cardContent } as vm) =
     div []
         [ div
             [ class "rounded bg-white shadow-lg relative mt-4 mb-8" ]
@@ -137,7 +135,7 @@ entryDetailView { entry, session, partOfSpeech, actions, example, tags } =
 entryDetailRowView : String -> List (Html msg) -> Html msg
 entryDetailRowView title body =
     section [ class "mb-8" ]
-        ([ h3 [ class "my-4 text-xs" ] [ text title ] ] ++ body)
+        (h3 [ class "my-4 text-xs" ] [ text title ] :: body)
 
 
 type LinkAction msg
@@ -238,7 +236,7 @@ dateView zone zoneName addedAt updatedAt =
             describeDate zone zoneName updatedAt
     in
     div
-        [ class "text-grey-light text-center my-2" ]
+        [ class "text-grey-light text-center my-2 mx-6 py-3 border-t border-b" ]
         [ p [] [ text ("Added on: " ++ addedAtExpr) ]
         , p [] [ text ("Updated on: " ++ updatedAtExpr) ]
         ]
