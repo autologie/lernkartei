@@ -1,11 +1,13 @@
 port module Ports exposing
     ( archiveEntry
+    , confirmDialogResponded
     , copyToClipboard
     , copyToClipboardDone
     , deleteEntry
     , dictionaryLoaded
     , saveEntry
     , scrollChange
+    , showConfirmDialog
     , signInDone
     , syncEntryDone
     )
@@ -38,3 +40,9 @@ port copyToClipboard : String -> Cmd msg
 
 
 port copyToClipboardDone : (() -> msg) -> Sub msg
+
+
+port showConfirmDialog : String -> Cmd msg
+
+
+port confirmDialogResponded : (Bool -> msg) -> Sub msg

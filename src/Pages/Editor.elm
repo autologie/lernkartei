@@ -1,9 +1,8 @@
-module Pages.Editor exposing (Model, Msg(..), initCreate, initEdit, update, view)
+module Pages.Editor exposing (Model, Msg(..), initCreate, initEdit, subscriptions, update, view)
 
 import Array
 import Browser.Dom
 import Browser.Navigation
-import Components.Dialog as Dialog
 import Components.Tag as Tag
 import Data.AppUrl as AppUrl exposing (AppUrl)
 import Data.Dictionary as Dictionary exposing (DictValidationError(..), Dictionary)
@@ -27,18 +26,18 @@ type Msg
     | WordChange Entry
     | DeleteEntry
     | DoDeleteEntry
-    | CloseDialog
     | WithModel (Model -> ( Model, Cmd Msg ))
     | TagClicked String
     | CopyToClipboard
     | NavigateTo AppUrl
+    | ConfirmDialogResponded Bool
     | NoOp
 
 
 type alias Model =
     { entry : Entry
     , originalEntry : Maybe Entry
-    , dialog : Maybe (Dialog.Dialog Msg)
+    , confirmDialogCallback : Maybe { onYes : Msg, onNo : Msg }
     , session : Session
     }
 
@@ -51,7 +50,7 @@ initCreate index session =
     in
     ( { entry = { emptyEntry | index = Maybe.withDefault "" index }
       , originalEntry = Nothing
-      , dialog = Nothing
+      , confirmDialogCallback = Nothing
       , session = session
       }
     , Browser.Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
@@ -62,11 +61,18 @@ initEdit : Entry -> Session -> ( Model, Cmd Msg )
 initEdit entry session =
     ( { entry = entry
       , originalEntry = Just entry
-      , dialog = Nothing
+      , confirmDialogCallback = Nothing
       , session = session
       }
     , Browser.Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
     )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    model.confirmDialogCallback
+        |> Maybe.map (\_ -> Ports.confirmDialogResponded ConfirmDialogResponded)
+        |> Maybe.withDefault Sub.none
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )
@@ -88,13 +94,14 @@ update model msg =
                 NoOp
 
         DeleteEntry ->
-            ( { model | dialog = Just (Dialog.YesNoDialog "Sind Sie sich da sicher?" DoDeleteEntry CloseDialog) }
-            , Cmd.none
-            )
-
-        CloseDialog ->
-            ( { model | dialog = Nothing }
-            , Cmd.none
+            ( { model
+                | confirmDialogCallback =
+                    Just
+                        { onNo = NoOp
+                        , onYes = DoDeleteEntry
+                        }
+              }
+            , Ports.showConfirmDialog "Sind Sie sich da sicher?"
             )
 
         DoDeleteEntry ->
@@ -128,6 +135,21 @@ update model msg =
             , Browser.Navigation.pushUrl model.session.navigationKey
                 (AppUrl.toString url)
             )
+
+        ConfirmDialogResponded yesNo ->
+            model.confirmDialogCallback
+                |> Maybe.map
+                    (\{ onYes, onNo } ->
+                        update
+                            { model | confirmDialogCallback = Nothing }
+                            (if yesNo then
+                                onYes
+
+                             else
+                                onNo
+                            )
+                    )
+                |> Maybe.withDefault ( model, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -204,7 +226,7 @@ view ({ entry, session } as model) =
             , tagList session.dict entry
             ]
         , extraContent = div [] []
-        , actions = actionsView model hasError isNew
+        , actions = actionsView hasError isNew
         , onNavigationRequested = NavigateTo
         , onBackLinkClicked = NoOp
         , onCopyToClipboardClicked = CopyToClipboard
@@ -248,44 +270,37 @@ cardContentView { entry } deError jaError defaultClasses =
         )
 
 
-actionsView : Model -> Bool -> Bool -> Html Msg
-actionsView { dialog } hasError isNew =
+actionsView : Bool -> Bool -> Html Msg
+actionsView hasError isNew =
     div
         []
         (Help.flatten
-            [ div
-                []
-                (Help.flatten
-                    [ Help.V <|
-                        button
-                            [ onClick SaveAndCloseEditor
-                            , Help.classNames
-                                (Help.flatten
-                                    [ Help.V "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
-                                    , Help.O hasError (\_ -> "opacity-50")
-                                    ]
-                                )
-                            , disabled hasError
+            [ Help.V <|
+                button
+                    [ onClick SaveAndCloseEditor
+                    , Help.classNames
+                        (Help.flatten
+                            [ Help.V "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
+                            , Help.O hasError (\_ -> "opacity-50")
                             ]
-                            [ text "Hinzufügen" ]
-                    , Help.O (not isNew)
-                        (\_ ->
-                            button
-                                [ onClick DeleteEntry
-                                , class "w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
-                                ]
-                                [ text "Löschen" ]
                         )
-                    , Help.V <|
-                        button
-                            [ onClick CloseEditor
-                            , class "w-full p-3 text-sm rounded-full bg-grey-light text-grey-darkest"
-                            ]
-                            [ text "Cancel" ]
+                    , disabled hasError
                     ]
+                    [ text "Hinzufügen" ]
+            , Help.O (not isNew)
+                (\_ ->
+                    button
+                        [ onClick DeleteEntry
+                        , class "w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
+                        ]
+                        [ text "Löschen" ]
                 )
-                |> Help.V
-            , Help.M <| (dialog |> Maybe.map (\d -> Dialog.view d))
+            , Help.V <|
+                button
+                    [ onClick CloseEditor
+                    , class "w-full p-3 text-sm rounded-full bg-grey-light text-grey-darkest"
+                    ]
+                    [ text "Cancel" ]
             ]
         )
 

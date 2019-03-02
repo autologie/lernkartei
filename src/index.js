@@ -117,6 +117,12 @@ function initServiceWorker() {
     app.ports.copyToClipboardDone.send(null);
   });
 
+  app.ports.showConfirmDialog.subscribe(message => {
+    const result = window.confirm(message);
+
+    app.ports.confirmDialogResponded.send(result);
+  });
+
   if (process.env.SERVICE_WORKER_ENABLED === "true") {
     initServiceWorker();
   }
