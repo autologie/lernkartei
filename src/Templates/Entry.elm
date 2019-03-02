@@ -1,4 +1,4 @@
-module Templates.Entry exposing (Model, layout)
+module Templates.Entry exposing (ButtonState(..), Model, layout)
 
 import Array
 import Components.Button as Button
@@ -29,9 +29,27 @@ type alias Model msg =
     , extraContent : Html msg
     , actions : Html msg
     , onNavigationRequested : AppUrl -> msg
-    , onBackLinkClicked : Maybe msg
+    , onBackLinkClicked : msg
     , onCopyToClipboardClicked : msg
+    , buttons : ButtonsModel
     }
+
+
+type alias ButtonsModel =
+    { imageSearchResults : ButtonState
+    , wiktionary : ButtonState
+    , googleTranslation : ButtonState
+    , edit : ButtonState
+    , copyToClipboard : ButtonState
+    , prevLink : ButtonState
+    , nextLink : ButtonState
+    }
+
+
+type ButtonState
+    = Enabled
+    | Disabled
+    | Hidden
 
 
 layout : Model msg -> Html msg
@@ -52,14 +70,14 @@ layout ({ session, results } as vm) =
 
 
 bodyView : Model msg -> Html msg
-bodyView ({ session, entry, cardContent, results, onBackLinkClicked } as vm) =
+bodyView ({ session, entry, cardContent, results, onBackLinkClicked, buttons } as vm) =
     div []
         [ div
             [ class "rounded bg-white shadow-lg relative mt-4 mb-8" ]
             (Help.flatten
                 [ Help.V <| cardContent "block select-none h-64 text-grey-darkest relative"
-                , Help.O (Array.length results > 1) <| \_ -> nextButton vm
-                , Help.M <| (onBackLinkClicked |> Maybe.map (\oblc -> prevButton oblc))
+                , Help.M <| nextButton vm
+                , Help.M <| prevButton vm
                 ]
             )
         , linksView vm
@@ -67,24 +85,38 @@ bodyView ({ session, entry, cardContent, results, onBackLinkClicked } as vm) =
         ]
 
 
-nextButton : Model msg -> Html msg
-nextButton { session } =
-    a
-        [ class "absolute rounded-full bg-blue pin-r pin-t shadow-md"
-        , style "margin" "6.4rem -1em 0 0"
-        , href (AppUrl.nextEntry session.globalParams |> AppUrl.toString)
-        ]
-        [ Icon.next "width: 3em; height: 3em" ]
+nextButton : Model msg -> Maybe (Html msg)
+nextButton { session, buttons } =
+    case buttons.nextLink of
+        Enabled ->
+            Just
+                (a
+                    [ class "absolute rounded-full bg-blue pin-r pin-t shadow-md"
+                    , style "margin" "6.4rem -1em 0 0"
+                    , href (AppUrl.nextEntry session.globalParams |> AppUrl.toString)
+                    ]
+                    [ Icon.next "width: 3em; height: 3em" ]
+                )
+
+        _ ->
+            Nothing
 
 
-prevButton : msg -> Html msg
-prevButton onBackLinkClicked =
-    span
-        [ class "absolute rounded-full bg-blue pin-l pin-t shadow-md cursor-pointer"
-        , style "margin" "6.4rem 0 0 -1em"
-        , onClick onBackLinkClicked
-        ]
-        [ Icon.prev "width: 3em; height: 3em" ]
+prevButton : Model msg -> Maybe (Html msg)
+prevButton { onBackLinkClicked, buttons } =
+    case buttons.prevLink of
+        Enabled ->
+            Just
+                (span
+                    [ class "absolute rounded-full bg-blue pin-l pin-t shadow-md cursor-pointer"
+                    , style "margin" "6.4rem 0 0 -1em"
+                    , onClick onBackLinkClicked
+                    ]
+                    [ Icon.prev "width: 3em; height: 3em" ]
+                )
+
+        _ ->
+            Nothing
 
 
 entryDetailView : Model msg -> Html msg
@@ -108,42 +140,70 @@ entryDetailRowView title body =
         ([ h3 [ class "my-4 text-xs" ] [ text title ] ] ++ body)
 
 
+type LinkAction msg
+    = InternalLink AppUrl
+    | ExternalLink String
+    | Action msg
+
+
 linksView : Model msg -> Html msg
-linksView { session, entry, onCopyToClipboardClicked } =
+linksView { session, entry, onCopyToClipboardClicked, buttons } =
     let
         simpleDe =
             Entry.withoutArticle entry
+
+        editPageUrl =
+            InternalLink
+                (AppUrl.editorFor entry.index session.globalParams
+                    |> AppUrl.withFilters session.globalParams.filters
+                )
     in
     div
         [ class "flex justify-around flex-wrap pb-4 px-4" ]
-        [ linkView True ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch") "Bilder" "photo"
-        , linkView True ("https://de.wiktionary.org/wiki/" ++ simpleDe) "Untersuchen" "list"
-        , linkView True (Google.translationAppUrl simpleDe session.language) "Hören" "volume_up"
-        , linkView False
-            (AppUrl.editorFor entry.index session.globalParams
-                |> AppUrl.withFilters session.globalParams.filters
-                |> AppUrl.toString
-            )
-            "Bearbeiten"
-            "edit"
-        , div
-            [ class "material-icons bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker cursor-pointer"
-            , onClick onCopyToClipboardClicked
-            ]
-            [ text "file_copy" ]
-        ]
-
-
-linkView : Bool -> String -> String -> String -> Html msg
-linkView external url label icon =
-    a
         (Help.flatten
-            [ Help.V <| href url
-            , Help.V <| class "z-10 block flex items-center py-1 no-underline material-icons bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker"
-            , Help.O external (\_ -> target "_blank")
+            [ Help.M <| linkView buttons.imageSearchResults (ExternalLink ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch")) "photo"
+            , Help.M <| linkView buttons.wiktionary (ExternalLink ("https://de.wiktionary.org/wiki/" ++ simpleDe)) "list"
+            , Help.M <| linkView buttons.googleTranslation (ExternalLink (Google.translationAppUrl simpleDe session.language)) "volume_up"
+            , Help.M <| linkView buttons.edit editPageUrl "edit"
+            , Help.M <| linkView buttons.copyToClipboard (Action onCopyToClipboardClicked) "file_copy"
             ]
         )
-        [ text icon ]
+
+
+linkView : ButtonState -> LinkAction msg -> String -> Maybe (Html msg)
+linkView state linkAction icon =
+    let
+        ( tag, actionAttribute, external ) =
+            case linkAction of
+                InternalLink appUrl ->
+                    ( a, href (AppUrl.toString appUrl), False )
+
+                ExternalLink theUrl ->
+                    ( a, href theUrl, True )
+
+                Action msg ->
+                    ( div, onClick msg, False )
+
+        button enabled =
+            tag
+                (Help.flatten
+                    [ Help.O enabled (always actionAttribute)
+                    , Help.V <| class "z-10 flex items-center no-underline material-icons bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker"
+                    , Help.B enabled (\_ -> class "cursor-pointer") (\_ -> class "opacity-50 disabled")
+                    , Help.O external (\_ -> target "_blank")
+                    ]
+                )
+                [ text icon ]
+    in
+    case state of
+        Hidden ->
+            Nothing
+
+        Enabled ->
+            Just (button True)
+
+        Disabled ->
+            Just (button False)
 
 
 translateSearchFieldMsg : Model msg -> SearchField.Msg -> msg

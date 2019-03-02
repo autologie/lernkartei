@@ -1,14 +1,9 @@
 module Components.Icon exposing
     ( add
     , close
-    , copy
-    , detail
-    , edit
-    , image
     , next
     , prev
     , shuffle
-    , sound
     )
 
 import Html exposing (i, text)
@@ -55,26 +50,6 @@ prev theStyle =
     icon theStyle
         [ path [ d "M70,40 L50,60 L70,80", stroke "white", fill "transparent", strokeWidth "9" ] []
         ]
-
-
-image theStyle =
-    i [ class "material-icons" ] [ text "photo" ]
-
-
-sound theStyle =
-    i [ class "material-icons" ] [ text "volume_up" ]
-
-
-detail theStyle =
-    i [ class "material-icons" ] [ text "list" ]
-
-
-edit theStyle =
-    i [ class "material-icons" ] [ text "edit" ]
-
-
-copy theStyle =
-    i [ class "material-icons" ] [ text "file_copy" ]
 
 
 icon theStyle content =

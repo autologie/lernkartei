@@ -136,8 +136,17 @@ view model =
         , extraContent = buttons model.session model.entry
         , actions = div [] []
         , onNavigationRequested = NavigateTo
-        , onBackLinkClicked = Just BackToPrevPage
+        , onBackLinkClicked = BackToPrevPage
         , onCopyToClipboardClicked = CopyToClipboard
+        , buttons =
+            { imageSearchResults = Templates.Entry.Enabled
+            , wiktionary = Templates.Entry.Enabled
+            , googleTranslation = Templates.Entry.Enabled
+            , edit = Templates.Entry.Enabled
+            , copyToClipboard = Templates.Entry.Enabled
+            , prevLink = Templates.Entry.Enabled
+            , nextLink = Templates.Entry.Enabled
+            }
         }
 
 

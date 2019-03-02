@@ -133,6 +133,13 @@ view ({ entry, session } as model) =
                 |> List.map Help.isJust
                 |> List.member True
 
+        linkState =
+            if Entry.withoutArticle entry == "" then
+                Templates.Entry.Disabled
+
+            else
+                Templates.Entry.Enabled
+
         { pos, translation, example, updatedAt, addedAt, tags } =
             entry
     in
@@ -172,8 +179,17 @@ view ({ entry, session } as model) =
         , extraContent = div [] []
         , actions = actionsView model hasError isNew
         , onNavigationRequested = NavigateTo
-        , onBackLinkClicked = Nothing
+        , onBackLinkClicked = NoOp
         , onCopyToClipboardClicked = CopyToClipboard
+        , buttons =
+            { imageSearchResults = linkState
+            , wiktionary = linkState
+            , googleTranslation = linkState
+            , edit = Templates.Entry.Disabled
+            , copyToClipboard = linkState
+            , prevLink = Templates.Entry.Hidden
+            , nextLink = Templates.Entry.Hidden
+            }
         }
 
 
