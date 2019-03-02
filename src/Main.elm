@@ -66,6 +66,9 @@ subscriptions model =
             Search pageModel ->
                 Pages.Search.subscriptions pageModel |> Sub.map (SearchMsg >> PageMsg)
 
+            Entry pageModel ->
+                Pages.Entry.subscriptions pageModel |> Sub.map (EntryMsg >> PageMsg)
+
             _ ->
                 Sub.none
         ]

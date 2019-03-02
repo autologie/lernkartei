@@ -9,6 +9,7 @@ module Pages.Entry exposing
 
 import Array
 import Browser.Dom as Dom
+import Browser.Events
 import Browser.Navigation
 import Components.Button as Button
 import Components.Icon as Icon
@@ -41,6 +42,7 @@ type Msg
     | NavigateTo AppUrl
     | BackToPrevPage
     | CopyToClipboard
+    | NoOp
 
 
 initialModel : Session -> Entry -> Model
@@ -53,8 +55,8 @@ initialModel session entry =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.batch []
+subscriptions model =
+    Sub.batch [ Browser.Events.onKeyDown (decodeKeyDownEvent model.session) ]
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )
@@ -112,6 +114,9 @@ update model msg =
 
         CopyToClipboard ->
             ( model, Ports.copyToClipboard model.entry.index )
+
+        NoOp ->
+            ( model, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -287,3 +292,20 @@ buttons session entry =
             ]
         , Button.addNewEntry (AppUrl.newEntry Nothing session.globalParams)
         ]
+
+
+decodeKeyDownEvent : Session -> Decode.Decoder Msg
+decodeKeyDownEvent session =
+    Decode.field "key" Decode.string
+        |> Decode.map
+            (\key ->
+                case key of
+                    "ArrowRight" ->
+                        NavigateTo (AppUrl.nextEntry session.globalParams)
+
+                    "ArrowLeft" ->
+                        BackToPrevPage
+
+                    _ ->
+                        NoOp
+            )
