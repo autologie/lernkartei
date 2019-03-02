@@ -1,6 +1,7 @@
-module Pages.Editor exposing (Model, Msg(..), update, view)
+module Pages.Editor exposing (Model, Msg(..), initCreate, initEdit, update, view)
 
 import Array
+import Browser.Dom
 import Browser.Navigation
 import Components.Dialog as Dialog
 import Components.Icon as Icon
@@ -16,6 +17,7 @@ import Html exposing (Html, button, div, h3, input, label, li, option, p, select
 import Html.Attributes exposing (class, disabled, id, rows, selected, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Ports
+import Task
 import Templates.Entry
 import Time exposing (Posix)
 
@@ -40,6 +42,32 @@ type alias Model =
     , dialog : Maybe (Dialog.Dialog Msg)
     , session : Session
     }
+
+
+initCreate : Maybe String -> Session -> ( Model, Cmd Msg )
+initCreate index session =
+    let
+        emptyEntry =
+            Entry.empty
+    in
+    ( { entry = { emptyEntry | index = Maybe.withDefault "" index }
+      , originalEntry = Nothing
+      , dialog = Nothing
+      , session = session
+      }
+    , Browser.Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+    )
+
+
+initEdit : Entry -> Session -> ( Model, Cmd Msg )
+initEdit entry session =
+    ( { entry = entry
+      , originalEntry = Just entry
+      , dialog = Nothing
+      , session = session
+      }
+    , Browser.Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
+    )
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )

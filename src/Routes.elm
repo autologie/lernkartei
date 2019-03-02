@@ -1,4 +1,11 @@
-module Routes exposing (Route(..), RoutingAction(..), extractAccumulatingSession, extractSession, resolve)
+module Routes exposing
+    ( PageMsg(..)
+    , Route(..)
+    , RoutingAction(..)
+    , extractAccumulatingSession
+    , extractSession
+    , resolve
+    )
 
 import Browser.Navigation exposing (Key)
 import Data.AppUrl exposing (GlobalQueryParams)
@@ -25,19 +32,27 @@ type Route
     | NotFound Key
 
 
+type PageMsg
+    = EntryMsg Pages.Entry.Msg
+    | EditorMsg Pages.Editor.Msg
+    | SearchMsg Pages.Search.Msg
+    | EntriesMsg Pages.List.Msg
+    | InitializeMsg Pages.Initialize.Msg
+
+
 type RoutingAction
     = AwaitInitialization
     | RedirectToRandom GlobalQueryParams
-    | Show Route
+    | Show ( Route, Cmd PageMsg )
 
 
-resolve : Maybe Session -> Url.Parser.Parser (RoutingAction -> a) a
+resolve : Maybe Session -> Url.Parser.Parser (RoutingAction -> RoutingAction) RoutingAction
 resolve =
     Maybe.map resolveWithSession
         >> Maybe.withDefault (Url.Parser.custom "INITIALIZING" <| always (Just AwaitInitialization))
 
 
-resolveWithSession : Session -> Url.Parser.Parser (RoutingAction -> a) a
+resolveWithSession : Session -> Url.Parser.Parser (RoutingAction -> RoutingAction) RoutingAction
 resolveWithSession session =
     let
         globalParams path =
@@ -75,10 +90,10 @@ resolveEntry : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> Ro
 resolveEntry session index filter shuffle translate =
     resolveWithFallback
         (\entry ->
-            Pages.Entry.initialModel
+            Pages.Entry.init
                 { session | globalParams = buildQueryParams filter shuffle translate }
                 entry
-                |> (Entry >> Show)
+                |> (\( m, c ) -> Show ( Entry m, c |> Cmd.map EntryMsg ))
         )
         session
         index
@@ -86,28 +101,16 @@ resolveEntry session index filter shuffle translate =
 
 resolveNewEntry : Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveNewEntry session index filter shuffle translate =
-    let
-        emptyEntry =
-            Entry.empty
-    in
-    { entry = { emptyEntry | index = Maybe.withDefault "" index }
-    , originalEntry = Nothing
-    , dialog = Nothing
-    , session = { session | globalParams = buildQueryParams filter shuffle translate }
-    }
-        |> (Editor >> Show)
+    Pages.Editor.initCreate index { session | globalParams = buildQueryParams filter shuffle translate }
+        |> (\( m, c ) -> Show ( Editor m, c |> Cmd.map EditorMsg ))
 
 
 resolveEditor : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveEditor session index filter shuffle translate =
     resolveWithFallback
         (\entry ->
-            { entry = entry
-            , originalEntry = Just entry
-            , dialog = Nothing
-            , session = { session | globalParams = buildQueryParams filter shuffle translate }
-            }
-                |> (Editor >> Show)
+            Pages.Editor.initEdit entry { session | globalParams = buildQueryParams filter shuffle translate }
+                |> (\( m, c ) -> Show ( Editor m, c |> Cmd.map EditorMsg ))
         )
         session
         index
@@ -115,20 +118,20 @@ resolveEditor session index filter shuffle translate =
 
 resolveSearch : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveSearch session filter shuffle translate =
-    Pages.Search.initialModel
+    Pages.Search.init
         { session
             | globalParams = buildQueryParams filter shuffle translate
         }
-        |> (Search >> Show)
+        |> (\( m, c ) -> Show ( Search m, c |> Cmd.map SearchMsg ))
 
 
 resolveList : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveList session filter shuffle translate =
-    Pages.List.initialModel
+    Pages.List.init
         { session
             | globalParams = buildQueryParams filter shuffle translate
         }
-        |> (Entries >> Show)
+        |> (\( m, c ) -> Show ( Entries m, c |> Cmd.map EntriesMsg ))
 
 
 buildQueryParams : Maybe String -> Maybe Int -> Maybe Int -> GlobalQueryParams
@@ -201,4 +204,4 @@ resolveWithFallback : (Entry.Entry -> RoutingAction) -> Session -> String -> Rou
 resolveWithFallback resolveWithEntry session index =
     Dictionary.get index session.dict
         |> Maybe.map resolveWithEntry
-        |> Maybe.withDefault (Show (NotFound session.navigationKey))
+        |> Maybe.withDefault (Show ( NotFound session.navigationKey, Cmd.none ))

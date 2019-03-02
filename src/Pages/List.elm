@@ -1,4 +1,4 @@
-module Pages.List exposing (Model, Msg, initialModel, update, view)
+module Pages.List exposing (Model, Msg, init, update, view)
 
 import Array
 import Browser.Navigation
@@ -24,9 +24,9 @@ type Msg
     | NoOp
 
 
-initialModel : Session -> Model
-initialModel session =
-    { session = session, isScrolled = False }
+init : Session -> ( Model, Cmd Msg )
+init session =
+    ( { session = session, isScrolled = False }, Cmd.none )
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )

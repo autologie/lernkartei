@@ -1,6 +1,7 @@
-module Pages.Search exposing (Model, Msg, initialModel, subscriptions, update, view)
+module Pages.Search exposing (Model, Msg, init, subscriptions, update, view)
 
 import Array
+import Browser.Dom
 import Browser.Navigation
 import Components.SearchField as SearchField
 import Components.Tag as Tag
@@ -15,6 +16,7 @@ import Html.Attributes exposing (href)
 import Html.Events exposing (onClick)
 import Html.Keyed
 import Ports
+import Task
 
 
 type alias Model =
@@ -43,19 +45,21 @@ subscriptions _ =
     Sub.batch [ Ports.scrollChange OnScrollChange ]
 
 
-initialModel : Session -> Model
-initialModel session =
+init : Session -> ( Model, Cmd Msg )
+init session =
     let
         originalFilters =
             session.globalParams.filters
     in
-    { session = session
-    , filters = originalFilters
-    , searchInputBuffer = originalFilters |> Filter.toString
-    , expandSearchResults = False
-    , results = Filter.applied session.startTime session.dict originalFilters
-    , isScrolled = False
-    }
+    ( { session = session
+      , filters = originalFilters
+      , searchInputBuffer = originalFilters |> Filter.toString
+      , expandSearchResults = False
+      , results = Filter.applied session.startTime session.dict originalFilters
+      , isScrolled = False
+      }
+    , Browser.Dom.focus "search-input" |> Task.attempt (\_ -> NoOp)
+    )
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )

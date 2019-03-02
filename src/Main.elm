@@ -20,7 +20,7 @@ import Pages.Search
 import Ports
 import Process
 import Random
-import Routes exposing (Route(..), RoutingAction(..))
+import Routes exposing (PageMsg(..), Route(..), RoutingAction(..))
 import Task
 import Time exposing (Month(..), ZoneName(..))
 import Url exposing (Protocol(..), Url)
@@ -100,14 +100,6 @@ type Msg
     | NoOp
 
 
-type PageMsg
-    = EntryMsg Pages.Entry.Msg
-    | EditorMsg Pages.Editor.Msg
-    | SearchMsg Pages.Search.Msg
-    | ListMsg Pages.List.Msg
-    | InitializeMsg Pages.Initialize.Msg
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -119,8 +111,8 @@ update msg model =
                 ( Search pageModel, SearchMsg pageMsg ) ->
                     pageStep Search SearchMsg (Pages.Search.update pageModel pageMsg) model
 
-                ( Entries pageModel, ListMsg pageMsg ) ->
-                    pageStep Entries ListMsg (Pages.List.update pageModel pageMsg) model
+                ( Entries pageModel, EntriesMsg pageMsg ) ->
+                    pageStep Entries EntriesMsg (Pages.List.update pageModel pageMsg) model
 
                 ( Editor pageModel, EditorMsg pageMsg ) ->
                     pageStep Editor EditorMsg (Pages.Editor.update pageModel pageMsg) model
@@ -177,8 +169,13 @@ dispatchRoute model url =
             Routes.extractSession model.route
     in
     case Url.Parser.parse (Routes.resolve maybeSession) url of
-        Just (Show r) ->
-            showRoute model r
+        Just (Show ( route, pageCmd )) ->
+            ( { model | route = route }
+            , Cmd.batch
+                [ pageCmd |> Cmd.map PageMsg
+                , Dom.setViewport 0 0 |> Task.attempt (\_ -> NoOp)
+                ]
+            )
 
         Just (RedirectToRandom params) ->
             redirectToRandomEntry model params url
@@ -232,7 +229,7 @@ view model =
 
             Entries pageModel ->
                 Html.Lazy.lazy Pages.List.view pageModel
-                    |> Html.map (ListMsg >> PageMsg)
+                    |> Html.map (EntriesMsg >> PageMsg)
 
             Editor pageModel ->
                 Html.Lazy.lazy
@@ -241,30 +238,6 @@ view model =
                     |> Html.map (EditorMsg >> PageMsg)
         , Notification.view model.notification CloseNotification
         ]
-
-
-showRoute : Model -> Route -> ( Model, Cmd Msg )
-showRoute model r =
-    ( { model | route = r }
-    , Cmd.batch
-        [ case r of
-            Editor _ ->
-                Dom.focus "editor-input-de" |> Task.attempt (\_ -> NoOp)
-
-            Entry _ ->
-                Cmd.batch
-                    [ Dom.getElement "text" |> Task.attempt (Pages.Entry.TextElementMeasured >> EntryMsg >> PageMsg)
-                    , Dom.getElement "text-wrapper" |> Task.attempt (Pages.Entry.TextWrapperElementMeasured >> EntryMsg >> PageMsg)
-                    ]
-
-            Search _ ->
-                Dom.focus "search-input" |> Task.attempt (\_ -> NoOp)
-
-            _ ->
-                Cmd.none
-        , Dom.setViewport 0 0 |> Task.attempt (\_ -> NoOp)
-        ]
-    )
 
 
 redirectToRandomEntry : Model -> AppUrl.GlobalQueryParams -> Url -> ( Model, Cmd Msg )

@@ -1,7 +1,7 @@
 module Pages.Entry exposing
     ( Model
-    , Msg(..)
-    , initialModel
+    , Msg
+    , init
     , subscriptions
     , update
     , view
@@ -24,6 +24,7 @@ import Html.Attributes exposing (attribute, class, href, id, style)
 import Html.Events exposing (onClick, stopPropagationOn)
 import Json.Decode as Decode
 import Ports
+import Task
 import Templates.Entry
 
 
@@ -42,21 +43,27 @@ type Msg
     | NavigateTo AppUrl
     | BackToPrevPage
     | CopyToClipboard
+    | WindowResized
     | NoOp
 
 
-initialModel : Session -> Entry -> Model
-initialModel session entry =
-    { entry = entry
-    , textElementSize = Nothing
-    , textWrapperElementSize = Nothing
-    , session = session
-    }
+init : Session -> Entry -> ( Model, Cmd Msg )
+init session entry =
+    ( { entry = entry
+      , textElementSize = Nothing
+      , textWrapperElementSize = Nothing
+      , session = session
+      }
+    , requestElementSize
+    )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch [ Browser.Events.onKeyDown (decodeKeyDownEvent model.session) ]
+    Sub.batch
+        [ Browser.Events.onKeyDown (decodeKeyDownEvent model.session)
+        , Browser.Events.onResize (\_ _ -> WindowResized)
+        ]
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )
@@ -114,6 +121,14 @@ update model msg =
 
         CopyToClipboard ->
             ( model, Ports.copyToClipboard model.entry.index )
+
+        WindowResized ->
+            ( { model
+                | textElementSize = Nothing
+                , textWrapperElementSize = Nothing
+              }
+            , requestElementSize
+            )
 
         NoOp ->
             ( model, Cmd.none )
@@ -309,3 +324,11 @@ decodeKeyDownEvent session =
                     _ ->
                         NoOp
             )
+
+
+requestElementSize : Cmd Msg
+requestElementSize =
+    Cmd.batch
+        [ Dom.getElement "text" |> Task.attempt TextElementMeasured
+        , Dom.getElement "text-wrapper" |> Task.attempt TextWrapperElementMeasured
+        ]
