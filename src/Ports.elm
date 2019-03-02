@@ -1,5 +1,6 @@
 port module Ports exposing
-    ( copyToClipboard
+    ( archiveEntry
+    , copyToClipboard
     , copyToClipboardDone
     , deleteEntry
     , dictionaryLoaded
@@ -13,6 +14,9 @@ import Json.Encode as Encode
 
 
 port saveEntry : ( String, Encode.Value ) -> Cmd msg
+
+
+port archiveEntry : ( String, Encode.Value ) -> Cmd msg
 
 
 port deleteEntry : ( String, String ) -> Cmd msg

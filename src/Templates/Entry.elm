@@ -51,14 +51,14 @@ type ButtonState
 
 
 layout : Model msg -> Html msg
-layout ({ session, results } as vm) =
+layout vm =
     Html.Keyed.node "div"
         [ class "container max-w-md p-5 pb-0" ]
         [ ( "search"
           , SearchField.view
-                results
-                (Filter.toString session.globalParams.filters)
-                session.globalParams.filters
+                vm.results
+                (Filter.toString vm.session.globalParams.filters)
+                vm.session.globalParams.filters
                 False
                 |> Html.map (translateSearchFieldMsg vm)
           )
@@ -68,12 +68,12 @@ layout ({ session, results } as vm) =
 
 
 bodyView : Model msg -> Html msg
-bodyView ({ cardContent } as vm) =
+bodyView vm =
     div []
         [ div
             [ class "rounded bg-white shadow-lg relative mt-4 mb-8" ]
             (Help.flatten
-                [ Help.V <| cardContent "block select-none h-64 text-grey-darkest relative"
+                [ Help.V <| vm.cardContent "block select-none h-64 text-grey-darkest relative"
                 , Help.M <| nextButton vm
                 , Help.M <| prevButton vm
                 ]

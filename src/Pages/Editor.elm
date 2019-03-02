@@ -250,59 +250,40 @@ cardContentView { entry } deError jaError defaultClasses =
 
 actionsView : Model -> Bool -> Bool -> Html Msg
 actionsView { dialog } hasError isNew =
-    let
-        btnClasses selected disabled =
-            Help.btnClasses selected disabled
-                |> List.filter ((/=) "bg-blue")
-                |> List.filter ((/=) "text-white")
-                |> List.filter ((/=) "rounded-l")
-                |> List.filter ((/=) "rounded-r")
-    in
     div
         []
         (Help.flatten
             [ div
                 []
-                [ button
-                    [ onClick SaveAndCloseEditor
-                    , Help.classNames
-                        (Help.flatten
-                            [ Help.V "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
-                            , Help.L (btnClasses True hasError)
+                (Help.flatten
+                    [ Help.V <|
+                        button
+                            [ onClick SaveAndCloseEditor
+                            , Help.classNames
+                                (Help.flatten
+                                    [ Help.V "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
+                                    , Help.O hasError (\_ -> "opacity-50")
+                                    ]
+                                )
+                            , disabled hasError
                             ]
+                            [ text "Hinzufügen" ]
+                    , Help.O (not isNew)
+                        (\_ ->
+                            button
+                                [ onClick DeleteEntry
+                                , class "w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
+                                ]
+                                [ text "Löschen" ]
                         )
-                    , disabled hasError
-                    ]
-                    [ text "Hinzufügen" ]
-                , button
-                    [ onClick DeleteEntry
-                    , style "display"
-                        (if isNew then
-                            "none"
-
-                         else
-                            "inline"
-                        )
-                    , Help.classNames
-                        (Help.flatten
-                            [ Help.L (btnClasses True False)
-                            , Help.V "w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
+                    , Help.V <|
+                        button
+                            [ onClick CloseEditor
+                            , class "w-full p-3 text-sm rounded-full bg-grey-light text-grey-darkest"
                             ]
-                        )
-                    , disabled hasError
+                            [ text "Cancel" ]
                     ]
-                    [ text "Löschen" ]
-                , button
-                    [ onClick CloseEditor
-                    , Help.classNames
-                        (Help.flatten
-                            [ Help.L (btnClasses True False)
-                            , Help.V "w-full p-3 text-sm rounded-full bg-grey-light text-grey-darkest"
-                            ]
-                        )
-                    ]
-                    [ text "Cancel" ]
-                ]
+                )
                 |> Help.V
             , Help.M <| (dialog |> Maybe.map (\d -> Dialog.view d))
             ]

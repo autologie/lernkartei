@@ -6,12 +6,60 @@ import "@firebase/auth";
 import "@firebase/firestore";
 import copy from "copy-text-to-clipboard";
 
-(async () => {
-  firebase.initializeApp({
-    apiKey: process.env.FIREBASE_API_KEY,
-    authDomain: `${process.env.FIREBASE_PROJECT_ID}.firebaseapp.com`,
-    projectId: process.env.FIREBASE_PROJECT_ID
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: `${process.env.FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  projectId: process.env.FIREBASE_PROJECT_ID
+};
+
+async function deleteEntry(db, userId, entryId) {
+  await db
+    .collection("users")
+    .doc(userId)
+    .collection("entries")
+    .doc(entryId)
+    .delete();
+}
+
+async function saveEntry(db, userId, entryId, data, isArchived) {
+  await db
+    .collection("users")
+    .doc(userId)
+    .collection(isArchived ? "archivedEntries" : "entries")
+    .doc(entryId)
+    .set(data);
+}
+
+function initServiceWorker() {
+  register("/service-worker.js", {
+    ready(registration) {
+      console.log("Service worker is active.");
+    },
+    registered(registration) {
+      console.log("Service worker has been registered.");
+    },
+    cached(registration) {
+      console.log("Content has been cached for offline use.");
+    },
+    updatefound(registration) {
+      console.log("New content is downloading.");
+    },
+    updated(registration) {
+      console.log("New content is available; please refresh.");
+    },
+    offline() {
+      console.log(
+        "No internet connection found. App is running in offline mode."
+      );
+    },
+    error(error) {
+      console.error("Error during service worker registration:", error);
+    }
   });
+}
+
+(async () => {
+  firebase.initializeApp(firebaseConfig);
 
   firebase.firestore().settings({ timestampsInSnapshots: true });
 
@@ -44,24 +92,18 @@ import copy from "copy-text-to-clipboard";
   });
 
   app.ports.saveEntry.subscribe(async ([userId, { id, ...data }]) => {
-    await db
-      .collection("users")
-      .doc(userId)
-      .collection("entries")
-      .doc(id)
-      .set(data);
+    await saveEntry(db, userId, id, data, false);
+    app.ports.syncEntryDone.send(null);
+  });
 
+  app.ports.archiveEntry.subscribe(async ([userId, { id, ...data }]) => {
+    await saveEntry(db, userId, id, data, true);
+    await deleteEntry(db, userId, id);
     app.ports.syncEntryDone.send(null);
   });
 
   app.ports.deleteEntry.subscribe(async ([userId, entryId]) => {
-    await db
-      .collection("users")
-      .doc(userId)
-      .collection("entries")
-      .doc(entryId)
-      .delete();
-
+    await deleteEntry(db, userId, entryId);
     app.ports.syncEntryDone.send(null);
   });
 
@@ -76,30 +118,6 @@ import copy from "copy-text-to-clipboard";
   });
 
   if (process.env.SERVICE_WORKER_ENABLED === "true") {
-    register("/service-worker.js", {
-      ready(registration) {
-        console.log("Service worker is active.");
-      },
-      registered(registration) {
-        console.log("Service worker has been registered.");
-      },
-      cached(registration) {
-        console.log("Content has been cached for offline use.");
-      },
-      updatefound(registration) {
-        console.log("New content is downloading.");
-      },
-      updated(registration) {
-        console.log("New content is available; please refresh.");
-      },
-      offline() {
-        console.log(
-          "No internet connection found. App is running in offline mode."
-        );
-      },
-      error(error) {
-        console.error("Error during service worker registration:", error);
-      }
-    });
+    initServiceWorker();
   }
 })();

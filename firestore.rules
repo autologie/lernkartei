@@ -8,5 +8,9 @@ service cloud.firestore {
       allow read, update, delete: if user == request.auth.uid;
       allow create: if request.auth.uid != null;
     }
+    match /users/{user}/archivedEntries/{entry} {
+      allow read, update, delete: if user == request.auth.uid;
+      allow create: if request.auth.uid != null;
+    }
   }
 }

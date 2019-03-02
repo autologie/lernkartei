@@ -14,6 +14,7 @@ import Browser.Navigation
 import Components.Button as Button
 import Components.Icon as Icon
 import Data.AppUrl as AppUrl exposing (AppUrl)
+import Data.Dictionary as Dictionary
 import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
 import Data.PartOfSpeech as PartOfSpeech
@@ -44,6 +45,7 @@ type Msg
     | BackToPrevPage
     | CopyToClipboard
     | WindowResized
+    | RequestArchive
     | NoOp
 
 
@@ -130,6 +132,22 @@ update model msg =
             , requestElementSize
             )
 
+        RequestArchive ->
+            let
+                url =
+                    AppUrl.nextEntry model.session.globalParams
+            in
+            ( { model
+                | session =
+                    model.session
+                        |> Session.withDict (model.session.dict |> Dictionary.without model.entry)
+              }
+            , Cmd.batch
+                [ Ports.archiveEntry ( model.session.userId, Entry.encode model.entry )
+                , Browser.Navigation.pushUrl model.session.navigationKey (AppUrl.toString url)
+                ]
+            )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -154,7 +172,7 @@ view model =
             else
                 [ p [] [ text "-" ] ]
         , extraContent = buttons model.session model.entry
-        , actions = div [] []
+        , actions = actionsView
         , onNavigationRequested = NavigateTo
         , onBackLinkClicked = BackToPrevPage
         , onCopyToClipboardClicked = CopyToClipboard
@@ -168,6 +186,18 @@ view model =
             , nextLink = Templates.Entry.Enabled
             }
         }
+
+
+actionsView : Html Msg
+actionsView =
+    div
+        []
+        [ button
+            [ onClick RequestArchive
+            , class "w-full p-3 text-sm mb-2 bg-orange rounded-full text-white"
+            ]
+            [ text "Archive" ]
+        ]
 
 
 computeTextDisposition : ( Float, Float ) -> ( Float, Float ) -> ( Int, Int, Float )
