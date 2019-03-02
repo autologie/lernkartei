@@ -209,7 +209,7 @@ addButton : String -> GlobalQueryParams -> Html msg
 addButton keyword params =
     a
         [ Help.classNames (Help.btnClasses True False ++ [ "w-full p-4 mb-2" ])
-        , href (AppUrl.newEntry (Just keyword) params |> AppUrl.toString)
+        , href (AppUrl.createEntry (Just keyword) params |> AppUrl.toString)
         ]
         [ text ("\"" ++ keyword ++ "\" hinzufügen") ]
 

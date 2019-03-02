@@ -83,7 +83,7 @@ view model =
                 )
             , Help.V <|
                 Button.floatingGroup
-                    [ Button.addNewEntry (AppUrl.newEntry maybeKeyword globalParams)
+                    [ Button.addNewEntry (AppUrl.createEntry maybeKeyword globalParams)
                     ]
             ]
         )
@@ -97,7 +97,7 @@ resultsView globalParams results =
                 [ Filter.Contains index ] ->
                     Just
                         (a
-                            [ href (AppUrl.newEntry (Just index) globalParams |> AppUrl.toString)
+                            [ href (AppUrl.createEntry (Just index) globalParams |> AppUrl.toString)
                             , Help.classNames
                                 (Help.btnClasses True False
                                     ++ [ "p-3"

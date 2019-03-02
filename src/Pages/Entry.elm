@@ -305,7 +305,7 @@ buttons session entry =
                     "#b8c2cc"
                 )
             ]
-        , Button.addNewEntry (AppUrl.newEntry Nothing session.globalParams)
+        , Button.addNewEntry (AppUrl.createEntry Nothing session.globalParams)
         ]
 
 

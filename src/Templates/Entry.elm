@@ -152,7 +152,7 @@ linksView { session, entry, onCopyToClipboardClicked, buttons } =
 
         editPageUrl =
             InternalLink
-                (AppUrl.editorFor entry.index session.globalParams
+                (AppUrl.editEntry entry.index session.globalParams
                     |> AppUrl.withFilters session.globalParams.filters
                 )
     in

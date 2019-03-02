@@ -1,10 +1,10 @@
 module Data.AppUrl exposing
     ( AppUrl
     , GlobalQueryParams
-    , editorFor
+    , createEntry
+    , editEntry
     , entries
     , entry
-    , newEntry
     , nextEntry
     , search
     , toString
@@ -111,13 +111,13 @@ nextEntry params =
     NextEntryUrl params
 
 
-editorFor : String -> GlobalQueryParams -> AppUrl
-editorFor index params =
+editEntry : String -> GlobalQueryParams -> AppUrl
+editEntry index params =
     EditorUrl index params
 
 
-newEntry : Maybe String -> GlobalQueryParams -> AppUrl
-newEntry maybeIndex params =
+createEntry : Maybe String -> GlobalQueryParams -> AppUrl
+createEntry maybeIndex params =
     NewEntryUrl maybeIndex params
 
 

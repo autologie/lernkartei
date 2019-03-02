@@ -280,7 +280,7 @@ redirectToRandomEntry model params =
     , Browser.Navigation.replaceUrl model.navigationKey
         (maybeEntry
             |> Maybe.map (\{ index } -> AppUrl.entry index params)
-            |> Maybe.withDefault (AppUrl.newEntry Nothing params)
+            |> Maybe.withDefault (AppUrl.createEntry Nothing params)
             |> AppUrl.toString
         )
     )
