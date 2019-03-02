@@ -257,6 +257,9 @@ showRoute model r =
                     , Dom.getElement "text-wrapper" |> Task.attempt (Pages.Entry.TextWrapperElementMeasured >> EntryMsg >> PageMsg)
                     ]
 
+            Search _ ->
+                Dom.focus "search-input" |> Task.attempt (\_ -> NoOp)
+
             _ ->
                 Cmd.none
         , Dom.setViewport 0 0 |> Task.attempt (\_ -> NoOp)
