@@ -11,6 +11,7 @@ import Data.Filter as Filter
 import Data.PartOfSpeech exposing (PartOfSpeech(..))
 import Help
 import Html exposing (Html, div)
+import Html.Attributes exposing (class)
 import Html.Lazy
 import Pages.Editor
 import Pages.Entries
@@ -206,15 +207,7 @@ title model =
 view : Model -> Html Msg
 view model =
     div
-        [ Help.classNames
-            [ "w-screen"
-            , "flex-row"
-            , "flex"
-            , "text-center"
-            , "justify-center"
-            , "items-center"
-            ]
-        ]
+        [ class "bg-grey-lightest font-sans font-normal outline-none overflow-x-hidden w-screen flex-row flex text-center justify-center items-center" ]
         [ case model.route of
             Initializing pageModel ->
                 Pages.Initialize.view pageModel |> Html.map (InitializeMsg >> PageMsg)

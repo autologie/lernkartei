@@ -29,6 +29,7 @@ type alias Model msg =
     , onNavigationRequested : AppUrl -> msg
     , onBackLinkClicked : msg
     , onCopyToClipboardClicked : msg
+    , onEditButtonClicked : msg
     , buttons : ButtonsModel
     }
 
@@ -145,16 +146,10 @@ type LinkAction msg
 
 
 linksView : Model msg -> Html msg
-linksView { session, entry, onCopyToClipboardClicked, buttons } =
+linksView { session, entry, onCopyToClipboardClicked, onEditButtonClicked, buttons } =
     let
         simpleDe =
             Entry.withoutArticle entry
-
-        editPageUrl =
-            InternalLink
-                (AppUrl.editEntry entry.index session.globalParams
-                    |> AppUrl.withFilters session.globalParams.filters
-                )
     in
     div
         [ class "flex justify-around flex-wrap pb-4 px-4" ]
@@ -162,7 +157,7 @@ linksView { session, entry, onCopyToClipboardClicked, buttons } =
             [ Help.M <| linkView buttons.imageSearchResults (ExternalLink ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch")) "photo"
             , Help.M <| linkView buttons.wiktionary (ExternalLink ("https://de.wiktionary.org/wiki/" ++ simpleDe)) "list"
             , Help.M <| linkView buttons.googleTranslation (ExternalLink (Google.translationAppUrl simpleDe session.language)) "volume_up"
-            , Help.M <| linkView buttons.edit editPageUrl "edit"
+            , Help.M <| linkView buttons.edit (Action onEditButtonClicked) "edit"
             , Help.M <| linkView buttons.copyToClipboard (Action onCopyToClipboardClicked) "file_copy"
             ]
         )

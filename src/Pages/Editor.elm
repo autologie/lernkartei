@@ -230,11 +230,12 @@ view ({ entry, session } as model) =
         , onNavigationRequested = NavigateTo
         , onBackLinkClicked = NoOp
         , onCopyToClipboardClicked = CopyToClipboard
+        , onEditButtonClicked = CloseEditor
         , buttons =
             { imageSearchResults = linkState
             , wiktionary = linkState
             , googleTranslation = linkState
-            , edit = Templates.Entry.Disabled
+            , edit = Templates.Entry.Enabled
             , copyToClipboard = linkState
             , prevLink = Templates.Entry.Hidden
             , nextLink = Templates.Entry.Hidden
@@ -273,34 +274,27 @@ cardContentView { entry } deError jaError defaultClasses =
 actionsView : Bool -> Bool -> Html Msg
 actionsView hasError isNew =
     div
-        []
+        [ class "pt-12 flex" ]
         (Help.flatten
-            [ Help.V <|
-                button
-                    [ onClick SaveAndCloseEditor
-                    , Help.classNames
-                        (Help.flatten
-                            [ Help.V "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
-                            , Help.O hasError (\_ -> "opacity-50")
-                            ]
-                        )
-                    , disabled hasError
-                    ]
-                    [ text "Hinzufügen" ]
-            , Help.O (not isNew)
+            [ Help.O (not isNew)
                 (\_ ->
                     button
                         [ onClick DeleteEntry
-                        , class "w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
+                        , class "mr-2 w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
                         ]
                         [ text "Löschen" ]
                 )
             , Help.V <|
                 button
-                    [ onClick CloseEditor
-                    , class "w-full p-3 text-sm rounded-full bg-grey-light text-grey-darkest"
-                    ]
-                    [ text "Cancel" ]
+                    (Help.flatten
+                        [ Help.V <| onClick SaveAndCloseEditor
+                        , Help.V <| class "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
+                        , Help.O (not isNew) (\_ -> class "ml-2")
+                        , Help.O hasError (\_ -> class "opacity-50")
+                        , Help.V <| disabled hasError
+                        ]
+                    )
+                    [ text "Hinzufügen" ]
             ]
         )
 

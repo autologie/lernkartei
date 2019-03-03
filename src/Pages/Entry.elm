@@ -176,6 +176,7 @@ view model =
         , onNavigationRequested = NavigateTo
         , onBackLinkClicked = BackToPrevPage
         , onCopyToClipboardClicked = CopyToClipboard
+        , onEditButtonClicked = NavigateTo (AppUrl.editEntry model.entry.index model.session.globalParams)
         , buttons =
             { imageSearchResults = Templates.Entry.Enabled
             , wiktionary = Templates.Entry.Enabled

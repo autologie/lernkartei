@@ -6,7 +6,7 @@ import Data.Dictionary exposing (Dictionary)
 import Data.Filter as Filter exposing (Filter(..))
 import Help
 import Html exposing (Html, button, div, input, p, text, ul)
-import Html.Attributes exposing (id, type_, value)
+import Html.Attributes exposing (class, id, type_, value)
 import Html.Events exposing (onClick, onFocus, onInput)
 
 
@@ -29,13 +29,7 @@ view results searchInputBuffer filters needShadow =
                     , id "search-input"
                     , Help.classNames
                         (Help.flatten
-                            [ Help.V "text-grey-darkest"
-                            , Help.V "bg-grey-lighter"
-                            , Help.V "w-full"
-                            , Help.V "text-sm"
-                            , Help.V "py-4"
-                            , Help.V "px-2"
-                            , Help.V "rounded"
+                            [ Help.V "text-grey-darkest bg-grey-lighter w-full text-sm py-4 px-2 rounded"
                             , Help.O needShadow (\_ -> "shadow-md")
                             ]
                         )
@@ -80,16 +74,7 @@ resultCountView results filters =
                 "Alle "
     in
     ul
-        [ Help.classNames
-            [ "list-reset"
-            , "text-xs"
-            , "m-2"
-            , "absolute"
-            , "pin-r"
-            , "pin-t"
-            , "flex"
-            ]
-        ]
+        [ class "list-reset text-xs m-2 absolute pin-r pin-t flex" ]
         (Help.flatten
             [ button
                 [ Help.classNames
