@@ -10,7 +10,7 @@ import Data.Filter as Filter
 import Data.Session exposing (Session)
 import Help
 import Html exposing (Html, a, div, li, span, text, ul)
-import Html.Attributes exposing (href)
+import Html.Attributes exposing (class, href)
 
 
 type alias Model =
@@ -57,36 +57,23 @@ view model =
                 |> List.filterMap Filter.keyword
                 |> List.head
     in
-    div [ Help.classNames [ "container", "max-w-md" ] ]
-        (Help.flatten
-            [ Help.V <|
-                div [ Help.classNames [ "fixed", "w-full", "p-5", "max-w-md" ] ]
-                    [ SearchField.view
-                        results
-                        (Filter.toString globalParams.filters)
-                        globalParams.filters
-                        model.isScrolled
-                        |> Html.map (translateSearchFieldMsg globalParams)
-                    ]
-            , Help.M <|
-                (resultsView globalParams results
-                    |> Maybe.map
-                        (\el ->
-                            div
-                                [ Help.classNames
-                                    [ "py-24"
-                                    , "p-5"
-                                    ]
-                                ]
-                                [ el ]
-                        )
-                )
-            , Help.V <|
-                Button.floatingGroup
-                    [ Button.addNewEntry (AppUrl.createEntry maybeKeyword globalParams)
-                    ]
+    div [ class "container max-w-md" ]
+        [ div [ class "fixed w-full p-5 max-w-md" ]
+            [ SearchField.view
+                results
+                (Filter.toString globalParams.filters)
+                globalParams.filters
+                model.isScrolled
+                |> Html.map (translateSearchFieldMsg globalParams)
             ]
-        )
+        , (resultsView globalParams results
+            |> Maybe.map (\el -> div [ class "py-24 p-5" ] [ el ])
+          )
+            |> Maybe.withDefault (text "")
+        , Button.floatingGroup
+            [ Button.addNewEntry (AppUrl.createEntry maybeKeyword globalParams)
+            ]
+        ]
 
 
 resultsView : GlobalQueryParams -> Array.Array Entry -> Maybe (Html Msg)
@@ -98,15 +85,8 @@ resultsView globalParams results =
                     Just
                         (a
                             [ href (AppUrl.createEntry (Just index) globalParams |> AppUrl.toString)
-                            , Help.classNames
-                                (Help.btnClasses True False
-                                    ++ [ "p-3"
-                                       , "w-full"
-                                       , "my-2"
-                                       , "block"
-                                       , "no-underline"
-                                       ]
-                                )
+                            , class "p-3 w-full my-2 block no-underline"
+                            , Help.btnClasses True False
                             ]
                             [ text ("\"" ++ index ++ "\" hinzufügen") ]
                         )
@@ -116,7 +96,7 @@ resultsView globalParams results =
 
         _ ->
             Just
-                (ul [ Help.classNames [ "list-reset" ] ]
+                (ul [ class "list-reset" ]
                     (results
                         |> Array.toList
                         |> List.sortBy Entry.toComparable
@@ -130,19 +110,11 @@ searchResultRow globalParams entry =
     li
         []
         [ a
-            [ Help.classNames
-                [ "p-3"
-                , "block"
-                , "text-left"
-                , "rounded"
-                , "cursor-pointer"
-                , "text-black"
-                , "hover:bg-grey-lighter"
-                ]
+            [ class "p-3 block text-left rounded cursor-pointer text-black hover:bg-grey-lighter"
             , href (AppUrl.entry entry.index globalParams |> AppUrl.toString)
             ]
-            [ div [ Help.classNames [ "inline-block", "mr-2" ] ] [ span [] [ text entry.index ] ]
-            , div [ Help.classNames [ "inline-block", "text-grey-dark" ] ] [ span [] [ text entry.translation ] ]
+            [ div [ class "inline-block mr-2" ] [ span [] [ text entry.index ] ]
+            , div [ class "inline-block text-grey-ark" ] [ span [] [ text entry.translation ] ]
             ]
         ]
 

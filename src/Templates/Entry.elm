@@ -10,7 +10,7 @@ import Data.Google as Google
 import Data.Session exposing (Session)
 import Help
 import Html exposing (Html, a, div, h3, p, section, span, text)
-import Html.Attributes exposing (class, href, style, target)
+import Html.Attributes exposing (attribute, class, classList, href, style, target)
 import Html.Events exposing (onClick)
 import Html.Keyed
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
@@ -73,12 +73,10 @@ bodyView vm =
     div []
         [ div
             [ class "rounded bg-white shadow-lg relative mt-4 mb-8" ]
-            (Help.flatten
-                [ Help.V <| vm.cardContent "block select-none h-64 text-grey-darkest relative"
-                , Help.M <| nextButton vm
-                , Help.M <| prevButton vm
-                ]
-            )
+            [ vm.cardContent "block select-none h-64 text-grey-darkest relative"
+            , nextButton vm |> Maybe.withDefault (text "")
+            , prevButton vm |> Maybe.withDefault (text "")
+            ]
         , linksView vm
         , entryDetailView vm
         ]
@@ -153,13 +151,13 @@ linksView { session, entry, onCopyToClipboardClicked, onEditButtonClicked, butto
     in
     div
         [ class "flex justify-around flex-wrap pb-4 px-4" ]
-        (Help.flatten
-            [ Help.M <| linkView buttons.imageSearchResults (ExternalLink ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch")) "photo"
-            , Help.M <| linkView buttons.wiktionary (ExternalLink ("https://de.wiktionary.org/wiki/" ++ simpleDe)) "list"
-            , Help.M <| linkView buttons.googleTranslation (ExternalLink (Google.translationAppUrl simpleDe session.language)) "volume_up"
-            , Help.M <| linkView buttons.edit (Action onEditButtonClicked) "edit"
-            , Help.M <| linkView buttons.copyToClipboard (Action onCopyToClipboardClicked) "file_copy"
-            ]
+        ([ linkView buttons.imageSearchResults (ExternalLink ("https://www.google.com/search?q=" ++ simpleDe ++ "&tbm=isch")) "photo"
+         , linkView buttons.wiktionary (ExternalLink ("https://de.wiktionary.org/wiki/" ++ simpleDe)) "list"
+         , linkView buttons.googleTranslation (ExternalLink (Google.translationAppUrl simpleDe session.language)) "volume_up"
+         , linkView buttons.edit (Action onEditButtonClicked) "edit"
+         , linkView buttons.copyToClipboard (Action onCopyToClipboardClicked) "file_copy"
+         ]
+            |> List.concatMap (Maybe.map List.singleton >> Maybe.withDefault [])
         )
 
 
@@ -179,13 +177,21 @@ linkView state linkAction icon =
 
         button enabled =
             tag
-                (Help.flatten
-                    [ Help.O enabled (always actionAttribute)
-                    , Help.V <| class "z-10 flex items-center no-underline material-icons bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker"
-                    , Help.B enabled (\_ -> class "cursor-pointer") (\_ -> class "opacity-50 disabled")
-                    , Help.O external (\_ -> target "_blank")
-                    ]
-                )
+                [ if enabled then
+                    actionAttribute
+
+                  else
+                    attribute "data-dummy" ""
+                , class "z-10 flex items-center no-underline material-icons bg-grey-light rounded-full mx-1 shadow p-3 text-grey-darker"
+                , classList [ ( "cursor-pointer", enabled ), ( "opacity-50 disabled", not enabled ) ]
+                , target
+                    (if external then
+                        "_blank"
+
+                     else
+                        "_self"
+                    )
+                ]
                 [ text icon ]
     in
     case state of

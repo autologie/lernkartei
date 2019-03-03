@@ -1,8 +1,5 @@
 module Help exposing
-    ( C(..)
-    , btnClasses
-    , classNames
-    , flatten
+    ( btnClasses
     , groupedBtnClasses
     , isJust
     , monthNumber
@@ -15,34 +12,17 @@ module Help exposing
 
 import Data.Entry exposing (Entry)
 import Html exposing (Attribute, Html, div, text)
-import Html.Attributes exposing (classList)
+import Html.Attributes exposing (class, classList)
 import Task
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 
 
-type C a b
-    = V a
-    | B Bool (() -> a) (() -> a)
-    | O Bool (() -> a)
-    | Q Bool (() -> Maybe a)
-    | M (Maybe a)
-    | L (List a)
-    | G (Maybe b) (b -> List a)
-
-
-classNames : List String -> Attribute a
-classNames names =
-    names
-        |> List.map (\className -> ( className, True ))
-        |> classList
-
-
-btnClasses : Bool -> Bool -> List String
+btnClasses : Bool -> Bool -> Attribute a
 btnClasses selected disabled =
     groupedBtnClasses selected disabled True True
 
 
-groupedBtnClasses : Bool -> Bool -> Bool -> Bool -> List String
+groupedBtnClasses : Bool -> Bool -> Bool -> Bool -> Attribute a
 groupedBtnClasses selected disabled isFirst isLast =
     [ ( "rounded-l", isFirst )
     , ( "rounded-r", isLast )
@@ -57,8 +37,7 @@ groupedBtnClasses selected disabled isFirst isLast =
     , ( "pointer-events-none", disabled )
     , ( "select-none", True )
     ]
-        |> List.filter (\( _, isIncluded ) -> isIncluded)
-        |> List.map Tuple.first
+        |> classList
 
 
 replaceEntry : Entry -> Entry -> Entry -> Entry
@@ -87,14 +66,7 @@ updateWithCurrentTime model theUpdate onSuccessfulTime onFailedTime =
 showText : String -> Html a
 showText message =
     div
-        [ classNames
-            [ "w-full"
-            , "h-full"
-            , "flex"
-            , "justify-center"
-            , "items-center"
-            ]
-        ]
+        [ class "w-full h-full flex justify-center items-center" ]
         [ div [] [ text message ] ]
 
 
@@ -164,41 +136,3 @@ toggle value list =
 
     else
         list ++ [ value ]
-
-
-flatten : List (C a b) -> List a
-flatten values =
-    List.concatMap
-        (\value ->
-            case value of
-                V v ->
-                    [ v ]
-
-                O True v ->
-                    [ v () ]
-
-                O False _ ->
-                    []
-
-                Q True v ->
-                    v () |> Maybe.map List.singleton |> Maybe.withDefault []
-
-                Q False _ ->
-                    []
-
-                B True v _ ->
-                    [ v () ]
-
-                B False _ v ->
-                    [ v () ]
-
-                M v ->
-                    v |> Maybe.map (\vv -> [ vv ]) |> Maybe.withDefault []
-
-                L v ->
-                    v
-
-                G v gen ->
-                    v |> Maybe.map gen |> Maybe.withDefault []
-        )
-        values

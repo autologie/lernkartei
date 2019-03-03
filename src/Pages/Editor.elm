@@ -12,7 +12,7 @@ import Data.PartOfSpeech as PartOfSpeech
 import Data.Session as Session exposing (Session)
 import Help
 import Html exposing (Html, button, div, h3, input, li, option, p, select, text, textarea, ul)
-import Html.Attributes exposing (class, disabled, id, rows, selected, style, type_, value)
+import Html.Attributes exposing (attribute, class, classList, disabled, id, rows, selected, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Ports
 import Task
@@ -250,63 +250,50 @@ cardContentView { entry } deError jaError defaultClasses =
             "bg-grey-lighter p-3 text-lg"
     in
     div [ class (defaultClasses ++ " flex justify-around flex-col p-4 pb-8") ]
-        (Help.flatten
-            [ Help.V <| h3 [ class "text-xs p-2 text-grey" ] [ text "Das Wort" ]
-            , Help.V <|
-                textInputView (Just "editor-input-de")
-                    entry.index
-                    False
-                    (\value -> WordChange { entry | index = value })
-                    extraClasses
-            , Help.M (deError |> Maybe.map inputRowErrorView)
-            , Help.V <| h3 [ class "text-xs p-2 text-grey" ] [ text "Übersetzung" ]
-            , Help.V <|
-                textInputView Nothing
-                    entry.translation
-                    False
-                    (\value -> WordChange { entry | translation = value })
-                    extraClasses
-            , Help.M (jaError |> Maybe.map inputRowErrorView)
-            ]
-        )
+        [ h3 [ class "text-xs p-2 text-grey" ] [ text "Das Wort" ]
+        , textInputView (Just "editor-input-de")
+            entry.index
+            False
+            (\value -> WordChange { entry | index = value })
+            extraClasses
+        , deError |> Maybe.map inputRowErrorView |> Maybe.withDefault (text "")
+        , h3 [ class "text-xs p-2 text-grey" ] [ text "Übersetzung" ]
+        , textInputView Nothing
+            entry.translation
+            False
+            (\value -> WordChange { entry | translation = value })
+            extraClasses
+        , jaError |> Maybe.map inputRowErrorView |> Maybe.withDefault (text "")
+        ]
 
 
 actionsView : Bool -> Bool -> Html Msg
 actionsView hasError isNew =
     div
         [ class "pt-12 flex" ]
-        (Help.flatten
-            [ Help.O (not isNew)
-                (\_ ->
-                    button
-                        [ onClick DeleteEntry
-                        , class "mr-2 w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
-                        ]
-                        [ text "Löschen" ]
-                )
-            , Help.V <|
-                button
-                    (Help.flatten
-                        [ Help.V <| onClick SaveAndCloseEditor
-                        , Help.V <| class "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
-                        , Help.O (not isNew) (\_ -> class "ml-2")
-                        , Help.O hasError (\_ -> class "opacity-50")
-                        , Help.V <| disabled hasError
-                        ]
-                    )
-                    [ text "Hinzufügen" ]
+        [ if isNew then
+            text ""
+
+          else
+            button
+                [ onClick DeleteEntry
+                , class "mr-2 w-full p-3 text-sm mb-2 bg-red rounded-full text-white"
+                ]
+                [ text "Löschen" ]
+        , button
+            [ onClick SaveAndCloseEditor
+            , class "w-full p-3 text-sm mb-2 bg-green rounded-full text-white"
+            , classList [ ( "ml-2", not isNew ), ( "opacity-50", hasError ) ]
+            , disabled hasError
             ]
-        )
+            [ text "Hinzufügen" ]
+        ]
 
 
 inputRowErrorView : String -> Html msg
 inputRowErrorView e =
     p
-        [ Help.classNames
-            [ "my-2"
-            , "text-red"
-            ]
-        ]
+        [ class "my-2 text-red" ]
         [ text e ]
 
 
@@ -323,21 +310,21 @@ textInputView maybeInputId inputValue multiline handleInput extraClasses =
 
     else
         input
-            (Help.flatten
-                [ Help.V <| type_ "text"
-                , Help.V <| class ("text-base w-full p-2 rounded " ++ extraClasses)
-                , Help.V <| value inputValue
-                , Help.V <| onInput handleInput
-                , Help.G maybeInputId (\value -> [ id value ])
-                ]
-            )
+            [ type_ "text"
+            , class ("text-base w-full p-2 rounded " ++ extraClasses)
+            , value inputValue
+            , onInput handleInput
+            , maybeInputId
+                |> Maybe.map id
+                |> Maybe.withDefault (attribute "data-dummy" "")
+            ]
             []
 
 
 selectInputView : String -> (String -> a) -> List ( String, String ) -> Html a
 selectInputView inputValue handleInput options =
     select
-        [ Help.classNames [ "text-base w-full p-2 bg-white rounded shadow-md" ]
+        [ class "text-base w-full p-2 bg-white rounded shadow-md"
         , style "-webkit-appearance" "none"
         , onInput handleInput
         ]
@@ -366,13 +353,7 @@ navigateTo { navigationKey, globalParams } maybeEntry =
 tagList : Dictionary -> Entry -> Html Msg
 tagList dict entry =
     ul
-        [ Help.classNames
-            [ "list-reset"
-            , "flex"
-            , "flex-wrap"
-            , "justify-center"
-            ]
-        ]
+        [ class "list-reset flex flex-wrap justify-center" ]
         (dict
             |> Dictionary.tags
             |> List.map

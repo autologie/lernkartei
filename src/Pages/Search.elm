@@ -12,7 +12,7 @@ import Data.PartOfSpeech as PartOfSpeech
 import Data.Session exposing (Session)
 import Help
 import Html exposing (Html, a, button, div, h3, li, section, text, ul)
-import Html.Attributes exposing (href)
+import Html.Attributes exposing (class, href)
 import Html.Events exposing (onClick)
 import Html.Keyed
 import Ports
@@ -131,84 +131,52 @@ view model =
                     |> List.head
     in
     Html.Keyed.node "div"
-        [ Help.classNames [ "container", "max-w-md" ] ]
-        (Help.flatten
-            [ Help.V <|
-                ( "search"
-                , div [ Help.classNames [ "fixed", "w-full", "p-5", "max-w-md" ] ]
-                    [ SearchField.view
-                        model.results
-                        model.searchInputBuffer
-                        model.filters
-                        model.isScrolled
-                        |> Html.map translateSearchFieldMsg
+        [ class "container max-w-md" ]
+        [ ( "search"
+          , div [ class "fixed w-full p-5 max-w-md" ]
+                [ SearchField.view
+                    model.results
+                    model.searchInputBuffer
+                    model.filters
+                    model.isScrolled
+                    |> Html.map translateSearchFieldMsg
+                ]
+          )
+        , ( "body"
+          , div [ class "py-24 p-5" ]
+                [ filterViewByAddedIn model.filters
+                , filterViewByPartOfSpeech model.filters
+                , filterViewByTags model.session.dict model.filters
+                , filterViewByStar model.filters
+                ]
+          )
+        , ( "apply"
+          , div
+                [ class "fixed pin-b text-md w-full p-5 flex flex-wrap max-w-md" ]
+                [ maybeKeyword
+                    |> Maybe.map (\keyword -> addButton keyword model.session.globalParams)
+                    |> Maybe.withDefault (text "")
+                , button
+                    [ onClick CloseSearch
+                    , class "bg-grey-lighter text-grey-dark p-4 shadow-md mr-1 rounded flex-1"
                     ]
-                )
-            , Help.V <|
-                ( "body"
-                , div [ Help.classNames [ "py-24", "p-5" ] ]
-                    (Help.flatten
-                        [ Help.V <| filterViewByAddedIn model.filters
-                        , Help.V <| filterViewByPartOfSpeech model.filters
-                        , Help.V <| filterViewByTags model.session.dict model.filters
-                        , Help.V <| filterViewByStar model.filters
-                        ]
-                    )
-                )
-            , Help.V <|
-                ( "apply"
-                , div
-                    [ Help.classNames
-                        [ "fixed"
-                        , "pin-b"
-                        , "text-md"
-                        , "w-full"
-                        , "p-5"
-                        , "flex"
-                        , "flex-wrap"
-                        , "max-w-md"
-                        ]
+                    [ text "Abbrechen" ]
+                , button
+                    [ onClick ApplyFilter
+                    , class "ml-1 p-4 shadow-md flex-1"
+                    , Help.btnClasses True (Array.length model.results == 0)
                     ]
-                    (Help.flatten
-                        [ Help.G maybeKeyword (\keyword -> [ addButton keyword model.session.globalParams ])
-                        , Help.V <|
-                            button
-                                [ onClick CloseSearch
-                                , Help.classNames
-                                    [ "bg-grey-lighter"
-                                    , "text-grey-dark"
-                                    , "p-4"
-                                    , "shadow-md"
-                                    , "mr-1"
-                                    , "rounded"
-                                    , "flex-1"
-                                    ]
-                                ]
-                                [ text "Abbrechen" ]
-                        , Help.V <|
-                            button
-                                [ onClick ApplyFilter
-                                , Help.classNames
-                                    ([ "ml-1"
-                                     , "p-4"
-                                     , "shadow-md"
-                                     , "flex-1"
-                                     ]
-                                        ++ Help.btnClasses True (Array.length model.results == 0)
-                                    )
-                                ]
-                                [ text "Verwerden" ]
-                        ]
-                    )
-                )
-            ]
-        )
+                    [ text "Verwerden" ]
+                ]
+          )
+        ]
 
 
 addButton : String -> GlobalQueryParams -> Html msg
 addButton keyword params =
     a
-        [ Help.classNames (Help.btnClasses True False ++ [ "w-full p-4 mb-2" ])
+        [ class "w-full p-4 mb-2"
+        , Help.btnClasses True False
         , href (AppUrl.createEntry (Just keyword) params |> AppUrl.toString)
         ]
         [ text ("\"" ++ keyword ++ "\" hinzufügen") ]
@@ -306,17 +274,10 @@ addIfNotExists filter filters =
 
 filterSection : String -> List ( Filter, String ) -> (Filter -> List Filter) -> List Filter -> Html Msg
 filterSection title filters createFilters currentFilters =
-    section [ Help.classNames [ "my-4" ] ]
-        [ h3 [ Help.classNames [ "text-grey-darker" ] ] [ text title ]
+    section [ class "my-4" ]
+        [ h3 [ class "text-grey-darker" ] [ text title ]
         , ul
-            [ Help.classNames
-                [ "list-reset"
-                , "flex"
-                , "justify-center"
-                , "flex-wrap"
-                , "my-6"
-                ]
-            ]
+            [ class "list-reset flex justify-center flex-wrap my-6" ]
             (filters
                 |> List.reverse
                 |> List.map
