@@ -114,7 +114,7 @@ searchResultRow globalParams entry =
             , href (AppUrl.entry entry.index globalParams |> AppUrl.toString)
             ]
             [ div [ class "inline-block mr-2" ] [ span [] [ text entry.index ] ]
-            , div [ class "inline-block text-grey-ark" ] [ span [] [ text entry.translation ] ]
+            , div [ class "inline-block text-grey-dark" ] [ span [] [ text entry.translation ] ]
             ]
         ]
 

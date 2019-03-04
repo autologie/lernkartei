@@ -131,8 +131,11 @@ fromString str =
             ":k" ->
                 PartOfSpeechIs Konjunktion
 
-            ":p" ->
+            ":pp" ->
                 PartOfSpeechIs Praeposition
+
+            ":pn" ->
+                PartOfSpeechIs Pronomen
 
             ":m" ->
                 PartOfSpeechIs Modalpartikel
