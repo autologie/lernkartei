@@ -2,7 +2,7 @@ module Components.SearchField exposing (Msg(..), error, view)
 
 import Array
 import Components.Icon as Icon
-import Data.Dictionary exposing (Dictionary)
+import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Filter as Filter exposing (Filter(..))
 import Help
 import Html exposing (Html, button, div, input, p, text, ul)
@@ -42,7 +42,7 @@ resultCountView : Dictionary -> List Filter -> Html Msg
 resultCountView results filters =
     let
         resultCount =
-            results |> Array.length
+            results |> Dictionary.size
 
         isFiltered =
             List.length filters > 0

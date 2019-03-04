@@ -3,24 +3,29 @@ module Data.Dictionary exposing
     , Dictionary
     , added
     , empty
+    , entries
+    , filter
     , findFirstError
+    , fromEntries
     , get
+    , isEmpty
     , nextEntry
+    , nonEmpty
     , randomEntry
     , replacedWith
+    , size
     , tags
     , without
     )
 
-import Array exposing (Array)
 import Data.Entry as Entry exposing (Entry, EntryValidationError)
 import Help
 import Random exposing (Seed)
 import Url
 
 
-type alias Dictionary =
-    Array Entry
+type Dictionary
+    = Dictionary (List Entry)
 
 
 type DictValidationError
@@ -28,64 +33,124 @@ type DictValidationError
     | InvalidEntry Entry EntryValidationError
 
 
+size : Dictionary -> Int
+size (Dictionary entries_) =
+    List.length entries_
+
+
+isEmpty : Dictionary -> Bool
+isEmpty dict =
+    size dict == 0
+
+
+nonEmpty : Dictionary -> Bool
+nonEmpty dict =
+    not (isEmpty dict)
+
+
+entries : Dictionary -> List Entry
+entries (Dictionary entries_) =
+    entries_
+
+
+fromEntries : List Entry -> Dictionary
+fromEntries entries_ =
+    entries_
+        |> List.sortBy Entry.toComparable
+        |> Dictionary
+
+
+fromEntriesWithoutSorting : List Entry -> Dictionary
+fromEntriesWithoutSorting =
+    Dictionary
+
+
 without : Entry -> Dictionary -> Dictionary
 without entry =
-    Array.filter ((/=) entry)
+    entries
+        >> List.filter ((/=) entry)
+        >> fromEntriesWithoutSorting
 
 
 empty : Dictionary
 empty =
-    Array.empty
+    Dictionary []
+
+
+filter : (Entry -> Bool) -> Dictionary -> Dictionary
+filter test =
+    entries
+        >> List.filter test
+        >> fromEntriesWithoutSorting
 
 
 get : String -> Dictionary -> Maybe Entry
-get index dict =
+get index =
     let
         decoded =
             Url.percentDecode index |> Maybe.withDefault index
     in
-    dict
-        |> Array.filter (\e -> e.index == decoded)
-        |> Array.toList
-        |> List.head
+    entries
+        >> List.filter (\e -> e.index == decoded)
+        >> List.head
+
+
+type Traversing
+    = None
+    | TakeNext
+    | Taken Entry
 
 
 nextEntry : String -> Dictionary -> Maybe Entry
-nextEntry index dict =
+nextEntry index =
     let
-        numberedDict =
-            Array.indexedMap (\n entry -> ( n, entry )) dict
+        consume entry passed =
+            case passed of
+                None ->
+                    if entry.index == index then
+                        TakeNext
 
-        numberForIndex =
-            numberedDict
-                |> Array.filter (\( _, entry ) -> entry.index == index)
-                |> Array.map (\( n, _ ) -> n)
-                |> Array.get 0
+                    else
+                        None
+
+                TakeNext ->
+                    Taken entry
+
+                taken ->
+                    taken
+
+        toMaybe traversing =
+            case traversing of
+                None ->
+                    Nothing
+
+                TakeNext ->
+                    Nothing
+
+                Taken entry ->
+                    Just entry
     in
-    numberForIndex
-        |> Maybe.andThen
-            (\nfi ->
-                Array.get
-                    (modBy (Array.length dict) (nfi + 1))
-                    dict
-            )
+    entries >> List.foldl consume None >> toMaybe
 
 
 randomEntry : Seed -> Dictionary -> ( Maybe Entry, Seed )
-randomEntry seed entries =
+randomEntry seed dict =
     let
         ( index, nextSeed ) =
             Random.step
-                (Random.int 0 (Array.length entries - 1))
+                (Random.int 0 (size dict - 1))
                 seed
     in
-    ( entries |> Array.get index
+    ( dict
+        |> entries
+        |> List.drop (index - 1)
+        |> List.head
     , nextSeed
     )
 
 
 findFirstError : Dictionary -> Maybe DictValidationError
-findFirstError dict =
+findFirstError (Dictionary dict) =
     let
         collectError entry =
             Result.andThen
@@ -103,9 +168,7 @@ findFirstError dict =
                 )
 
         result =
-            dict
-                |> Array.toList
-                |> List.foldl collectError (Ok [])
+            dict |> List.foldl collectError (Ok [])
     in
     case result of
         Err e ->
@@ -116,26 +179,30 @@ findFirstError dict =
 
 
 replacedWith : Entry -> Entry -> Dictionary -> Dictionary
-replacedWith original replacement dict =
-    dict
-        |> Array.map
-            (\e ->
-                if e == original then
-                    replacement
+replacedWith original replacement =
+    let
+        updateEntry e =
+            if e == original then
+                replacement
 
-                else
-                    e
-            )
+            else
+                e
+    in
+    entries
+        >> List.map updateEntry
+        >> fromEntries
 
 
 added : Entry -> Dictionary -> Dictionary
-added entry dict =
-    dict |> Array.append ([ entry ] |> Array.fromList)
+added entry =
+    entries
+        >> List.append [ entry ]
+        >> fromEntries
 
 
 tags : Dictionary -> List String
 tags =
-    Array.toList
+    entries
         >> List.concatMap .tags
         >> Help.uniq
         >> List.sort

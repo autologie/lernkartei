@@ -259,7 +259,7 @@ redirectToRandomEntry model params =
         currentEntry =
             case model.route of
                 Entry { entry } ->
-                    entries |> Array.filter ((==) entry) |> Array.get 0
+                    entries |> Dictionary.get entry.index
 
                 _ ->
                     Nothing

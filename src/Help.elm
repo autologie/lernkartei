@@ -3,7 +3,6 @@ module Help exposing
     , groupedBtnClasses
     , isJust
     , monthNumber
-    , replaceEntry
     , showText
     , toggle
     , uniq
@@ -38,15 +37,6 @@ groupedBtnClasses selected disabled isFirst isLast =
     , ( "select-none", True )
     ]
         |> classList
-
-
-replaceEntry : Entry -> Entry -> Entry -> Entry
-replaceEntry from to e =
-    if e == from then
-        to
-
-    else
-        e
 
 
 updateWithCurrentTime : a -> (Time.Posix -> a -> ( a, Cmd b )) -> ((a -> ( a, Cmd b )) -> b) -> b -> ( a, Cmd b )

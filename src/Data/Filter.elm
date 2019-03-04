@@ -1,7 +1,7 @@
 module Data.Filter exposing (Duration(..), Filter(..), applied, keyword, parse, toString)
 
 import Array
-import Data.Dictionary exposing (Dictionary)
+import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry exposing (Entry)
 import Data.PartOfSpeech exposing (PartOfSpeech(..))
 import Regex exposing (Regex)
@@ -206,7 +206,7 @@ isMatchedTo now { index, pos, translation, starred, addedAt, tags } filter =
 
 applied : Time.Posix -> Dictionary -> List Filter -> Dictionary
 applied now dict filters =
-    dict |> Array.filter (\e -> List.all (isMatchedTo now e) filters)
+    dict |> Dictionary.filter (\e -> List.all (isMatchedTo now e) filters)
 
 
 keyword : Filter -> Maybe String

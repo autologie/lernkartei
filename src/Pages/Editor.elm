@@ -408,12 +408,12 @@ saveExistingEntryStep now ({ entry, session } as model) oe =
     let
         theEntry =
             { entry | updatedAt = now }
+
+        updatedDict =
+            session.dict
+                |> Dictionary.replacedWith oe theEntry
     in
-    ( { model
-        | session =
-            session
-                |> Session.withDict (session.dict |> Array.map (Help.replaceEntry oe theEntry))
-      }
+    ( { model | session = session |> Session.withDict updatedDict }
     , Cmd.batch
         [ Ports.saveEntry ( session.userId, Entry.encode theEntry )
         , if oe.index == entry.index then
@@ -436,7 +436,7 @@ saveNewEntryStep now ({ entry, session } as model) =
         | session =
             session
                 |> Session.withDict
-                    (session.dict |> Array.append (Array.fromList [ theEntry ]))
+                    (session.dict |> Dictionary.added theEntry)
       }
     , Cmd.batch
         [ Ports.saveEntry ( session.userId, Entry.encode theEntry )

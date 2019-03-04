@@ -4,6 +4,7 @@ import Array
 import Browser.Navigation exposing (Key)
 import Components.Notification as Notification
 import Data.AppUrl as AppUrl
+import Data.Dictionary as Dictionary
 import Data.Entry as Entry exposing (Entry)
 import Data.Session as Session exposing (AccumulatingSession)
 import Help
@@ -72,7 +73,7 @@ update model msg =
     in
     case msg of
         ReceiveDict (Ok dict) ->
-            ( { model | session = { prevSession | dict = Just (Array.fromList dict) } }, Cmd.none )
+            ( { model | session = { prevSession | dict = Just (Dictionary.fromEntries dict) } }, Cmd.none )
                 |> testSessionAndRouteIfPossible
 
         ReceiveDict (Err _) ->

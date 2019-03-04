@@ -5,6 +5,7 @@ import Browser.Navigation
 import Components.Button as Button
 import Components.SearchField as SearchField
 import Data.AppUrl as AppUrl exposing (AppUrl, GlobalQueryParams)
+import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter
 import Data.Session exposing (Session)
@@ -76,33 +77,31 @@ view model =
         ]
 
 
-resultsView : GlobalQueryParams -> Array.Array Entry -> Maybe (Html Msg)
+resultsView : GlobalQueryParams -> Dictionary -> Maybe (Html Msg)
 resultsView globalParams results =
-    case Array.length results of
-        0 ->
-            case globalParams.filters of
-                [ Filter.Contains index ] ->
-                    Just
-                        (a
-                            [ href (AppUrl.createEntry (Just index) globalParams |> AppUrl.toString)
-                            , class "p-3 w-full my-2 block no-underline"
-                            , Help.btnClasses True False
-                            ]
-                            [ text ("\"" ++ index ++ "\" hinzufügen") ]
-                        )
-
-                _ ->
-                    Nothing
-
-        _ ->
-            Just
-                (ul [ class "list-reset" ]
-                    (results
-                        |> Array.toList
-                        |> List.sortBy Entry.toComparable
-                        |> List.map (searchResultRow globalParams)
+    if Dictionary.isEmpty results then
+        case globalParams.filters of
+            [ Filter.Contains index ] ->
+                Just
+                    (a
+                        [ href (AppUrl.createEntry (Just index) globalParams |> AppUrl.toString)
+                        , class "p-3 w-full my-2 block no-underline"
+                        , Help.btnClasses True False
+                        ]
+                        [ text ("\"" ++ index ++ "\" hinzufügen") ]
                     )
+
+            _ ->
+                Nothing
+
+    else
+        Just
+            (ul [ class "list-reset" ]
+                (results
+                    |> Dictionary.entries
+                    |> List.map (searchResultRow globalParams)
                 )
+            )
 
 
 searchResultRow : GlobalQueryParams -> Entry -> Html Msg

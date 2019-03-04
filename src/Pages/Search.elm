@@ -122,7 +122,7 @@ view : Model -> Html Msg
 view model =
     let
         maybeKeyword =
-            if Array.length model.results > 0 then
+            if Dictionary.nonEmpty model.results then
                 Nothing
 
             else
@@ -164,7 +164,7 @@ view model =
                 , button
                     [ onClick ApplyFilter
                     , class "ml-1 p-4 shadow-md flex-1"
-                    , Help.btnClasses True (Array.length model.results == 0)
+                    , Help.btnClasses True (Dictionary.isEmpty model.results)
                     ]
                     [ text "Verwerden" ]
                 ]

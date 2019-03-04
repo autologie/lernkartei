@@ -103,7 +103,7 @@ update model msg =
 
                 updatedDict =
                     model.session.dict
-                        |> Array.map (Help.replaceEntry entry updatedEntry)
+                        |> Dictionary.replacedWith entry updatedEntry
             in
             ( { model
                 | entry = updatedEntry
