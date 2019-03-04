@@ -19,6 +19,7 @@ import Pages.Entry
 import Pages.Initialize
 import Pages.Search
 import Time
+import Url
 import Url.Parser exposing ((</>), (<?>), s, string)
 import Url.Parser.Query as Query
 
@@ -96,7 +97,7 @@ resolveEntry session index filter shuffle translate =
                 |> (\( m, c ) -> Show ( Entry m, c |> Cmd.map EntryMsg ))
         )
         session
-        index
+        (decode index)
 
 
 resolveNewEntry : Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
@@ -113,7 +114,7 @@ resolveEditor session index filter shuffle translate =
                 |> (\( m, c ) -> Show ( Editor m, c |> Cmd.map EditorMsg ))
         )
         session
-        index
+        (decode index)
 
 
 resolveSearch : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
@@ -205,3 +206,8 @@ resolveWithFallback resolveWithEntry session index =
     Dictionary.get index session.dict
         |> Maybe.map resolveWithEntry
         |> Maybe.withDefault (Show ( NotFound session.navigationKey, Cmd.none ))
+
+
+decode : String -> String
+decode index =
+    Url.percentDecode index |> Maybe.withDefault index

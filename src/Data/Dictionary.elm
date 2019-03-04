@@ -19,13 +19,14 @@ module Data.Dictionary exposing
     )
 
 import Data.Entry as Entry exposing (Entry, EntryValidationError)
+import Dict exposing (Dict)
 import Help
 import Random exposing (Seed)
-import Url
+import Set
 
 
 type Dictionary
-    = Dictionary (List Entry)
+    = Dictionary (Dict String Entry)
 
 
 type DictValidationError
@@ -35,7 +36,7 @@ type DictValidationError
 
 size : Dictionary -> Int
 size (Dictionary entries_) =
-    List.length entries_
+    Dict.size entries_
 
 
 isEmpty : Dictionary -> Bool
@@ -50,49 +51,34 @@ nonEmpty dict =
 
 entries : Dictionary -> List Entry
 entries (Dictionary entries_) =
-    entries_
+    entries_ |> Dict.toList |> List.map Tuple.second
 
 
 fromEntries : List Entry -> Dictionary
-fromEntries entries_ =
-    entries_
-        |> List.sortBy Entry.toComparable
-        |> Dictionary
-
-
-fromEntriesWithoutSorting : List Entry -> Dictionary
-fromEntriesWithoutSorting =
-    Dictionary
+fromEntries =
+    List.map (\entry -> ( entry.index, entry ))
+        >> Dict.fromList
+        >> Dictionary
 
 
 without : Entry -> Dictionary -> Dictionary
-without entry =
-    entries
-        >> List.filter ((/=) entry)
-        >> fromEntriesWithoutSorting
+without entry (Dictionary entries_) =
+    Dictionary (Dict.remove entry.index entries_)
 
 
 empty : Dictionary
 empty =
-    Dictionary []
+    Dictionary Dict.empty
 
 
 filter : (Entry -> Bool) -> Dictionary -> Dictionary
-filter test =
-    entries
-        >> List.filter test
-        >> fromEntriesWithoutSorting
+filter test (Dictionary entries_) =
+    Dictionary (Dict.filter (\_ entry -> test entry) entries_)
 
 
 get : String -> Dictionary -> Maybe Entry
-get index =
-    let
-        decoded =
-            Url.percentDecode index |> Maybe.withDefault index
-    in
-    entries
-        >> List.filter (\e -> e.index == decoded)
-        >> List.head
+get index (Dictionary entries_) =
+    Dict.get index entries_
 
 
 type Traversing
@@ -102,9 +88,9 @@ type Traversing
 
 
 nextEntry : String -> Dictionary -> Maybe Entry
-nextEntry index =
+nextEntry index (Dictionary entries_) =
     let
-        consume entry passed =
+        traverse _ entry passed =
             case passed of
                 None ->
                     if entry.index == index then
@@ -130,29 +116,30 @@ nextEntry index =
                 Taken entry ->
                     Just entry
     in
-    entries >> List.foldl consume None >> toMaybe
+    entries_ |> Dict.foldl traverse None |> toMaybe
 
 
 randomEntry : Seed -> Dictionary -> ( Maybe Entry, Seed )
-randomEntry seed dict =
+randomEntry seed (Dictionary entries_) =
     let
         ( index, nextSeed ) =
             Random.step
-                (Random.int 0 (size dict - 1))
+                (Random.int 0 (Dict.size entries_ - 1))
                 seed
     in
-    ( dict
-        |> entries
+    ( entries_
+        |> Dict.toList
         |> List.drop (index - 1)
         |> List.head
+        |> Maybe.map Tuple.second
     , nextSeed
     )
 
 
 findFirstError : Dictionary -> Maybe DictValidationError
-findFirstError (Dictionary dict) =
+findFirstError (Dictionary entries_) =
     let
-        collectError entry =
+        collectError _ entry =
             Result.andThen
                 (\uniqueItems ->
                     if List.member entry.index uniqueItems then
@@ -168,7 +155,8 @@ findFirstError (Dictionary dict) =
                 )
 
         result =
-            dict |> List.foldl collectError (Ok [])
+            entries_
+                |> Dict.foldl collectError (Ok [])
     in
     case result of
         Err e ->
@@ -179,30 +167,28 @@ findFirstError (Dictionary dict) =
 
 
 replacedWith : Entry -> Entry -> Dictionary -> Dictionary
-replacedWith original replacement =
+replacedWith original replacement (Dictionary entries_) =
     let
-        updateEntry e =
-            if e == original then
-                replacement
-
-            else
-                e
+        updateEntry maybeEntry =
+            maybeEntry |> Maybe.map (always replacement)
     in
-    entries
-        >> List.map updateEntry
-        >> fromEntries
+    entries_
+        |> Dict.update original.index updateEntry
+        |> Dictionary
 
 
 added : Entry -> Dictionary -> Dictionary
-added entry =
-    entries
-        >> List.append [ entry ]
-        >> fromEntries
+added entry (Dictionary entries_) =
+    Dictionary (Dict.insert entry.index entry entries_)
 
 
 tags : Dictionary -> List String
-tags =
-    entries
-        >> List.concatMap .tags
-        >> Help.uniq
-        >> List.sort
+tags (Dictionary entries_) =
+    let
+        traverse _ entry passed =
+            Set.union (Set.fromList entry.tags) passed
+    in
+    entries_
+        |> Dict.foldl traverse Set.empty
+        |> Set.toList
+        |> List.sort

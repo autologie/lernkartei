@@ -5,7 +5,6 @@ module Help exposing
     , monthNumber
     , showText
     , toggle
-    , uniq
     , updateWithCurrentTime
     )
 
@@ -103,20 +102,6 @@ monthNumber posix zone =
 
         Dec ->
             12
-
-
-uniq : List a -> List a
-uniq list =
-    List.foldl
-        (\value passed ->
-            if List.member value passed then
-                passed
-
-            else
-                passed ++ [ value ]
-        )
-        []
-        list
 
 
 toggle : a -> List a -> List a

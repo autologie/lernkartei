@@ -98,6 +98,7 @@ resultsView globalParams results =
         Just
             (ul [ class "list-reset" ]
                 (results
+                    -- TODO: let it be sorted
                     |> Dictionary.entries
                     |> List.map (searchResultRow globalParams)
                 )
