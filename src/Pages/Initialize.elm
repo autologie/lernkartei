@@ -11,6 +11,7 @@ import Help
 import Html exposing (Html, div)
 import Json.Decode as Decode
 import Ports
+import Random
 import Task
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 import Url exposing (Url)
@@ -42,6 +43,7 @@ init startTime url navigationKey =
             , zoneName = Nothing
             , startTime = startTime
             , language = Session.Japanese
+            , seed = Random.initialSeed (startTime |> Time.posixToMillis)
             }
       , url = Just url
       , notification = Notification.initialModel

@@ -49,9 +49,15 @@ view model =
             model.session.globalParams
 
         results =
-            Filter.applied model.session.startTime
-                model.session.dict
-                globalParams.filters
+            model.session.progress.shown
+                ++ model.session.progress.toBeShown
+                |> List.concatMap
+                    (\index ->
+                        Dictionary.get index model.session.dict
+                            |> Maybe.map List.singleton
+                            |> Maybe.withDefault []
+                    )
+                |> List.sortBy Entry.toComparable
 
         maybeKeyword =
             globalParams.filters
@@ -77,9 +83,9 @@ view model =
         ]
 
 
-resultsView : GlobalQueryParams -> Dictionary -> Maybe (Html Msg)
+resultsView : GlobalQueryParams -> List Entry -> Maybe (Html Msg)
 resultsView globalParams results =
-    if Dictionary.isEmpty results then
+    if List.isEmpty results then
         case globalParams.filters of
             [ Filter.Contains index ] ->
                 Just
@@ -97,11 +103,7 @@ resultsView globalParams results =
     else
         Just
             (ul [ class "list-reset" ]
-                (results
-                    -- TODO: let it be sorted
-                    |> Dictionary.entries
-                    |> List.map (searchResultRow globalParams)
-                )
+                (results |> List.map (searchResultRow globalParams))
             )
 
 

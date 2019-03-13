@@ -4,12 +4,17 @@ module Data.Session exposing
     , Session
     , toAccumulatingSession
     , toSession
+    , update
     , withDict
     )
 
 import Browser.Navigation exposing (Key)
-import Data.AppUrl exposing (GlobalQueryParams)
-import Data.Dictionary exposing (Dictionary)
+import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
+import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.Entry as Entry exposing (Entry)
+import Data.Filter as Filter exposing (Filter)
+import Data.Progress as Progress exposing (Progress)
+import Random exposing (Seed)
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
 
 
@@ -22,6 +27,8 @@ type alias Session =
     , globalParams : GlobalQueryParams
     , startTime : Posix
     , language : Language
+    , progress : Progress
+    , seed : Seed
     }
 
 
@@ -33,6 +40,7 @@ type alias AccumulatingSession =
     , zoneName : Maybe ZoneName
     , startTime : Posix
     , language : Language
+    , seed : Seed
     }
 
 
@@ -46,7 +54,7 @@ withDict dict session =
 
 
 toAccumulatingSession : Session -> AccumulatingSession
-toAccumulatingSession { navigationKey, userId, dict, zone, zoneName, startTime, language } =
+toAccumulatingSession { navigationKey, userId, dict, zone, zoneName, startTime, language, seed } =
     { navigationKey = navigationKey
     , userId = Just userId
     , dict = Just dict
@@ -54,6 +62,7 @@ toAccumulatingSession { navigationKey, userId, dict, zone, zoneName, startTime, 
     , zoneName = Just zoneName
     , startTime = startTime
     , language = language
+    , seed = seed
     }
 
 
@@ -61,19 +70,62 @@ toSession : AccumulatingSession -> Maybe Session
 toSession session =
     Maybe.map2
         (\userId dict ->
+            let
+                shuffle =
+                    False
+
+                filters =
+                    []
+
+                ( updatedProgress, updatedSeed ) =
+                    Progress.init
+                        dict
+                        filters
+                        shuffle
+                        session.startTime
+                        session.seed
+            in
             { navigationKey = session.navigationKey
             , userId = userId
             , dict = dict
             , zone = Time.utc
             , zoneName = Offset 0
             , globalParams =
-                { filters = []
-                , shuffle = False
+                { filters = filters
+                , shuffle = shuffle
                 , translate = False
                 }
             , startTime = session.startTime
             , language = session.language
+            , progress = updatedProgress
+            , seed = session.seed
             }
         )
         session.userId
         session.dict
+
+
+update : Maybe String -> Maybe Int -> Maybe Int -> Session -> Session
+update filter shuffle translate session =
+    let
+        parsedGlobalParams =
+            AppUrl.buildQueryParams filter shuffle translate
+    in
+    { session
+        | globalParams = parsedGlobalParams
+        , progress =
+            if parsedGlobalParams.filters == session.globalParams.filters then
+                session.progress
+
+            else
+                let
+                    ( updatedProgress, updatedSeed ) =
+                        Progress.init
+                            session.dict
+                            parsedGlobalParams.filters
+                            parsedGlobalParams.shuffle
+                            session.startTime
+                            session.seed
+                in
+                updatedProgress
+    }

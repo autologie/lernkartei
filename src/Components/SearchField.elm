@@ -3,6 +3,7 @@ module Components.SearchField exposing (Msg(..), error, view)
 import Array
 import Components.Icon as Icon
 import Data.Dictionary as Dictionary exposing (Dictionary)
+import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter exposing (Filter(..))
 import Help
 import Html exposing (Html, button, div, input, p, text, ul)
@@ -17,7 +18,7 @@ type Msg
     | Focus
 
 
-view : Dictionary -> String -> List Filter -> Bool -> Html Msg
+view : List Entry -> String -> List Filter -> Bool -> Html Msg
 view results searchInputBuffer filters needShadow =
     div [ class "relative" ]
         [ input
@@ -38,11 +39,11 @@ view results searchInputBuffer filters needShadow =
         ]
 
 
-resultCountView : Dictionary -> List Filter -> Html Msg
+resultCountView : List Entry -> List Filter -> Html Msg
 resultCountView results filters =
     let
         resultCount =
-            results |> Dictionary.size
+            results |> List.length
 
         isFiltered =
             List.length filters > 0

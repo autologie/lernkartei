@@ -228,7 +228,6 @@ view ({ entry, session } as model) =
         , extraContent = div [] []
         , actions = actionsView hasError isNew
         , onNavigationRequested = NavigateTo
-        , onBackLinkClicked = NoOp
         , onCopyToClipboardClicked = CopyToClipboard
         , onEditButtonClicked = CloseEditor
         , buttons =

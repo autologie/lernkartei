@@ -42,7 +42,6 @@ type Msg
     | TextWrapperElementMeasured (Result Dom.Error Dom.Element)
     | ToggleStar
     | NavigateTo AppUrl
-    | BackToPrevPage
     | CopyToClipboard
     | WindowResized
     | RequestArchive
@@ -118,9 +117,6 @@ update model msg =
                 (AppUrl.toString url)
             )
 
-        BackToPrevPage ->
-            ( model, Browser.Navigation.back model.session.navigationKey 1 )
-
         CopyToClipboard ->
             ( model, Ports.copyToClipboard model.entry.index )
 
@@ -174,7 +170,6 @@ view model =
         , extraContent = buttons model.session model.entry
         , actions = actionsView
         , onNavigationRequested = NavigateTo
-        , onBackLinkClicked = BackToPrevPage
         , onCopyToClipboardClicked = CopyToClipboard
         , onEditButtonClicked = NavigateTo (AppUrl.editEntry model.entry.index model.session.globalParams)
         , buttons =
@@ -183,8 +178,18 @@ view model =
             , googleTranslation = Templates.Entry.Enabled
             , edit = Templates.Entry.Enabled
             , copyToClipboard = Templates.Entry.Enabled
-            , prevLink = Templates.Entry.Enabled
-            , nextLink = Templates.Entry.Enabled
+            , prevLink =
+                if List.length model.session.progress.shown > 1 then
+                    Templates.Entry.Enabled
+
+                else
+                    Templates.Entry.Disabled
+            , nextLink =
+                if List.length model.session.progress.toBeShown > 0 then
+                    Templates.Entry.Enabled
+
+                else
+                    Templates.Entry.Disabled
             }
         }
 
@@ -350,7 +355,7 @@ decodeKeyDownEvent session =
                         NavigateTo (AppUrl.nextEntry session.globalParams)
 
                     "ArrowLeft" ->
-                        BackToPrevPage
+                        NavigateTo (AppUrl.prevEntry session.globalParams)
 
                     _ ->
                         NoOp

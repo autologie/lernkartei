@@ -7,8 +7,11 @@ import Browser.Navigation exposing (Key)
 import Components.Notification as Notification
 import Data.AppUrl as AppUrl
 import Data.Dictionary as Dictionary
+import Data.Entry
 import Data.Filter as Filter
 import Data.PartOfSpeech exposing (PartOfSpeech(..))
+import Data.Progress as Progress exposing (Progress)
+import Data.Session exposing (Session)
 import Help
 import Html exposing (Html, div)
 import Html.Attributes exposing (class)
@@ -41,11 +44,9 @@ main =
 
 
 type alias Model =
-    { seed : Random.Seed
-    , route : Route
+    { route : Route
     , notification : Notification.Model
     , navigationKey : Key
-    , startTime : Time.Posix
     }
 
 
@@ -84,11 +85,9 @@ init startTimeMillis url navigationKey =
         ( pageModel, pageCmd ) =
             Pages.Initialize.init (startTimeMillis |> Time.millisToPosix) url navigationKey
     in
-    ( { seed = Random.initialSeed startTimeMillis
-      , route = Initializing pageModel
+    ( { route = Initializing pageModel
       , notification = Notification.initialModel
       , navigationKey = navigationKey
-      , startTime = startTimeMillis |> Time.millisToPosix
       }
     , pageCmd |> Cmd.map (InitializeMsg >> PageMsg)
     )
@@ -181,8 +180,11 @@ dispatchRoute model url =
                 ]
             )
 
-        Just (RedirectToRandom params) ->
-            redirectToRandomEntry model params
+        Just (NextCard params) ->
+            moveToEntry Progress.next model params
+
+        Just (PrevCard params) ->
+            moveToEntry Progress.prev model params
 
         Just AwaitInitialization ->
             ( model, Cmd.none )
@@ -236,43 +238,38 @@ view model =
         ]
 
 
-redirectToRandomEntry : Model -> AppUrl.GlobalQueryParams -> ( Model, Cmd Msg )
-redirectToRandomEntry model params =
+moveToEntry :
+    (Progress -> Progress)
+    -> Model
+    -> AppUrl.GlobalQueryParams
+    -> ( Model, Cmd Msg )
+moveToEntry updateProgress model params =
     let
-        entries =
-            Filter.applied model.startTime
-                (case model.route of
-                    Entry { entry, session } ->
-                        if params.shuffle then
-                            session.dict |> Dictionary.without entry
+        updateSession progress entry session =
+            { session | progress = updateProgress progress }
 
-                        else
-                            session.dict
+        fromEntry progress entry =
+            ( Just entry
+            , { model
+                | route =
+                    Routes.updateSession (updateSession progress entry)
+                        model.route
+              }
+            )
 
-                    route ->
-                        Routes.extractSession route
-                            |> Maybe.map .dict
-                            |> Maybe.withDefault Dictionary.empty
-                )
-                params.filters
+        fromSession session =
+            session.progress
+                |> Progress.current
+                |> Maybe.andThen (\index -> Dictionary.get index session.dict)
+                |> Maybe.map (fromEntry session.progress)
 
-        currentEntry =
-            case model.route of
-                Entry { entry } ->
-                    entries |> Dictionary.get entry.index
-
-                _ ->
-                    Nothing
-
-        ( maybeEntry, updatedSeed ) =
-            case ( params.shuffle, currentEntry ) of
-                ( False, Just { index } ) ->
-                    ( Dictionary.nextEntry index entries, model.seed )
-
-                _ ->
-                    Dictionary.randomEntry model.seed entries
+        ( maybeEntry, updatedModel ) =
+            model.route
+                |> Routes.extractSession
+                |> Maybe.andThen fromSession
+                |> Maybe.withDefault ( Nothing, model )
     in
-    ( { model | seed = updatedSeed }
+    ( updatedModel
     , Browser.Navigation.replaceUrl model.navigationKey
         (maybeEntry
             |> Maybe.map (\{ index } -> AppUrl.entry index params)

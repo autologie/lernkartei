@@ -135,7 +135,7 @@ view model =
         [ ( "search"
           , div [ class "fixed w-full p-5 max-w-md" ]
                 [ SearchField.view
-                    model.results
+                    (model.results |> Dictionary.entries)
                     model.searchInputBuffer
                     model.filters
                     model.isScrolled

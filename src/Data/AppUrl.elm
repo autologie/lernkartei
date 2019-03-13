@@ -1,11 +1,13 @@
 module Data.AppUrl exposing
     ( AppUrl
     , GlobalQueryParams
+    , buildQueryParams
     , createEntry
     , editEntry
     , entries
     , entry
     , nextEntry
+    , prevEntry
     , search
     , toString
     , top
@@ -30,6 +32,7 @@ type AppUrl
     = TopUrl GlobalQueryParams
     | EntryUrl String GlobalQueryParams
     | NextEntryUrl GlobalQueryParams
+    | PrevEntryUrl GlobalQueryParams
     | EditorUrl String GlobalQueryParams
     | SearchUrl GlobalQueryParams
     | ListUrl GlobalQueryParams
@@ -66,6 +69,9 @@ toString url =
 
         NextEntryUrl params ->
             toStringWithParams [ "entries", "_next" ] [] params
+
+        PrevEntryUrl params ->
+            toStringWithParams [ "entries", "_prev" ] [] params
 
         EntryUrl index params ->
             toStringWithParams [ "entries", index ] [] params
@@ -111,6 +117,11 @@ nextEntry params =
     NextEntryUrl params
 
 
+prevEntry : GlobalQueryParams -> AppUrl
+prevEntry params =
+    PrevEntryUrl params
+
+
 editEntry : String -> GlobalQueryParams -> AppUrl
 editEntry index params =
     EditorUrl index params
@@ -147,6 +158,9 @@ withParams updateParams url =
         TopUrl params ->
             TopUrl (updateParams params)
 
+        PrevEntryUrl params ->
+            PrevEntryUrl (updateParams params)
+
         NextEntryUrl params ->
             NextEntryUrl (updateParams params)
 
@@ -164,3 +178,18 @@ withParams updateParams url =
 
         NewEntryUrl maybeIndex params ->
             NewEntryUrl maybeIndex (updateParams params)
+
+
+buildQueryParams : Maybe String -> Maybe Int -> Maybe Int -> GlobalQueryParams
+buildQueryParams maybeFilters shuffle translate =
+    let
+        parseBool =
+            Maybe.map ((==) 1) >> Maybe.withDefault False
+    in
+    { filters =
+        maybeFilters
+            |> Maybe.map Filter.parse
+            |> Maybe.withDefault []
+    , shuffle = parseBool shuffle
+    , translate = parseBool translate
+    }

@@ -5,10 +5,11 @@ module Routes exposing
     , extractAccumulatingSession
     , extractSession
     , resolve
+    , updateSession
     )
 
 import Browser.Navigation exposing (Key)
-import Data.AppUrl exposing (GlobalQueryParams)
+import Data.AppUrl as AppUrl exposing (GlobalQueryParams)
 import Data.Dictionary as Dictionary
 import Data.Entry as Entry
 import Data.Filter as Filter
@@ -18,6 +19,7 @@ import Pages.Entries
 import Pages.Entry
 import Pages.Initialize
 import Pages.Search
+import Random
 import Time
 import Url
 import Url.Parser exposing ((</>), (<?>), s, string)
@@ -43,7 +45,8 @@ type PageMsg
 
 type RoutingAction
     = AwaitInitialization
-    | RedirectToRandom GlobalQueryParams
+    | NextCard GlobalQueryParams
+    | PrevCard GlobalQueryParams
     | Show ( Route, Cmd PageMsg )
 
 
@@ -70,10 +73,13 @@ resolveWithSession session =
             (resolveList session)
             (s "entries" |> globalParams)
         , Url.Parser.map
-            (\a b c -> buildQueryParams a b c |> RedirectToRandom)
+            (\a b c -> AppUrl.buildQueryParams a b c |> NextCard)
             (s "entries" </> s "_next" |> globalParams)
         , Url.Parser.map
-            (\a b c -> buildQueryParams a b c |> RedirectToRandom)
+            (\a b c -> AppUrl.buildQueryParams a b c |> PrevCard)
+            (s "entries" </> s "_prev" |> globalParams)
+        , Url.Parser.map
+            (\a b c -> AppUrl.buildQueryParams a b c |> NextCard)
             (Url.Parser.top |> globalParams)
         , Url.Parser.map
             (resolveNewEntry session)
@@ -92,7 +98,7 @@ resolveEntry session index filter shuffle translate =
     resolveWithFallback
         (\entry ->
             Pages.Entry.init
-                { session | globalParams = buildQueryParams filter shuffle translate }
+                (Session.update filter shuffle translate session)
                 entry
                 |> (\( m, c ) -> Show ( Entry m, c |> Cmd.map EntryMsg ))
         )
@@ -102,7 +108,8 @@ resolveEntry session index filter shuffle translate =
 
 resolveNewEntry : Session -> Maybe String -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveNewEntry session index filter shuffle translate =
-    Pages.Editor.initCreate index { session | globalParams = buildQueryParams filter shuffle translate }
+    Pages.Editor.initCreate index
+        (Session.update filter shuffle translate session)
         |> (\( m, c ) -> Show ( Editor m, c |> Cmd.map EditorMsg ))
 
 
@@ -110,7 +117,8 @@ resolveEditor : Session -> String -> Maybe String -> Maybe Int -> Maybe Int -> R
 resolveEditor session index filter shuffle translate =
     resolveWithFallback
         (\entry ->
-            Pages.Editor.initEdit entry { session | globalParams = buildQueryParams filter shuffle translate }
+            Pages.Editor.initEdit entry
+                (Session.update filter shuffle translate session)
                 |> (\( m, c ) -> Show ( Editor m, c |> Cmd.map EditorMsg ))
         )
         session
@@ -120,34 +128,15 @@ resolveEditor session index filter shuffle translate =
 resolveSearch : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveSearch session filter shuffle translate =
     Pages.Search.init
-        { session
-            | globalParams = buildQueryParams filter shuffle translate
-        }
+        (Session.update filter shuffle translate session)
         |> (\( m, c ) -> Show ( Search m, c |> Cmd.map SearchMsg ))
 
 
 resolveList : Session -> Maybe String -> Maybe Int -> Maybe Int -> RoutingAction
 resolveList session filter shuffle translate =
     Pages.Entries.init
-        { session
-            | globalParams = buildQueryParams filter shuffle translate
-        }
+        (Session.update filter shuffle translate session)
         |> (\( m, c ) -> Show ( Entries m, c |> Cmd.map EntriesMsg ))
-
-
-buildQueryParams : Maybe String -> Maybe Int -> Maybe Int -> GlobalQueryParams
-buildQueryParams maybeFilters shuffle translate =
-    let
-        parseBool =
-            Maybe.map ((==) 1) >> Maybe.withDefault False
-    in
-    { filters =
-        maybeFilters
-            |> Maybe.map Filter.parse
-            |> Maybe.withDefault []
-    , shuffle = parseBool shuffle
-    , translate = parseBool translate
-    }
 
 
 extractSession : Route -> Maybe Session
@@ -198,6 +187,7 @@ extractAccumulatingSession routes =
             , zoneName = Nothing
             , startTime = Time.millisToPosix 0
             , language = Session.Japanese
+            , seed = Random.initialSeed 0
             }
 
 
@@ -211,3 +201,25 @@ resolveWithFallback resolveWithEntry session index =
 decode : String -> String
 decode index =
     Url.percentDecode index |> Maybe.withDefault index
+
+
+updateSession : (Session -> Session) -> Route -> Route
+updateSession update route =
+    case route of
+        Initializing model ->
+            Initializing model
+
+        Entry model ->
+            Entry { model | session = update model.session }
+
+        Editor model ->
+            Editor { model | session = update model.session }
+
+        Search model ->
+            Search { model | session = update model.session }
+
+        Entries model ->
+            Entries { model | session = update model.session }
+
+        NotFound key ->
+            NotFound key

@@ -3,10 +3,11 @@ module Templates.Entry exposing (ButtonState(..), Model, layout)
 import Components.Icon as Icon
 import Components.SearchField as SearchField
 import Data.AppUrl as AppUrl exposing (AppUrl)
-import Data.Dictionary exposing (Dictionary)
+import Data.Dictionary as Dictionary exposing (Dictionary)
 import Data.Entry as Entry exposing (Entry)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
 import Data.Google as Google
+import Data.Progress exposing (Progress)
 import Data.Session exposing (Session)
 import Help
 import Html exposing (Html, a, div, h3, p, section, span, text)
@@ -27,7 +28,6 @@ type alias Model msg =
     , extraContent : Html msg
     , actions : Html msg
     , onNavigationRequested : AppUrl -> msg
-    , onBackLinkClicked : msg
     , onCopyToClipboardClicked : msg
     , onEditButtonClicked : msg
     , buttons : ButtonsModel
@@ -55,9 +55,10 @@ layout : Model msg -> Html msg
 layout vm =
     Html.Keyed.node "div"
         [ class "container max-w-md p-5 pb-0" ]
-        [ ( "search"
+        [ ( "progress", progressView vm.session.progress )
+        , ( "search"
           , SearchField.view
-                vm.results
+                (vm.results |> Dictionary.entries)
                 (Filter.toString vm.session.globalParams.filters)
                 vm.session.globalParams.filters
                 False
@@ -65,6 +66,29 @@ layout vm =
           )
         , ( "body", bodyView vm )
         , ( "extra", vm.extraContent )
+        ]
+
+
+progressView : Progress -> Html msg
+progressView { shown, toBeShown } =
+    div
+        [ class "w-full h-1 fixed pin-t pin-l bg-grey-lighter z-50"
+        ]
+        [ div
+            [ class "h-full bg-green"
+            , style "transition" "width 200ms ease"
+            , style "width"
+                (String.fromInt
+                    (100
+                        * (List.length shown - 1)
+                        // ((List.length shown - 1)
+                                + List.length toBeShown
+                           )
+                    )
+                    ++ "%"
+                )
+            ]
+            []
         ]
 
 
@@ -100,14 +124,14 @@ nextButton { session, buttons } =
 
 
 prevButton : Model msg -> Maybe (Html msg)
-prevButton { onBackLinkClicked, buttons } =
+prevButton { session, buttons } =
     case buttons.prevLink of
         Enabled ->
             Just
-                (span
+                (a
                     [ class "absolute rounded-full bg-blue pin-l pin-t shadow-md cursor-pointer"
                     , style "margin" "6.4rem 0 0 -1em"
-                    , onClick onBackLinkClicked
+                    , href (AppUrl.prevEntry session.globalParams |> AppUrl.toString)
                     ]
                     [ Icon.prev "width: 3em; height: 3em" ]
                 )
