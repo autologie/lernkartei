@@ -6,11 +6,11 @@ service cloud.firestore {
     }
     match /users/{user}/entries/{entry} {
       allow read, update, delete: if user == request.auth.uid;
-      allow create: if request.auth.uid != null;
+      allow create: if user == request.auth.uid;
     }
     match /users/{user}/archivedEntries/{entry} {
       allow read, update, delete: if user == request.auth.uid;
-      allow create: if request.auth.uid != null;
+      allow create: if user == request.auth.uid;
     }
   }
 }
