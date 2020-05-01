@@ -4,13 +4,13 @@ import Components.Icon as Icon
 import Components.SearchField as SearchField
 import Data.AppUrl as AppUrl exposing (AppUrl)
 import Data.Dictionary exposing (Dictionary)
-import Data.Entry as Entry exposing (Entry)
+import Data.Entry as Entry exposing (Entry, withoutArticle)
 import Data.Filter as Filter exposing (Duration(..), Filter(..))
 import Data.Google as Google
 import Data.Session exposing (Session)
 import Help
-import Html exposing (Html, a, div, h3, p, section, span, text)
-import Html.Attributes exposing (attribute, class, classList, href, style, target)
+import Html exposing (Html, a, div, h3, img, p, section, span, text)
+import Html.Attributes exposing (attribute, class, classList, href, rel, src, style, target)
 import Html.Events exposing (onClick)
 import Html.Keyed
 import Time exposing (Month(..), Posix, Zone, ZoneName(..))
@@ -127,6 +127,20 @@ entryDetailView { entry, session, partOfSpeech, actions, example, tags } =
         , entryDetailRowView "Tile" partOfSpeech
         , entryDetailRowView "Beispiel" example
         , entryDetailRowView "Etikett" tags
+        , entryDetailRowView "Synonyme"
+            (if session.globalParams.translate then
+                []
+
+             else
+                [ a
+                    [ class "block bg-white p-4 text-center rounded"
+                    , target "blank"
+                    , rel "noopener noreferrer"
+                    , href ("https://anderes-wort-fuer.de/" ++ withoutArticle entry ++ "/")
+                    ]
+                    [ img [ src ("https://anderes-wort-fuer.de/template/images/" ++ withoutArticle entry ++ ".png") ] [] ]
+                ]
+            )
         , actions
         ]
 
